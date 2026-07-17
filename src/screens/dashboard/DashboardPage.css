@@ -1,0 +1,128 @@
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard-header h1 {
+  font-size: 20px;
+  color: var(--text-h);
+  margin: 0;
+}
+
+.new-requisition-btn {
+  background: var(--accent);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.new-requisition-btn:hover {
+  background: var(--accent-hover);
+}
+
+.status-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.status-tabs button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.status-tabs button.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.dashboard-error {
+  color: var(--neg);
+  background: var(--neg-soft);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+
+.dashboard-empty {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.requisition-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.requisition-table th,
+.requisition-table td {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.requisition-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  background: var(--bg-sunk);
+}
+
+.requisition-table a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.requisition-table a:hover {
+  text-decoration: underline;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-pending {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.status-in-testing {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.status-retest-needed {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
+.status-closed {
+  background: var(--pos-soft);
+  color: var(--pos);
+}

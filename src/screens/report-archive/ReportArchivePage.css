@@ -1,0 +1,133 @@
+.archive-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.archive-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.archive-header h1 {
+  font-size: 20px;
+  color: var(--text-h);
+  margin: 0;
+}
+
+.archive-search {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+  width: 260px;
+}
+
+.archive-error {
+  color: var(--neg);
+  background: var(--neg-soft);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+
+.archive-empty {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.archive-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.archive-table th,
+.archive-table td {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.archive-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  background: var(--bg-sunk);
+}
+
+.archive-table a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.archive-table a:hover {
+  text-decoration: underline;
+}
+
+.pump-row {
+  cursor: pointer;
+}
+
+.pump-row:hover {
+  background: var(--surface-hover);
+}
+
+.expand-toggle {
+  width: 24px;
+  text-align: center !important;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.pump-model-cell {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pump-detail-row td {
+  padding: 0 14px 14px !important;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.nested-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-sunk);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.nested-report-table th,
+.nested-report-table td {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.nested-report-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.nested-report-table tr:last-child td {
+  border-bottom: none;
+}
+
+.nested-report-table a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.nested-report-table a:hover {
+  text-decoration: underline;
+}

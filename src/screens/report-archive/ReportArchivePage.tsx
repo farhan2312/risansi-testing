@@ -1,0 +1,174 @@
+"use client";
+
+import { Fragment, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import "./ReportArchivePage.css";
+import { listReports } from "@/services/testingService";
+import type { ArchiveReportSummary } from "@/types/testing";
+
+interface PumpGroup {
+  model: string;
+  reportCount: number;
+  totalPoints: number;
+  latestTestDate: string;
+  reports: ArchiveReportSummary[];
+}
+
+const groupByPump = (reports: ArchiveReportSummary[]): PumpGroup[] => {
+  const groups = new Map<string, ArchiveReportSummary[]>();
+  for (const r of reports) {
+    const list = groups.get(r.model) ?? [];
+    list.push(r);
+    groups.set(r.model, list);
+  }
+
+  return [...groups.entries()]
+    .map(([model, reports]) => {
+      const dates = reports.map((r) => r.test_date ?? r.created_at.slice(0, 10));
+      return {
+        model,
+        reportCount: reports.length,
+        totalPoints: reports.reduce((sum, r) => sum + r.pointCount, 0),
+        latestTestDate: dates.sort().at(-1) ?? "-",
+        reports: [...reports].sort((a, b) =>
+          (b.test_date ?? b.created_at).localeCompare(a.test_date ?? a.created_at)
+        ),
+      };
+    })
+    .sort((a, b) => a.model.localeCompare(b.model));
+};
+
+const ReportArchivePage = () => {
+  const [reports, setReports] = useState<ArchiveReportSummary[]>([]);
+  const [search, setSearch] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setError("");
+
+    listReports()
+      .then((rows) => {
+        if (!cancelled) setReports(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load reports.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const pumpGroups = useMemo(() => groupByPump(reports), [reports]);
+  const isSearching = search.trim().length > 0;
+
+  const filteredPumps = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return pumpGroups;
+    return pumpGroups.filter((g) => g.model.toLowerCase().includes(q));
+  }, [pumpGroups, search]);
+
+  const toggleExpanded = (model: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(model)) next.delete(model);
+      else next.add(model);
+      return next;
+    });
+  };
+
+  return (
+    <div className="archive-page">
+      <div className="archive-header">
+        <h1>Report Archive</h1>
+        <input
+          type="text"
+          placeholder="Search by model..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="archive-search"
+        />
+      </div>
+
+      {error && <div className="archive-error">{error}</div>}
+
+      {isLoading ? (
+        <p className="archive-empty">Loading...</p>
+      ) : filteredPumps.length === 0 ? (
+        <p className="archive-empty">No pumps found.</p>
+      ) : (
+        <table className="archive-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Pump Model</th>
+              <th>Reports</th>
+              <th>Total Test Points</th>
+              <th>Latest Test Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredPumps.map((g) => {
+              const isOpen = isSearching || expanded.has(g.model);
+              return (
+                <Fragment key={g.model}>
+                  <tr className="pump-row" onClick={() => toggleExpanded(g.model)}>
+                    <td className="expand-toggle">{isOpen ? "−" : "+"}</td>
+                    <td className="pump-model-cell">{g.model}</td>
+                    <td>{g.reportCount}</td>
+                    <td>{g.totalPoints}</td>
+                    <td>{g.latestTestDate}</td>
+                  </tr>
+                  {isOpen && (
+                    <tr className="pump-detail-row">
+                      <td></td>
+                      <td colSpan={4}>
+                        <table className="nested-report-table">
+                          <thead>
+                            <tr>
+                              <th>Motor</th>
+                              <th>Rated RPM</th>
+                              <th>Rated Head</th>
+                              <th>Suction</th>
+                              <th>Test Date</th>
+                              <th>Points</th>
+                              <th>Requisition-Linked</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {g.reports.map((r) => (
+                              <tr key={r.id}>
+                                <td>
+                                  <Link href={`/reports/${r.id}`}>{r.motor ?? "View report"}</Link>
+                                </td>
+                                <td>{r.rated_rpm ?? "-"}</td>
+                                <td>{r.rated_head ?? "-"}</td>
+                                <td>{r.suction_type ?? "-"}</td>
+                                <td>{r.test_date ?? r.created_at.slice(0, 10)}</td>
+                                <td>{r.pointCount}</td>
+                                <td>{r.requisition_id ? "Yes" : "Historical"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+};
+
+export default ReportArchivePage;
