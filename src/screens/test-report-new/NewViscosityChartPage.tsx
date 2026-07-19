@@ -1,14 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import TestReportForm from "@/components/test-report/TestReportForm";
+import ViscosityChartForm from "@/components/test-report/ViscosityChartForm";
 
-const NewTestReportPage = () => {
+const NewViscosityChartPage = () => {
   const router = useRouter();
 
   return (
-    <TestReportForm
-      heading="New Test Report — Observation Sheet"
+    <ViscosityChartForm
+      heading="New Test Report — Viscosity Correction Chart"
       subheading="Fill this in once physical testing is complete. Not tied to a requisition — use the requisition flow instead if this test was assigned from one."
       submitLabel="Submit Test Report"
       onSubmitted={(report) => router.push(`/reports/${report.id}`)}
@@ -17,4 +17,4 @@ const NewTestReportPage = () => {
   );
 };
 
-export default NewTestReportPage;
+export default NewViscosityChartPage;

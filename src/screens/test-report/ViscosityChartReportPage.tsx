@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import TestReportForm from "@/components/test-report/TestReportForm";
+import ViscosityChartForm from "@/components/test-report/ViscosityChartForm";
 import { getRequisition } from "@/services/testingService";
 import type { TestRequisition } from "@/types/testing";
 
-const TestReportPage = () => {
+const ViscosityChartReportPage = () => {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
@@ -22,10 +22,10 @@ const TestReportPage = () => {
   if (!requisition) return <p className="detail-empty">Loading...</p>;
 
   return (
-    <TestReportForm
+    <ViscosityChartForm
       lockedModel={requisition.model}
       requisitionId={id}
-      heading={`Test Report — ${requisition.model} (Observation Sheet)`}
+      heading={`Test Report — ${requisition.model} (Viscosity Correction Chart)`}
       subheading={`Submitting this report will close requisition ${requisition.id.slice(0, 8)}.`}
       submitLabel="Submit Report & Close Requisition"
       onSubmitted={() => router.push(`/requisitions/${id}`)}
@@ -34,4 +34,4 @@ const TestReportPage = () => {
   );
 };
 
-export default TestReportPage;
+export default ViscosityChartReportPage;

@@ -21,6 +21,13 @@ export const NPSHA_STATUSES = ["POSITIVE", "NEGATIVE"] as const;
 export const CAPACITY_UNITS = ["M3/HR", "MT/HR", "LPH", "KG/MIN", "TPH"] as const;
 export const HEAD_UNITS = ["MWC", "MLC", "KG/CM2", "MTR", "TPH"] as const;
 
+// Viscosity Correction Chart form has its own (slightly different) unit lists.
+export const VISCOSITY_CAPACITY_UNITS = ["M3/HR", "LPH", "TPH", "MT/HR", "KG"] as const;
+export const VISCOSITY_HEAD_UNITS = ["MWC", "MLC", "KG/CM2", "METER"] as const;
+
+export const REPORT_FORMATS = ["observation", "viscosity-chart"] as const;
+export type ReportFormat = (typeof REPORT_FORMATS)[number];
+
 export interface TestRequisition {
   id: string;
   model: string;
@@ -108,6 +115,9 @@ export interface PumpTestReportPoint {
   height_taken_for_filling: number | null;
   time_taken_to_fill_bucket_sec: number | null;
   volumetric_efficiency: number | null;
+  // Viscosity Correction Chart additions
+  volumetric_efficiency_liquid: number | null;
+  mechanical_efficiency_liquid: number | null;
 }
 
 export interface PumpTestReport {
@@ -139,6 +149,13 @@ export interface PumpTestReport {
   tested_by: string | null;
   test_date: string | null;
   created_at: string;
+  // Format tag + Viscosity Correction Chart header fields
+  report_format: ReportFormat | null;
+  po_no: string | null;
+  ec_no: string | null;
+  rev_no: string | null;
+  rev_date: string | null;
+  pump_serial_no: string | null;
   points: PumpTestReportPoint[];
 }
 
@@ -168,6 +185,12 @@ export interface NewReportInput {
   vnotch_baseline?: number;
   tested_by?: string;
   test_date?: string;
+  report_format?: ReportFormat;
+  po_no?: string;
+  ec_no?: string;
+  rev_no?: string;
+  rev_date?: string;
+  pump_serial_no?: string;
   points: Omit<PumpTestReportPoint, "id">[];
 }
 

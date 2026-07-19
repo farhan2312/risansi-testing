@@ -30,6 +30,12 @@ const REPORT_FIELD_MAP: Record<string, string> = {
   vnotch_baseline: "vnotchBaseline",
   tested_by: "testedBy",
   test_date: "testDate",
+  report_format: "reportFormat",
+  po_no: "poNo",
+  ec_no: "ecNo",
+  rev_no: "revNo",
+  rev_date: "revDate",
+  pump_serial_no: "pumpSerialNo",
 };
 
 const POINT_FIELD_MAP: Record<string, string> = {
@@ -55,6 +61,8 @@ const POINT_FIELD_MAP: Record<string, string> = {
   height_taken_for_filling: "heightTakenForFilling",
   time_taken_to_fill_bucket_sec: "timeTakenToFillBucketSec",
   volumetric_efficiency: "volumetricEfficiency",
+  volumetric_efficiency_liquid: "volumetricEfficiencyLiquid",
+  mechanical_efficiency_liquid: "mechanicalEfficiencyLiquid",
 };
 
 export async function GET(req: Request) {

@@ -4,12 +4,11 @@ import { useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import "./TestReportForm.css";
 import { submitReport } from "@/services/testingService";
-import { computePoint } from "@/lib/testReportCalc";
+import { computeViscosityChartPoint } from "@/lib/testReportCalc";
 import {
-  CAPACITY_UNITS,
-  HEAD_UNITS,
-  NPSHA_STATUSES,
   TEST_TYPES,
+  VISCOSITY_CAPACITY_UNITS,
+  VISCOSITY_HEAD_UNITS,
   type PumpTestReport,
   type TestType,
 } from "@/types/testing";
@@ -17,7 +16,8 @@ import {
 interface PointFormValues {
   rpm: string;
   head_kgcm2: string;
-  height_taken_for_filling: string;
+  height_over_vnotch: string;
+  initial_reading: string;
   time_taken_to_fill_bucket_sec: string;
   capacity_direct: string;
   volts: string;
@@ -25,28 +25,25 @@ interface PointFormValues {
   cos_phi: string;
 }
 
-interface ReportFormValues {
+interface ChartFormValues {
   model: string;
-  gearbox_no: string;
-  gearbox_ratio: string;
-  motor: string;
-  motor_rpm: string;
-  suction_type: string;
+  po_no: string;
+  ec_no: string;
+  rev_no: string;
+  rev_date: string;
+  pump_serial_no: string;
   test_type: TestType;
-  npsha_status: string;
-  capacity_unit: string;
-  head_unit: string;
   liquid: string;
   rated_capacity: string;
+  capacity_unit: string;
   rated_head: string;
+  head_unit: string;
   specific_gravity: string;
   viscosity_cps: string;
   k_for_given_cps: string;
   rated_rpm: string;
   q_theoretical_100rev: string;
-  reference_voltage: string;
-  reference_current: string;
-  vnotch_baseline: string;
+  calculated_head: string;
   tested_by: string;
   test_date: string;
   points: PointFormValues[];
@@ -55,7 +52,8 @@ interface ReportFormValues {
 const emptyPoint: PointFormValues = {
   rpm: "",
   head_kgcm2: "",
-  height_taken_for_filling: "",
+  height_over_vnotch: "",
+  initial_reading: "",
   time_taken_to_fill_bucket_sec: "",
   capacity_direct: "",
   volts: "",
@@ -67,9 +65,7 @@ const num = (v: string): number | null => (v.trim() === "" ? null : Number(v));
 const numOrUndef = (v: string): number | undefined => (v.trim() === "" ? undefined : Number(v));
 const fmt = (v: number | null) => (v === null || Number.isNaN(v) ? "-" : v);
 
-interface TestReportFormProps {
-  /** Pre-fills and locks the model field (requisition-linked flow). Leave
-   * undefined for a standalone report, which renders an editable model input. */
+interface ViscosityChartFormProps {
   lockedModel?: string;
   requisitionId?: string;
   heading: string;
@@ -79,7 +75,7 @@ interface TestReportFormProps {
   onCancel: () => void;
 }
 
-const TestReportForm = ({
+const ViscosityChartForm = ({
   lockedModel,
   requisitionId,
   heading,
@@ -87,17 +83,16 @@ const TestReportForm = ({
   submitLabel,
   onSubmitted,
   onCancel,
-}: TestReportFormProps) => {
+}: ViscosityChartFormProps) => {
   const [submitError, setSubmitError] = useState("");
 
-  const { register, control, handleSubmit, formState: { isSubmitting, errors } } = useForm<ReportFormValues>({
+  const { register, control, handleSubmit, formState: { isSubmitting, errors } } = useForm<ChartFormValues>({
     defaultValues: {
       model: lockedModel ?? "",
       liquid: "WATER",
       test_type: "V-notch",
-      npsha_status: "POSITIVE",
       capacity_unit: "M3/HR",
-      head_unit: "KG/CM2",
+      head_unit: "MWC",
       k_for_given_cps: "1",
       points: [emptyPoint],
     },
@@ -109,7 +104,6 @@ const TestReportForm = ({
   const qThVal = useWatch({ control, name: "q_theoretical_100rev" });
   const ratedRpmVal = useWatch({ control, name: "rated_rpm" });
   const kVal = useWatch({ control, name: "k_for_given_cps" });
-  const baselineVal = useWatch({ control, name: "vnotch_baseline" });
   const watchedPoints = useWatch({ control, name: "points" });
 
   const header = {
@@ -117,18 +111,18 @@ const TestReportForm = ({
     qTheoretical100rev: num(qThVal ?? ""),
     ratedRpm: num(ratedRpmVal ?? ""),
     kForGivenCps: num(kVal ?? ""),
-    vnotchBaseline: num(baselineVal ?? ""),
   };
 
   const computedRows = (watchedPoints ?? []).map((p) =>
-    computePoint(
+    computeViscosityChartPoint(
       {
         rpm: num(p?.rpm ?? ""),
         headKgcm2: num(p?.head_kgcm2 ?? ""),
         volts: num(p?.volts ?? ""),
         amps: num(p?.amps ?? ""),
         cosPhi: num(p?.cos_phi ?? ""),
-        heightTakenForFilling: num(p?.height_taken_for_filling ?? ""),
+        heightOverVNotch: num(p?.height_over_vnotch ?? ""),
+        initialReading: num(p?.initial_reading ?? ""),
         timeTakenToFillBucketSec: num(p?.time_taken_to_fill_bucket_sec ?? ""),
         capacityDirect: num(p?.capacity_direct ?? ""),
       },
@@ -136,7 +130,7 @@ const TestReportForm = ({
     )
   );
 
-  const onSubmit = async (values: ReportFormValues) => {
+  const onSubmit = async (values: ChartFormValues) => {
     const model = (lockedModel ?? values.model).trim();
     if (!model) {
       setSubmitError("Model is required.");
@@ -150,9 +144,9 @@ const TestReportForm = ({
           rpm: num(p.rpm),
           head_kgcm2: num(p.head_kgcm2),
           head_mwc: computed.headMwc,
-          vnotch_height: computed.vnotchHeight,
-          initial_reading: null,
-          differential_height: null,
+          vnotch_height: computed.differentialHeight,
+          initial_reading: num(p.initial_reading),
+          differential_height: computed.differentialHeight,
           capacity_calculated_m3hr: computed.capacityCalculatedM3hr,
           volts: num(p.volts),
           amps: num(p.amps),
@@ -166,25 +160,24 @@ const TestReportForm = ({
           theoretical_capacity_at_rated_rpm: computed.theoreticalCapacityAtRatedRpm,
           capacity_liquid_at_rated_rpm_m3hr: computed.capacityLiquidAtRatedRpmM3hr,
           capacity_liquid_at_rated_rpm_lph: computed.capacityLiquidAtRatedRpmLph,
-          height_taken_for_filling: num(p.height_taken_for_filling),
+          height_taken_for_filling: num(p.height_over_vnotch),
           time_taken_to_fill_bucket_sec: num(p.time_taken_to_fill_bucket_sec),
           volumetric_efficiency: computed.volumetricEfficiency,
-          volumetric_efficiency_liquid: null,
-          mechanical_efficiency_liquid: null,
+          volumetric_efficiency_liquid: computed.volumetricEfficiencyLiquid,
+          mechanical_efficiency_liquid: computed.mechanicalEfficiencyLiquid,
         };
       });
 
       const report = await submitReport({
         requisitionId,
         model,
-        report_format: "observation",
-        gearbox_no: values.gearbox_no || undefined,
-        gearbox_ratio: values.gearbox_ratio || undefined,
-        motor: values.motor || undefined,
-        motor_rpm: numOrUndef(values.motor_rpm),
-        suction_type: values.suction_type || undefined,
+        report_format: "viscosity-chart",
+        po_no: values.po_no || undefined,
+        ec_no: values.ec_no || undefined,
+        rev_no: values.rev_no || undefined,
+        rev_date: values.rev_date || undefined,
+        pump_serial_no: values.pump_serial_no || undefined,
         test_type: values.test_type,
-        npsha_status: values.npsha_status,
         capacity_unit: values.capacity_unit,
         head_unit: values.head_unit,
         liquid: values.liquid || undefined,
@@ -195,9 +188,7 @@ const TestReportForm = ({
         k_for_given_cps: numOrUndef(values.k_for_given_cps),
         rated_rpm: numOrUndef(values.rated_rpm),
         q_theoretical_100rev: numOrUndef(values.q_theoretical_100rev),
-        reference_voltage: numOrUndef(values.reference_voltage),
-        reference_current: numOrUndef(values.reference_current),
-        vnotch_baseline: numOrUndef(values.vnotch_baseline),
+        calculated_head: numOrUndef(values.calculated_head),
         tested_by: values.tested_by || undefined,
         test_date: values.test_date || undefined,
         points,
@@ -219,72 +210,44 @@ const TestReportForm = ({
         <div className="form-grid">
           {lockedModel ? (
             <div className="field">
-              <label>Model</label>
+              <label>Model No.</label>
               <input value={lockedModel} disabled />
             </div>
           ) : (
             <div className="field">
-              <label>Model *</label>
-              <input {...register("model", { required: true })} placeholder="e.g. H-30" />
+              <label>Model No. *</label>
+              <input {...register("model", { required: true })} placeholder="e.g. RMOH1115" />
               {errors.model && <span className="field-error">Model is required</span>}
             </div>
           )}
 
           <div className="field">
-            <label>Capacity Measurement Method</label>
+            <label>PO No.</label>
+            <input {...register("po_no")} />
+          </div>
+          <div className="field">
+            <label>EC No.</label>
+            <input {...register("ec_no")} />
+          </div>
+          <div className="field">
+            <label>Rev No.</label>
+            <input {...register("rev_no")} />
+          </div>
+          <div className="field">
+            <label>Rev Date</label>
+            <input type="date" {...register("rev_date")} />
+          </div>
+          <div className="field">
+            <label>Pump S.No.</label>
+            <input {...register("pump_serial_no")} />
+          </div>
+
+          <div className="field">
+            <label>Type of Testing</label>
             <select {...register("test_type")}>
               {TEST_TYPES.map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
-            </select>
-          </div>
-          <div className="field">
-            <label>NPSHa</label>
-            <select {...register("npsha_status")}>
-              {NPSHA_STATUSES.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label>Capacity Unit</label>
-            <select {...register("capacity_unit")}>
-              {CAPACITY_UNITS.map((u) => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label>Head Unit</label>
-            <select {...register("head_unit")}>
-              {HEAD_UNITS.map((u) => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field">
-            <label>Gearbox No.</label>
-            <input {...register("gearbox_no")} />
-          </div>
-          <div className="field">
-            <label>Gearbox Ratio</label>
-            <input {...register("gearbox_ratio")} placeholder="e.g. 10:1" />
-          </div>
-          <div className="field">
-            <label>Motor</label>
-            <input {...register("motor")} placeholder="e.g. CGL 3HP" />
-          </div>
-          <div className="field">
-            <label>Motor RPM</label>
-            <input type="number" step="any" {...register("motor_rpm")} />
-          </div>
-          <div className="field">
-            <label>Suction Type</label>
-            <select {...register("suction_type")}>
-              <option value="">-</option>
-              <option value="Flooded">Flooded</option>
-              <option value="Negative">Negative</option>
             </select>
           </div>
           <div className="field">
@@ -297,9 +260,26 @@ const TestReportForm = ({
             <input type="number" step="any" {...register("rated_capacity")} />
           </div>
           <div className="field">
+            <label>Capacity Unit</label>
+            <select {...register("capacity_unit")}>
+              {VISCOSITY_CAPACITY_UNITS.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
             <label>Rated Head</label>
             <input type="number" step="any" {...register("rated_head")} />
           </div>
+          <div className="field">
+            <label>Head Unit</label>
+            <select {...register("head_unit")}>
+              {VISCOSITY_HEAD_UNITS.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="field">
             <label>Specific Gravity</label>
             <input type="number" step="any" {...register("specific_gravity")} />
@@ -320,20 +300,9 @@ const TestReportForm = ({
             <label>Q Theoretical / 100 Rev</label>
             <input type="number" step="any" {...register("q_theoretical_100rev")} />
           </div>
-
           <div className="field">
-            <label>Reference Voltage (Vin)</label>
-            <input type="number" step="any" {...register("reference_voltage")} />
-          </div>
-          <div className="field">
-            <label>Reference Current (Iin)</label>
-            <input type="number" step="any" {...register("reference_current")} />
-          </div>
-          <div className="field">
-            <label>
-              V-Notch Baseline (Hin) {testType === "V-notch" && <span className="required-hint">used for capacity calc</span>}
-            </label>
-            <input type="number" step="any" {...register("vnotch_baseline")} />
+            <label>Calculated Head (MWC)</label>
+            <input type="number" step="any" {...register("calculated_head")} />
           </div>
 
           <div className="field">
@@ -355,7 +324,12 @@ const TestReportForm = ({
               <tr>
                 <th>RPM</th>
                 <th>Head (KG/CM2)</th>
-                {testType === "V-notch" && <th>Height Taken for Filling (mm)</th>}
+                {testType === "V-notch" && (
+                  <>
+                    <th>Height Over V-Notch (mm)</th>
+                    <th>Initial Reading (mm)</th>
+                  </>
+                )}
                 {testType === "Barrel" && <th>Time to Fill 5L (sec)</th>}
                 {testType === "Flow Meter" && <th>Capacity (M3/Hr)</th>}
                 <th>Volts</th>
@@ -363,8 +337,9 @@ const TestReportForm = ({
                 <th>Cos Phi</th>
                 {testType !== "Flow Meter" && <th className="computed-col">Capacity (M3/Hr)</th>}
                 <th className="computed-col">Power (KW)</th>
-                <th className="computed-col">VE %</th>
-                <th className="computed-col">ME %</th>
+                <th className="computed-col">ME % (Water)</th>
+                <th className="computed-col">VE % (Liquid)</th>
+                <th className="computed-col">ME % (Liquid)</th>
                 <th></th>
               </tr>
             </thead>
@@ -376,7 +351,10 @@ const TestReportForm = ({
                     <td><input type="number" step="any" {...register(`points.${index}.rpm`)} /></td>
                     <td><input type="number" step="any" {...register(`points.${index}.head_kgcm2`)} /></td>
                     {testType === "V-notch" && (
-                      <td><input type="number" step="any" {...register(`points.${index}.height_taken_for_filling`)} /></td>
+                      <>
+                        <td><input type="number" step="any" {...register(`points.${index}.height_over_vnotch`)} /></td>
+                        <td><input type="number" step="any" {...register(`points.${index}.initial_reading`)} /></td>
+                      </>
                     )}
                     {testType === "Barrel" && (
                       <td><input type="number" step="any" {...register(`points.${index}.time_taken_to_fill_bucket_sec`)} /></td>
@@ -391,8 +369,9 @@ const TestReportForm = ({
                       <td className="computed-cell">{fmt(computed?.capacityCalculatedM3hr ?? null)}</td>
                     )}
                     <td className="computed-cell">{fmt(computed?.powerCalculatedKw ?? null)}</td>
-                    <td className="computed-cell">{fmt(computed?.volumetricEfficiency ?? null)}</td>
                     <td className="computed-cell">{fmt(computed?.mechanicalEfficiency ?? null)}</td>
+                    <td className="computed-cell">{fmt(computed?.volumetricEfficiencyLiquid ?? null)}</td>
+                    <td className="computed-cell">{fmt(computed?.mechanicalEfficiencyLiquid ?? null)}</td>
                     <td>
                       <button
                         type="button"
@@ -426,4 +405,4 @@ const TestReportForm = ({
   );
 };
 
-export default TestReportForm;
+export default ViscosityChartForm;

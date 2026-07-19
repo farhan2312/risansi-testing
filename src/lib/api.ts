@@ -90,6 +90,12 @@ export function reportToDict(r: ReportRow) {
     tested_by: r.testedBy,
     test_date: r.testDate,
     created_at: r.createdAt,
+    report_format: r.reportFormat,
+    po_no: r.poNo,
+    ec_no: r.ecNo,
+    rev_no: r.revNo,
+    rev_date: r.revDate,
+    pump_serial_no: r.pumpSerialNo,
   };
 }
 
@@ -119,5 +125,7 @@ export function pointToDict(p: PointRow) {
     height_taken_for_filling: p.heightTakenForFilling,
     time_taken_to_fill_bucket_sec: p.timeTakenToFillBucketSec,
     volumetric_efficiency: p.volumetricEfficiency,
+    volumetric_efficiency_liquid: p.volumetricEfficiencyLiquid,
+    mechanical_efficiency_liquid: p.mechanicalEfficiencyLiquid,
   };
 }

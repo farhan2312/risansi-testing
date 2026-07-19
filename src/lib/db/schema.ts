@@ -113,6 +113,18 @@ export const pumpTestReports = pgTable("pump_test_reports", {
   testedBy: varchar("tested_by", { length: 100 }),
   testDate: date("test_date"),
   createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
+
+  // Which physical form this report was filled against — 'observation' (v-notch
+  // sheet) or 'viscosity-chart' (UPDATE SHEET V-NOTCH (2)) — since they have
+  // different header fields and calculations.
+  reportFormat: varchar("report_format", { length: 30 }),
+
+  // Header fields specific to the Viscosity Correction Chart format.
+  poNo: varchar("po_no", { length: 100 }),
+  ecNo: varchar("ec_no", { length: 100 }),
+  revNo: varchar("rev_no", { length: 20 }),
+  revDate: date("rev_date"),
+  pumpSerialNo: varchar("pump_serial_no", { length: 100 }),
 });
 
 export const pumpTestReportPoints = pgTable("pump_test_report_points", {
@@ -142,5 +154,10 @@ export const pumpTestReportPoints = pgTable("pump_test_report_points", {
   // New fields for the digital format's raw inputs + volumetric efficiency.
   heightTakenForFilling: numeric("height_taken_for_filling", { precision: 10, scale: 2 }), // mm, V-notch/tank method
   timeTakenToFillBucketSec: numeric("time_taken_to_fill_bucket_sec", { precision: 10, scale: 2 }), // Barrel method
-  volumetricEfficiency: numeric("volumetric_efficiency", { precision: 10, scale: 6 }), // VE %
+  volumetricEfficiency: numeric("volumetric_efficiency", { precision: 10, scale: 6 }), // VE % (water)
+
+  // Viscosity Correction Chart format: liquid-corrected efficiencies (use
+  // capacity-for-liquid-at-rated-rpm rather than raw measured capacity).
+  volumetricEfficiencyLiquid: numeric("volumetric_efficiency_liquid", { precision: 10, scale: 6 }),
+  mechanicalEfficiencyLiquid: numeric("mechanical_efficiency_liquid", { precision: 10, scale: 6 }),
 });

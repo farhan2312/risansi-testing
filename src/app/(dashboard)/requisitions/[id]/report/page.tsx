@@ -1,1 +1,1 @@
-export { default } from "@/screens/test-report/TestReportPage";
+export { default } from "@/screens/test-report/ReportFormatChoicePage";

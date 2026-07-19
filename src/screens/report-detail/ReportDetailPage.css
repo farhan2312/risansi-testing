@@ -14,7 +14,17 @@
 .report-detail-page .detail-header h1 {
   font-size: 20px;
   color: var(--text-h);
-  margin: 0;
+  margin: 0 0 4px;
+}
+
+.format-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--info-soft);
+  color: var(--info);
 }
 
 .report-detail-page .back-link {
