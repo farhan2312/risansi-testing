@@ -5,7 +5,7 @@ export interface PendingUser {
   id: string;
   email: string;
   name: string | null;
-  role: "user" | "admin";
+  role: "user" | "source" | "admin";
   status: "pending" | "active" | "rejected";
   reviewed_by: string | null;
   reviewed_at: string | null;
@@ -47,5 +47,13 @@ export const setUserPassword = async (userId: string, newPassword: string) => {
     { newPassword },
     authHeader()
   );
+  return data;
+};
+
+export const setUserRole = async (
+  userId: string,
+  role: "user" | "source" | "admin"
+): Promise<PendingUser> => {
+  const { data } = await apiClient.patch<PendingUser>(`/users/${userId}`, { role }, authHeader());
   return data;
 };

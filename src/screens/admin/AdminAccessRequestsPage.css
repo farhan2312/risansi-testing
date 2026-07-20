@@ -72,3 +72,18 @@
 .reject-btn{
     background:var(--neg);
 }
+
+.role-select{
+    padding:6px 10px;
+    border-radius:6px;
+    border:1px solid var(--border);
+    background:var(--bg-app);
+    color:var(--text);
+    font-size:13px;
+    text-transform:capitalize;
+}
+
+.role-select:disabled{
+    opacity:.6;
+    cursor:not-allowed;
+}

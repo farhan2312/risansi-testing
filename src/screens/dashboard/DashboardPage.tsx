@@ -95,9 +95,15 @@ const DashboardPage = () => {
                 <td>{r.date_of_receipt ?? "-"}</td>
                 <td>{r.retest_needed === null ? "-" : r.retest_needed ? "Yes" : "No"}</td>
                 <td>
-                  <span className={`status-pill status-${r.status.replace(/\s+/g, "-").toLowerCase()}`}>
-                    {r.status}
-                  </span>
+                  {r.status === "Closed" && r.report_id ? (
+                    <Link href={`/reports/${r.report_id}`} className="status-pill status-view-report">
+                      View Report
+                    </Link>
+                  ) : (
+                    <span className={`status-pill status-${r.status.replace(/\s+/g, "-").toLowerCase()}`}>
+                      {r.status}
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}

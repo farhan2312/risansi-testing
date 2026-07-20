@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react";
 import "./AdminAccessRequestsPage.css";
-import { listAllUsers, type PendingUser } from "@/services/adminService";
+import { listAllUsers, setUserRole, type PendingUser } from "@/services/adminService";
 import AdminSetPasswordModal from "@/components/ui/AdminSetPasswordModal";
+
+const ROLES = ["user", "source", "admin"] as const;
 
 const AdminUsersPage = () => {
   const [users, setUsers] = useState<PendingUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [passwordTarget, setPasswordTarget] = useState<PendingUser | null>(null);
+  const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
     listAllUsers()
@@ -18,11 +21,23 @@ const AdminUsersPage = () => {
       .finally(() => setIsLoading(false));
   }, []);
 
+  const handleRoleChange = async (userId: string, role: (typeof ROLES)[number]) => {
+    setRoleUpdatingId(userId);
+    try {
+      const updated = await setUserRole(userId, role);
+      setUsers((prev) => prev.map((u) => (u.id === userId ? updated : u)));
+    } catch {
+      setError("Couldn't update this user's role.");
+    } finally {
+      setRoleUpdatingId(null);
+    }
+  };
+
   return (
     <div className="admin-requests-page">
       <div className="admin-requests-header">
         <h1>Manage Users</h1>
-        <p>View every user and set a new password on their behalf.</p>
+        <p>View every user, assign roles, and set a new password on their behalf.</p>
       </div>
 
       {isLoading && <p>Loading users...</p>}
@@ -48,7 +63,20 @@ const AdminUsersPage = () => {
               <tr key={u.id}>
                 <td>{u.name ?? "—"}</td>
                 <td>{u.email}</td>
-                <td>{u.role}</td>
+                <td>
+                  <select
+                    className="role-select"
+                    value={u.role}
+                    disabled={roleUpdatingId === u.id}
+                    onChange={(e) => handleRoleChange(u.id, e.target.value as (typeof ROLES)[number])}
+                  >
+                    {ROLES.map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ))}
+                  </select>
+                </td>
                 <td>{u.status}</td>
                 <td>
                   <div className="action-buttons">

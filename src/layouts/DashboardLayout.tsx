@@ -4,22 +4,29 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import "./DashboardLayout.css";
-import { clearSession, getCurrentUser, isAdmin } from "@/services/session";
+import { clearSession, getCurrentUser, isAdmin, isSource } from "@/services/session";
 import { useTheme } from "@/contexts/ThemeContext";
 import EditPasswordModal from "@/components/ui/EditPasswordModal";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Requisitions" },
   { href: "/requisitions/new", label: "New Requisition" },
-  { href: "/reports/new", label: "Test Report" },
+  { href: "/reports/new", label: "Test Report", hideFor: ["source"] },
   { href: "/reports", label: "Report Archive" },
 ];
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: "System Admin",
+  source: "Source Team",
+  user: "Tester",
+};
 
 const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
   const user = getCurrentUser();
   const { theme, toggleTheme } = useTheme();
+  const navItems = NAV_ITEMS.filter((item) => !(isSource() && item.hideFor?.includes("source")));
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
@@ -52,7 +59,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
         </div>
 
         <nav className="testing-nav">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -115,7 +122,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
             <span className="sidebar-avatar">{initial}</span>
             <span className="sidebar-profile-text">
               <strong>{displayName}</strong>
-              <span>{user?.role === "admin" ? "System Admin" : "Tester"}</span>
+              <span>{ROLE_LABELS[user?.role ?? "user"] ?? "Tester"}</span>
             </span>
             <span className={`sidebar-chevron ${menuOpen ? "open" : ""}`}>&#9662;</span>
           </button>

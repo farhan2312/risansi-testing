@@ -1,8 +1,8 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 
 import { error, json, requisitionToDict } from "@/lib/api";
 import { db } from "@/lib/db";
-import { testRequisitions } from "@/lib/db/schema";
+import { pumpTestReports, testRequisitions } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +30,18 @@ export async function GET(req: Request) {
     ? await db.select().from(testRequisitions).where(eq(testRequisitions.status, status)).orderBy(desc(testRequisitions.createdAt))
     : await db.select().from(testRequisitions).orderBy(desc(testRequisitions.createdAt));
 
-  return json(rows.map(requisitionToDict));
+  const requisitionIds = rows.map((r) => r.id);
+  const reports = requisitionIds.length
+    ? await db
+        .select({ id: pumpTestReports.id, requisitionId: pumpTestReports.requisitionId })
+        .from(pumpTestReports)
+        .where(inArray(pumpTestReports.requisitionId, requisitionIds))
+    : [];
+  const reportIdByRequisition = new Map(reports.map((r) => [r.requisitionId, r.id]));
+
+  return json(
+    rows.map((r) => ({ ...requisitionToDict(r), report_id: reportIdByRequisition.get(r.id) ?? null }))
+  );
 }
 
 export async function POST(req: Request) {

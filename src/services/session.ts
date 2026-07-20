@@ -31,3 +31,5 @@ export const isAuthenticated = (): boolean =>
   getToken() !== null && getCurrentUser() !== null;
 
 export const isAdmin = (): boolean => getCurrentUser()?.role === "admin";
+
+export const isSource = (): boolean => getCurrentUser()?.role === "source";

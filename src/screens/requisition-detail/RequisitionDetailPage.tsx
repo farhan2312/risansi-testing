@@ -73,15 +73,22 @@ const RequisitionDetailPage = () => {
   if (!requisition) return <p className="detail-empty">Requisition not found.</p>;
 
   const hasPriorReports = (dedup?.priorReports.length ?? 0) > 0;
+  const submittedReport = requisition.reports?.[0];
 
   return (
     <div className="requisition-detail-page">
       <div className="detail-header">
         <div>
           <h1>{requisition.model}</h1>
-          <span className={`status-pill status-${requisition.status.replace(/\s+/g, "-").toLowerCase()}`}>
-            {requisition.status}
-          </span>
+          {requisition.status === "Closed" && submittedReport ? (
+            <Link href={`/reports/${submittedReport.id}`} className="status-pill status-view-report">
+              View Report
+            </Link>
+          ) : (
+            <span className={`status-pill status-${requisition.status.replace(/\s+/g, "-").toLowerCase()}`}>
+              {requisition.status}
+            </span>
+          )}
         </div>
         <Link href="/dashboard" className="back-link">
           &larr; Back to requisitions
@@ -206,7 +213,15 @@ const RequisitionDetailPage = () => {
       {requisition.status === "Closed" && (
         <section className="detail-card">
           <h2>Test Report</h2>
-          <p className="dedup-note">This requisition is closed.</p>
+          <p className="dedup-note">
+            This requisition is closed.
+            {submittedReport && (
+              <>
+                {" "}
+                <Link href={`/reports/${submittedReport.id}`}>View the full report &rarr;</Link>
+              </>
+            )}
+          </p>
           {requisition.reports?.map((r) => (
             <table key={r.id} className="prior-reports-table">
               <tbody>

@@ -33,9 +33,29 @@ export async function PATCH(
     return error("Request body must be JSON", 400);
   }
 
+  if (body.role !== undefined) {
+    const newRole = body.role;
+    if (newRole !== "user" && newRole !== "source" && newRole !== "admin") {
+      return error("'role' must be 'user', 'source', or 'admin'", 400);
+    }
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) {
+      return error("User not found", 404);
+    }
+
+    const [updated] = await db
+      .update(users)
+      .set({ role: newRole })
+      .where(eq(users.id, user.id))
+      .returning();
+
+    return json(userToDict(updated));
+  }
+
   const newStatus = body.status;
   if (newStatus !== "active" && newStatus !== "rejected") {
-    return error("'status' must be 'active' or 'rejected'", 400);
+    return error("'status' or 'role' is required", 400);
   }
 
   const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);

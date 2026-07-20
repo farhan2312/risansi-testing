@@ -72,6 +72,7 @@ export interface TestRequisition {
   closed_at: string | null;
 
   reports?: PumpTestReport[];
+  report_id?: string | null;
 }
 
 export interface NewRequisitionInput {

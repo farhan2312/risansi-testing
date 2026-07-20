@@ -153,3 +153,15 @@
   background: var(--pos-soft);
   color: var(--pos);
 }
+
+.status-view-report {
+  background: var(--pos-soft);
+  color: var(--pos) !important;
+  cursor: pointer;
+  text-decoration: none !important;
+}
+
+.status-view-report:hover {
+  background: var(--pos);
+  color: #fff !important;
+}
