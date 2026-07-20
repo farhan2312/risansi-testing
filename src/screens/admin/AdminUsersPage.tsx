@@ -5,7 +5,7 @@ import "./AdminAccessRequestsPage.css";
 import { listAllUsers, setUserRole, type PendingUser } from "@/services/adminService";
 import AdminSetPasswordModal from "@/components/ui/AdminSetPasswordModal";
 
-const ROLES = ["user", "source", "admin"] as const;
+const ROLES = ["user", "source", "testing", "admin"] as const;
 
 const AdminUsersPage = () => {
   const [users, setUsers] = useState<PendingUser[]>([]);

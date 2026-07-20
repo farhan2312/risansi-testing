@@ -4,13 +4,13 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import "./DashboardLayout.css";
-import { clearSession, getCurrentUser, isAdmin, isSource } from "@/services/session";
+import { clearSession, getCurrentUser, isAdmin } from "@/services/session";
 import { useTheme } from "@/contexts/ThemeContext";
 import EditPasswordModal from "@/components/ui/EditPasswordModal";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Requisitions" },
-  { href: "/requisitions/new", label: "New Requisition" },
+  { href: "/requisitions/new", label: "New Requisition", hideFor: ["testing"] },
   { href: "/reports/new", label: "Test Report", hideFor: ["source"] },
   { href: "/reports", label: "Report Archive" },
 ];
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
 const ROLE_LABELS: Record<string, string> = {
   admin: "System Admin",
   source: "Source Team",
+  testing: "Testing Team",
   user: "Tester",
 };
 
@@ -26,7 +27,8 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const user = getCurrentUser();
   const { theme, toggleTheme } = useTheme();
-  const navItems = NAV_ITEMS.filter((item) => !(isSource() && item.hideFor?.includes("source")));
+  const role = user?.role ?? "user";
+  const navItems = NAV_ITEMS.filter((item) => !item.hideFor?.includes(role));
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);

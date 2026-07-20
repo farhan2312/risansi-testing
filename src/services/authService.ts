@@ -5,7 +5,7 @@ export interface AuthUser {
   id: string;
   name: string | null;
   email: string;
-  role: "user" | "source" | "admin";
+  role: "user" | "source" | "testing" | "admin";
 }
 
 export interface LoginResult {

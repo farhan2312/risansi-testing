@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import "./DashboardPage.css";
 import { listRequisitions } from "@/services/testingService";
+import { getCurrentUser } from "@/services/session";
 import type { RequisitionStatus, TestRequisition } from "@/types/testing";
 
 const STATUS_TABS: { label: string; value: RequisitionStatus | "All" }[] = [
@@ -19,6 +20,7 @@ const DashboardPage = () => {
   const [activeStatus, setActiveStatus] = useState<RequisitionStatus | "All">("Pending");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const canCreateRequisition = getCurrentUser()?.role !== "testing";
 
   useEffect(() => {
     let cancelled = false;
@@ -45,9 +47,11 @@ const DashboardPage = () => {
     <div className="dashboard-page">
       <div className="dashboard-header">
         <h1>Testing Requisitions</h1>
-        <Link href="/requisitions/new" className="new-requisition-btn">
-          + New Requisition
-        </Link>
+        {canCreateRequisition && (
+          <Link href="/requisitions/new" className="new-requisition-btn">
+            + New Requisition
+          </Link>
+        )}
       </div>
 
       <div className="status-tabs">
