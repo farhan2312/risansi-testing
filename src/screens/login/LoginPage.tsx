@@ -128,9 +128,9 @@ const LoginPage = () => {
   return (
     <div className="login-page">
       <div className="branding-panel">
-        <div className="branding-content">
-          <img src="/logo.png" alt="Risansi Industries" className="company-logo" />
+        <img src="/logo.png" alt="Risansi Industries" className="company-logo" />
 
+        <div className="branding-content">
           <h1>
             Pump Testing
             <br />
@@ -141,12 +141,14 @@ const LoginPage = () => {
             Requisition intake, dedup checks against prior test reports, and
             test report submission for the R&amp;D / production testing team.
           </p>
-
-          <span>Version 2.0</span>
         </div>
+
+        <span className="branding-footer">Version 1.0</span>
       </div>
 
       <div className="login-form-container">
+        <img src="/logo.png" alt="Risansi Industries" className="form-logo" />
+
         <div className="auth-tabs" role="tablist">
           <button
             type="button"
