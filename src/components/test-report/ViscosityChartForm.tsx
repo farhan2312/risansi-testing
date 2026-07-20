@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import "./TestReportForm.css";
 import { submitReport } from "@/services/testingService";
 import { computeViscosityChartPoint } from "@/lib/testReportCalc";
+import { clearReportDraft, loadReportDraft, saveReportDraft, type SharedReportDraft } from "@/lib/reportDraft";
 import {
   TEST_TYPES,
   VISCOSITY_CAPACITY_UNITS,
@@ -85,20 +86,65 @@ const ViscosityChartForm = ({
   onCancel,
 }: ViscosityChartFormProps) => {
   const [submitError, setSubmitError] = useState("");
+  const scopeId = requisitionId ?? "standalone";
+
+  const initialDraft = useRef<SharedReportDraft | null>(null);
+  if (initialDraft.current === null) {
+    const loaded = loadReportDraft(scopeId);
+    // Viscosity Chart's unit dropdowns use a different value set than the
+    // Observation Sheet's — only carry a unit over if it's valid here.
+    if (loaded.capacity_unit && !VISCOSITY_CAPACITY_UNITS.includes(loaded.capacity_unit as never)) {
+      delete loaded.capacity_unit;
+    }
+    if (loaded.head_unit && !VISCOSITY_HEAD_UNITS.includes(loaded.head_unit as never)) {
+      delete loaded.head_unit;
+    }
+    initialDraft.current = loaded;
+  }
+  const draft = initialDraft.current;
 
   const { register, control, handleSubmit, formState: { isSubmitting, errors } } = useForm<ChartFormValues>({
     defaultValues: {
-      model: lockedModel ?? "",
-      liquid: "WATER",
-      test_type: "V-notch",
-      capacity_unit: "M3/HR",
-      head_unit: "MWC",
-      k_for_given_cps: "1",
+      model: lockedModel ?? draft.model ?? "",
+      liquid: draft.liquid ?? "WATER",
+      test_type: (draft.test_type as TestType) ?? "V-notch",
+      capacity_unit: draft.capacity_unit ?? "M3/HR",
+      head_unit: draft.head_unit ?? "MWC",
+      rated_capacity: draft.rated_capacity ?? "",
+      rated_head: draft.rated_head ?? "",
+      specific_gravity: draft.specific_gravity ?? "",
+      viscosity_cps: draft.viscosity_cps ?? "",
+      k_for_given_cps: draft.k_for_given_cps ?? "1",
+      rated_rpm: draft.rated_rpm ?? "",
+      q_theoretical_100rev: draft.q_theoretical_100rev ?? "",
+      tested_by: draft.tested_by ?? "",
+      test_date: draft.test_date ?? "",
       points: [emptyPoint],
     },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "points" });
+
+  const sharedFieldsWatch = useWatch({
+    control,
+    name: [
+      "model", "test_type", "liquid", "rated_capacity", "capacity_unit", "rated_head",
+      "head_unit", "specific_gravity", "viscosity_cps", "k_for_given_cps", "rated_rpm",
+      "q_theoretical_100rev", "tested_by", "test_date",
+    ],
+  });
+  useEffect(() => {
+    const [model, test_type, liquid, rated_capacity, capacity_unit, rated_head, head_unit,
+      specific_gravity, viscosity_cps, k_for_given_cps, rated_rpm, q_theoretical_100rev,
+      tested_by, test_date] = sharedFieldsWatch;
+    const nextDraft: SharedReportDraft = {
+      model: lockedModel ?? model, test_type, liquid, rated_capacity, capacity_unit, rated_head,
+      head_unit, specific_gravity, viscosity_cps, k_for_given_cps, rated_rpm, q_theoretical_100rev,
+      tested_by, test_date,
+    };
+    saveReportDraft(scopeId, nextDraft);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharedFieldsWatch]);
 
   const testType = useWatch({ control, name: "test_type" });
   const qThVal = useWatch({ control, name: "q_theoretical_100rev" });
@@ -193,6 +239,7 @@ const ViscosityChartForm = ({
         test_date: values.test_date || undefined,
         points,
       });
+      clearReportDraft(scopeId);
       onSubmitted(report);
     } catch {
       setSubmitError("Could not submit test report. Please try again.");
