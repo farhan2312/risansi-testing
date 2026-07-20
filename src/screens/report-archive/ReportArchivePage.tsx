@@ -6,6 +6,8 @@ import "./ReportArchivePage.css";
 import { listReports } from "@/services/testingService";
 import type { ArchiveReportSummary } from "@/types/testing";
 
+const PAGE_SIZE = 20;
+
 interface PumpGroup {
   model: string;
   reportCount: number;
@@ -44,6 +46,7 @@ const ReportArchivePage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,6 +77,25 @@ const ReportArchivePage = () => {
     if (!q) return pumpGroups;
     return pumpGroups.filter((g) => g.model.toLowerCase().includes(q));
   }, [pumpGroups, search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPumps.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedPumps = filteredPumps.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  const pageNumbers = useMemo(() => {
+    const pages: number[] = [];
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, start + 4);
+    for (let p = Math.max(1, end - 4); p <= end; p++) pages.push(p);
+    return pages;
+  }, [currentPage, totalPages]);
 
   const toggleExpanded = (model: string) => {
     setExpanded((prev) => {
@@ -115,7 +137,7 @@ const ReportArchivePage = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredPumps.map((g) => {
+            {pagedPumps.map((g) => {
               const isOpen = isSearching || expanded.has(g.model);
               return (
                 <Fragment key={g.model}>
@@ -166,6 +188,61 @@ const ReportArchivePage = () => {
             })}
           </tbody>
         </table>
+      )}
+
+      {!isLoading && filteredPumps.length > 0 && totalPages > 1 && (
+        <div className="archive-pagination">
+          <button
+            type="button"
+            disabled={currentPage === 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            Prev
+          </button>
+
+          {pageNumbers[0] > 1 && (
+            <>
+              <button type="button" onClick={() => setPage(1)}>
+                1
+              </button>
+              {pageNumbers[0] > 2 && <span className="archive-pagination-ellipsis">…</span>}
+            </>
+          )}
+
+          {pageNumbers.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={p === currentPage ? "active" : ""}
+              onClick={() => setPage(p)}
+            >
+              {p}
+            </button>
+          ))}
+
+          {pageNumbers.at(-1)! < totalPages && (
+            <>
+              {pageNumbers.at(-1)! < totalPages - 1 && (
+                <span className="archive-pagination-ellipsis">…</span>
+              )}
+              <button type="button" onClick={() => setPage(totalPages)}>
+                {totalPages}
+              </button>
+            </>
+          )}
+
+          <button
+            type="button"
+            disabled={currentPage === totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Next
+          </button>
+
+          <span className="archive-pagination-status">
+            Page {currentPage} of {totalPages}
+          </span>
+        </div>
       )}
     </div>
   );

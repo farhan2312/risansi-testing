@@ -48,7 +48,7 @@ export const submitReport = async (input: NewReportInput): Promise<PumpTestRepor
 
 export const listReports = async (model?: string): Promise<ArchiveReportSummary[]> => {
   const { data } = await apiClient.get<ArchiveReportSummary[]>("/reports", {
-    params: model ? { model } : undefined,
+    params: { limit: 500, ...(model ? { model } : {}) },
   });
   return data;
 };
