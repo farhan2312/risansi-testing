@@ -67,3 +67,11 @@ export function decodeToken(req: Request): TokenClaims {
     throw new AuthError("Invalid token", 401);
   }
 }
+
+export function requireAdmin(req: Request): TokenClaims {
+  const claims = decodeToken(req);
+  if (claims.role !== "admin") {
+    throw new AuthError("Admin access required", 403);
+  }
+  return claims;
+}

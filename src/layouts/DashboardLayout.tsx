@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import "./DashboardLayout.css";
-import { clearSession, getCurrentUser } from "@/services/session";
+import { clearSession, getCurrentUser, isAdmin } from "@/services/session";
 import { useTheme } from "@/contexts/ThemeContext";
 
 const NAV_ITEMS = [
@@ -59,6 +59,14 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
               {item.label}
             </Link>
           ))}
+          {isAdmin() && (
+            <Link
+              href="/admin/access-requests"
+              className={pathname === "/admin/access-requests" ? "active" : ""}
+            >
+              Access Requests
+            </Link>
+          )}
         </nav>
 
         <div className="sidebar-profile" ref={menuRef}>

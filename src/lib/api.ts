@@ -18,6 +18,21 @@ export function error(message: string, status = 400): NextResponse {
 type RequisitionRow = typeof schema.testRequisitions.$inferSelect;
 type ReportRow = typeof schema.pumpTestReports.$inferSelect;
 type PointRow = typeof schema.pumpTestReportPoints.$inferSelect;
+type UserRow = typeof schema.users.$inferSelect;
+
+/** Mirrors sales-portal-next's _user_to_dict(): raw snake_case columns, minus password_hash. */
+export function userToDict(u: UserRow) {
+  return {
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    role: u.role,
+    status: u.status,
+    reviewed_by: u.reviewedBy,
+    reviewed_at: u.reviewedAt,
+    created_at: u.createdAt,
+  };
+}
 
 export function requisitionToDict(r: RequisitionRow) {
   return {
