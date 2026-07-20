@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import "./DashboardLayout.css";
 import { clearSession, getCurrentUser, isAdmin } from "@/services/session";
 import { useTheme } from "@/contexts/ThemeContext";
+import EditPasswordModal from "@/components/ui/EditPasswordModal";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Requisitions" },
@@ -21,6 +22,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const { theme, toggleTheme } = useTheme();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -67,6 +69,14 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
               Access Requests
             </Link>
           )}
+          {isAdmin() && (
+            <Link
+              href="/admin/users"
+              className={pathname === "/admin/users" ? "active" : ""}
+            >
+              Manage Users
+            </Link>
+          )}
         </nav>
 
         <div className="sidebar-profile" ref={menuRef}>
@@ -82,6 +92,17 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                 <span className={`theme-switch ${theme === "dark" ? "on" : ""}`}>
                   <span className="theme-switch-knob" />
                 </span>
+              </button>
+
+              <button
+                type="button"
+                className="sidebar-profile-menu-item"
+                onClick={() => {
+                  setShowEditPassword(true);
+                  setMenuOpen(false);
+                }}
+              >
+                Change Password
               </button>
 
               <button type="button" className="sidebar-profile-menu-item danger" onClick={handleLogout}>
@@ -104,6 +125,8 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       <div className="testing-content">
         <main className="testing-main">{children}</main>
       </div>
+
+      {showEditPassword && <EditPasswordModal onClose={() => setShowEditPassword(false)} />}
     </div>
   );
 };

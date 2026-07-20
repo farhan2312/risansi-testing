@@ -35,3 +35,17 @@ export const reviewUser = async (
   );
   return data;
 };
+
+export const listAllUsers = async (): Promise<PendingUser[]> => {
+  const { data } = await apiClient.get<PendingUser[]>("/users", authHeader());
+  return data;
+};
+
+export const setUserPassword = async (userId: string, newPassword: string) => {
+  const { data } = await apiClient.patch(
+    `/users/${userId}/password`,
+    { newPassword },
+    authHeader()
+  );
+  return data;
+};
