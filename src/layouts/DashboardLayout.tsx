@@ -55,12 +55,12 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   return (
     <div className="testing-layout">
       <aside className="testing-sidebar">
-        <div className="testing-sidebar-brand">
+        <div className="testing-sidebar-logo">
           <img src="/logo.png" alt="Risansi Industries" />
-          <span>Pump Testing Portal</span>
         </div>
 
         <nav className="testing-nav">
+          <p className="testing-nav-group-label">Testing</p>
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -70,21 +70,23 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
               {item.label}
             </Link>
           ))}
+
           {isAdmin() && (
-            <Link
-              href="/admin/access-requests"
-              className={pathname === "/admin/access-requests" ? "active" : ""}
-            >
-              Access Requests
-            </Link>
-          )}
-          {isAdmin() && (
-            <Link
-              href="/admin/users"
-              className={pathname === "/admin/users" ? "active" : ""}
-            >
-              Manage Users
-            </Link>
+            <>
+              <p className="testing-nav-group-label">Admin</p>
+              <Link
+                href="/admin/access-requests"
+                className={pathname === "/admin/access-requests" ? "active" : ""}
+              >
+                Access Requests
+              </Link>
+              <Link
+                href="/admin/users"
+                className={pathname === "/admin/users" ? "active" : ""}
+              >
+                Manage Users
+              </Link>
+            </>
           )}
         </nav>
 
