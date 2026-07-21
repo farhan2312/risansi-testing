@@ -57,3 +57,15 @@ export const getReport = async (id: string): Promise<PumpTestReport> => {
   const { data } = await apiClient.get<PumpTestReport>(`/reports/${id}`);
   return data;
 };
+
+export const updateReport = async (
+  id: string,
+  input: Omit<NewReportInput, "requisitionId">
+): Promise<PumpTestReport> => {
+  const { data } = await apiClient.patch<PumpTestReport>(`/reports/${id}`, input);
+  return data;
+};
+
+export const deleteReport = async (id: string): Promise<void> => {
+  await apiClient.delete(`/reports/${id}`);
+};

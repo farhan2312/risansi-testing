@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import "./TestReportForm.css";
-import { submitReport } from "@/services/testingService";
+import { submitReport, updateReport } from "@/services/testingService";
 import { computeViscosityChartPoint } from "@/lib/testReportCalc";
 import { clearReportDraft, loadReportDraft, saveReportDraft, type SharedReportDraft } from "@/lib/reportDraft";
 import {
@@ -66,10 +66,29 @@ const emptyPoint: PointFormValues = {
 const num = (v: string): number | null => (v.trim() === "" ? null : Number(v));
 const numOrUndef = (v: string): number | undefined => (v.trim() === "" ? undefined : Number(v));
 const fmt = (v: number | null) => (v === null || Number.isNaN(v) ? "-" : v);
+const str = (v: string | number | null | undefined): string => (v === null || v === undefined ? "" : String(v));
+
+const pointsFromExistingReport = (report: PumpTestReport): PointFormValues[] => {
+  const isFlowMeter = report.test_type === "Flow Meter";
+  return report.points.map((p) => ({
+    rpm: str(p.rpm),
+    head_kgcm2: str(p.head_kgcm2),
+    height_over_vnotch: str(p.height_taken_for_filling),
+    initial_reading: str(p.initial_reading),
+    time_taken_to_fill_bucket_sec: str(p.time_taken_to_fill_bucket_sec),
+    capacity_direct: isFlowMeter ? str(p.capacity_calculated_m3hr) : "",
+    volts: str(p.volts),
+    amps: str(p.amps),
+    cos_phi: str(p.cos_phi),
+  }));
+};
 
 interface ViscosityChartFormProps {
   lockedModel?: string;
   requisitionId?: string;
+  /** Editing an already-submitted report — prefills every field (including
+   * points) from it and PATCHes instead of POSTing on submit. */
+  existingReport?: PumpTestReport;
   heading: string;
   subheading: string;
   submitLabel: string;
@@ -80,6 +99,7 @@ interface ViscosityChartFormProps {
 const ViscosityChartForm = ({
   lockedModel,
   requisitionId,
+  existingReport,
   heading,
   subheading,
   submitLabel,
@@ -91,37 +111,48 @@ const ViscosityChartForm = ({
 
   const initialDraft = useRef<SharedReportDraft | null>(null);
   if (initialDraft.current === null) {
-    const loaded = loadReportDraft(scopeId);
-    // Viscosity Chart's unit dropdowns use a different value set than the
-    // Observation Sheet's — only carry a unit over if it's valid here.
-    if (loaded.capacity_unit && !VISCOSITY_CAPACITY_UNITS.includes(loaded.capacity_unit as never)) {
-      delete loaded.capacity_unit;
+    if (existingReport) {
+      initialDraft.current = {};
+    } else {
+      const loaded = loadReportDraft(scopeId);
+      // Viscosity Chart's unit dropdowns use a different value set than the
+      // Observation Sheet's — only carry a unit over if it's valid here.
+      if (loaded.capacity_unit && !VISCOSITY_CAPACITY_UNITS.includes(loaded.capacity_unit as never)) {
+        delete loaded.capacity_unit;
+      }
+      if (loaded.head_unit && !VISCOSITY_HEAD_UNITS.includes(loaded.head_unit as never)) {
+        delete loaded.head_unit;
+      }
+      initialDraft.current = loaded;
     }
-    if (loaded.head_unit && !VISCOSITY_HEAD_UNITS.includes(loaded.head_unit as never)) {
-      delete loaded.head_unit;
-    }
-    initialDraft.current = loaded;
   }
   const draft = initialDraft.current;
+  const r = existingReport;
 
   const { register, control, handleSubmit, formState: { isSubmitting, errors } } = useForm<ChartFormValues>({
     defaultValues: {
-      model: lockedModel ?? draft.model ?? "",
-      liquid: draft.liquid ?? "WATER",
-      test_type: (draft.test_type as TestType) ?? "V-notch",
-      capacity_unit: draft.capacity_unit ?? "M3/HR",
-      head_unit: draft.head_unit ?? "MWC",
-      rated_capacity: draft.rated_capacity ?? "",
-      rated_head: draft.rated_head ?? "",
-      specific_gravity: draft.specific_gravity ?? "",
-      viscosity_cps: draft.viscosity_cps ?? "",
-      k_for_given_cps: draft.k_for_given_cps ?? "1",
-      rated_rpm: draft.rated_rpm ?? "",
-      q_theoretical_100rev: draft.q_theoretical_100rev ?? "",
-      tested_by: draft.tested_by ?? "",
-      test_date: draft.test_date ?? "",
-      remarks: "",
-      points: [emptyPoint],
+      model: lockedModel ?? r?.model ?? draft.model ?? "",
+      po_no: str(r?.po_no),
+      ec_no: str(r?.ec_no),
+      rev_no: str(r?.rev_no),
+      rev_date: str(r?.rev_date),
+      pump_serial_no: str(r?.pump_serial_no),
+      liquid: r?.liquid ?? draft.liquid ?? "WATER",
+      test_type: (r?.test_type as TestType) ?? (draft.test_type as TestType) ?? "V-notch",
+      capacity_unit: r?.capacity_unit ?? draft.capacity_unit ?? "M3/HR",
+      head_unit: r?.head_unit ?? draft.head_unit ?? "MWC",
+      rated_capacity: str(r?.rated_capacity) || draft.rated_capacity || "",
+      rated_head: str(r?.rated_head) || draft.rated_head || "",
+      specific_gravity: str(r?.specific_gravity) || draft.specific_gravity || "",
+      viscosity_cps: str(r?.viscosity_cps) || draft.viscosity_cps || "",
+      k_for_given_cps: str(r?.k_for_given_cps) || draft.k_for_given_cps || "1",
+      rated_rpm: str(r?.rated_rpm) || draft.rated_rpm || "",
+      q_theoretical_100rev: str(r?.q_theoretical_100rev) || draft.q_theoretical_100rev || "",
+      calculated_head: str(r?.calculated_head),
+      tested_by: r?.tested_by ?? draft.tested_by ?? "",
+      test_date: r?.test_date ?? draft.test_date ?? "",
+      remarks: str(r?.remarks),
+      points: r ? pointsFromExistingReport(r) : [emptyPoint],
     },
   });
 
@@ -136,6 +167,7 @@ const ViscosityChartForm = ({
     ],
   });
   useEffect(() => {
+    if (existingReport) return;
     const [model, test_type, liquid, rated_capacity, capacity_unit, rated_head, head_unit,
       specific_gravity, viscosity_cps, k_for_given_cps, rated_rpm, q_theoretical_100rev,
       tested_by, test_date] = sharedFieldsWatch;
@@ -216,10 +248,9 @@ const ViscosityChartForm = ({
         };
       });
 
-      const report = await submitReport({
-        requisitionId,
+      const payload = {
         model,
-        report_format: "viscosity-chart",
+        report_format: "viscosity-chart" as const,
         po_no: values.po_no || undefined,
         ec_no: values.ec_no || undefined,
         rev_no: values.rev_no || undefined,
@@ -241,8 +272,12 @@ const ViscosityChartForm = ({
         test_date: values.test_date || undefined,
         remarks: values.remarks || undefined,
         points,
-      });
-      clearReportDraft(scopeId);
+      };
+
+      const report = existingReport
+        ? await updateReport(existingReport.id, payload)
+        : await submitReport({ requisitionId, ...payload });
+      if (!existingReport) clearReportDraft(scopeId);
       onSubmitted(report);
     } catch {
       setSubmitError("Could not submit test report. Please try again.");

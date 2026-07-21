@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import "./ReportDetailPage.css";
-import { getReport } from "@/services/testingService";
+import { deleteReport, getReport } from "@/services/testingService";
+import { isWithinReportEditWindow, REPORT_EDIT_WINDOW_DAYS } from "@/lib/reportEditWindow";
 import type { PumpTestReport, PumpTestReportPoint } from "@/types/testing";
 
 const fmt = (v: number | string | null | undefined) => (v === null || v === undefined || v === "" ? "-" : v);
@@ -49,13 +50,30 @@ const FORMAT_LABELS: Record<string, string> = {
 
 const ReportDetailPage = () => {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [report, setReport] = useState<PumpTestReport | null>(null);
   const [error, setError] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     getReport(id).then(setReport).catch(() => setError("Could not load report."));
   }, [id]);
+
+  const handleDelete = async () => {
+    if (!report) return;
+    if (!window.confirm(`Delete report ${report.report_no ?? report.id}? This cannot be undone.`)) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await deleteReport(report.id);
+      router.push("/reports");
+    } catch {
+      setError("Could not delete report. Please try again.");
+      setIsDeleting(false);
+    }
+  };
 
   if (error) return <div className="form-error-banner">{error}</div>;
   if (!report) return <p className="detail-empty">Loading...</p>;
@@ -79,14 +97,27 @@ const ReportDetailPage = () => {
     <div className="report-detail-page">
       <div className="detail-header">
         <div>
-          <h1>{report.model}</h1>
+          <h1>
+            {report.model}
+            {report.report_no && <span className="report-no-pill">{report.report_no}</span>}
+          </h1>
           <span className="format-pill">
             {FORMAT_LABELS[report.report_format ?? ""] ?? "Observation Sheet"}
           </span>
         </div>
-        <Link href="/reports" className="back-link">
-          &larr; Back to archive
-        </Link>
+        <div className="detail-header-actions">
+          {isWithinReportEditWindow(report.created_at) && (
+            <Link href={`/reports/${report.id}/edit`} className="edit-report-btn">
+              Edit
+            </Link>
+          )}
+          <button type="button" className="delete-report-btn" onClick={handleDelete} disabled={isDeleting}>
+            {isDeleting ? "Deleting..." : "Delete"}
+          </button>
+          <Link href="/reports" className="back-link">
+            &larr; Back to archive
+          </Link>
+        </div>
       </div>
 
       <section className="detail-card">

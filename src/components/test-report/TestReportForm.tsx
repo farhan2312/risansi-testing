@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import "./TestReportForm.css";
-import { submitReport } from "@/services/testingService";
+import { submitReport, updateReport } from "@/services/testingService";
 import { computePoint } from "@/lib/testReportCalc";
 import { clearReportDraft, loadReportDraft, saveReportDraft, type SharedReportDraft } from "@/lib/reportDraft";
 import {
@@ -81,12 +81,30 @@ const emptyPoint: PointFormValues = {
 const num = (v: string): number | null => (v.trim() === "" ? null : Number(v));
 const numOrUndef = (v: string): number | undefined => (v.trim() === "" ? undefined : Number(v));
 const fmt = (v: number | null) => (v === null || Number.isNaN(v) ? "-" : v);
+const str = (v: string | number | null | undefined): string => (v === null || v === undefined ? "" : String(v));
+
+const pointsFromExistingReport = (report: PumpTestReport): PointFormValues[] => {
+  const isFlowMeter = report.test_type === "Flow Meter";
+  return report.points.map((p) => ({
+    rpm: str(p.rpm),
+    head_kgcm2: str(p.head_kgcm2),
+    height_taken_for_filling: str(p.height_taken_for_filling),
+    time_taken_to_fill_bucket_sec: str(p.time_taken_to_fill_bucket_sec),
+    capacity_direct: isFlowMeter ? str(p.capacity_calculated_m3hr) : "",
+    volts: str(p.volts),
+    amps: str(p.amps),
+    cos_phi: str(p.cos_phi),
+  }));
+};
 
 interface TestReportFormProps {
   /** Pre-fills and locks the model field (requisition-linked flow). Leave
    * undefined for a standalone report, which renders an editable model input. */
   lockedModel?: string;
   requisitionId?: string;
+  /** Editing an already-submitted report — prefills every field (including
+   * points) from it and PATCHes instead of POSTing on submit. */
+  existingReport?: PumpTestReport;
   heading: string;
   subheading: string;
   submitLabel: string;
@@ -97,6 +115,7 @@ interface TestReportFormProps {
 const TestReportForm = ({
   lockedModel,
   requisitionId,
+  existingReport,
   heading,
   subheading,
   submitLabel,
@@ -108,42 +127,51 @@ const TestReportForm = ({
 
   const initialDraft = useRef<SharedReportDraft | null>(null);
   if (initialDraft.current === null) {
-    initialDraft.current = loadReportDraft(scopeId);
+    initialDraft.current = existingReport ? {} : loadReportDraft(scopeId);
   }
   const draft = initialDraft.current;
+  const r = existingReport;
 
   const { register, control, handleSubmit, formState: { isSubmitting, errors } } = useForm<ReportFormValues>({
     defaultValues: {
-      model: lockedModel ?? draft.model ?? "",
-      liquid: draft.liquid ?? "WATER",
-      test_type: (draft.test_type as TestType) ?? "V-notch",
-      npsha_status: "POSITIVE",
-      capacity_unit: draft.capacity_unit ?? "M3/HR",
-      head_unit: draft.head_unit ?? "KG/CM2",
-      rated_capacity: draft.rated_capacity ?? "",
-      rated_head: draft.rated_head ?? "",
-      specific_gravity: draft.specific_gravity ?? "",
-      viscosity_cps: draft.viscosity_cps ?? "",
-      k_for_given_cps: draft.k_for_given_cps ?? "1",
-      rated_rpm: draft.rated_rpm ?? "",
-      q_theoretical_100rev: draft.q_theoretical_100rev ?? "",
-      tested_by: draft.tested_by ?? "",
-      test_date: draft.test_date ?? "",
-      vibration_sound_db: "",
-      vibration_x_mm_sec: "",
-      vibration_y_mm_sec: "",
-      vibration_z_mm_sec: "",
-      pump_started_at: "",
-      pump_stopped_at: "",
-      total_run: "",
-      ambient_temp_c: "",
-      max_bearing_temp_c: "",
-      total_rise_c: "",
-      witness: "",
-      inspector: "",
-      recorder: "",
-      remarks: "",
-      points: [emptyPoint],
+      model: lockedModel ?? r?.model ?? draft.model ?? "",
+      gearbox_no: str(r?.gearbox_no),
+      gearbox_ratio: str(r?.gearbox_ratio),
+      motor: str(r?.motor),
+      motor_rpm: str(r?.motor_rpm),
+      suction_type: str(r?.suction_type),
+      liquid: r?.liquid ?? draft.liquid ?? "WATER",
+      test_type: (r?.test_type as TestType) ?? (draft.test_type as TestType) ?? "V-notch",
+      npsha_status: r?.npsha_status ?? "POSITIVE",
+      capacity_unit: r?.capacity_unit ?? draft.capacity_unit ?? "M3/HR",
+      head_unit: r?.head_unit ?? draft.head_unit ?? "KG/CM2",
+      rated_capacity: str(r?.rated_capacity) || draft.rated_capacity || "",
+      rated_head: str(r?.rated_head) || draft.rated_head || "",
+      specific_gravity: str(r?.specific_gravity) || draft.specific_gravity || "",
+      viscosity_cps: str(r?.viscosity_cps) || draft.viscosity_cps || "",
+      k_for_given_cps: str(r?.k_for_given_cps) || draft.k_for_given_cps || "1",
+      rated_rpm: str(r?.rated_rpm) || draft.rated_rpm || "",
+      q_theoretical_100rev: str(r?.q_theoretical_100rev) || draft.q_theoretical_100rev || "",
+      reference_voltage: str(r?.reference_voltage),
+      reference_current: str(r?.reference_current),
+      vnotch_baseline: str(r?.vnotch_baseline),
+      tested_by: r?.tested_by ?? draft.tested_by ?? "",
+      test_date: r?.test_date ?? draft.test_date ?? "",
+      vibration_sound_db: str(r?.vibration_sound_db),
+      vibration_x_mm_sec: str(r?.vibration_x_mm_sec),
+      vibration_y_mm_sec: str(r?.vibration_y_mm_sec),
+      vibration_z_mm_sec: str(r?.vibration_z_mm_sec),
+      pump_started_at: str(r?.pump_started_at),
+      pump_stopped_at: str(r?.pump_stopped_at),
+      total_run: str(r?.total_run),
+      ambient_temp_c: str(r?.ambient_temp_c),
+      max_bearing_temp_c: str(r?.max_bearing_temp_c),
+      total_rise_c: str(r?.total_rise_c),
+      witness: str(r?.witness),
+      inspector: str(r?.inspector),
+      recorder: str(r?.recorder),
+      remarks: str(r?.remarks),
+      points: r ? pointsFromExistingReport(r) : [emptyPoint],
     },
   });
 
@@ -158,6 +186,7 @@ const TestReportForm = ({
     ],
   });
   useEffect(() => {
+    if (existingReport) return;
     const [model, test_type, liquid, rated_capacity, capacity_unit, rated_head, head_unit,
       specific_gravity, viscosity_cps, k_for_given_cps, rated_rpm, q_theoretical_100rev,
       tested_by, test_date] = sharedFieldsWatch;
@@ -239,10 +268,9 @@ const TestReportForm = ({
         };
       });
 
-      const report = await submitReport({
-        requisitionId,
+      const payload = {
         model,
-        report_format: "observation",
+        report_format: "observation" as const,
         gearbox_no: values.gearbox_no || undefined,
         gearbox_ratio: values.gearbox_ratio || undefined,
         motor: values.motor || undefined,
@@ -280,8 +308,12 @@ const TestReportForm = ({
         recorder: values.recorder || undefined,
         remarks: values.remarks || undefined,
         points,
-      });
-      clearReportDraft(scopeId);
+      };
+
+      const report = existingReport
+        ? await updateReport(existingReport.id, payload)
+        : await submitReport({ requisitionId, ...payload });
+      if (!existingReport) clearReportDraft(scopeId);
       onSubmitted(report);
     } catch {
       setSubmitError("Could not submit test report. Please try again.");

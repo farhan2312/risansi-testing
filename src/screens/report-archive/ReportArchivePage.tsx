@@ -155,6 +155,7 @@ const ReportArchivePage = () => {
                         <table className="nested-report-table">
                           <thead>
                             <tr>
+                              <th>Report No.</th>
                               <th>Motor</th>
                               <th>Rated RPM</th>
                               <th>Rated Head</th>
@@ -168,8 +169,9 @@ const ReportArchivePage = () => {
                             {g.reports.map((r) => (
                               <tr key={r.id}>
                                 <td>
-                                  <Link href={`/reports/${r.id}`}>{r.motor ?? "View report"}</Link>
+                                  <Link href={`/reports/${r.id}`}>{r.report_no ?? r.motor ?? "View report"}</Link>
                                 </td>
+                                <td>{r.motor ?? "-"}</td>
                                 <td>{r.rated_rpm ?? "-"}</td>
                                 <td>{r.rated_head ?? "-"}</td>
                                 <td>{r.suction_type ?? "-"}</td>

@@ -3,81 +3,9 @@ import { desc, eq, ilike, inArray, sql } from "drizzle-orm";
 import { error, json, pointToDict, reportToDict } from "@/lib/api";
 import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports, testRequisitions } from "@/lib/db/schema";
+import { POINT_FIELD_MAP, REPORT_FIELD_MAP } from "@/lib/reportFieldMaps";
 
 export const dynamic = "force-dynamic";
-
-const REPORT_FIELD_MAP: Record<string, string> = {
-  gearbox_no: "gearboxNo",
-  gearbox_ratio: "gearboxRatio",
-  motor: "motor",
-  motor_rpm: "motorRpm",
-  suction_type: "suctionType",
-  liquid: "liquid",
-  rated_capacity: "ratedCapacity",
-  rated_head: "ratedHead",
-  specific_gravity: "specificGravity",
-  viscosity_cps: "viscosityCps",
-  k_for_given_cps: "kForGivenCps",
-  rated_rpm: "ratedRpm",
-  q_theoretical_100rev: "qTheoretical100rev",
-  calculated_head: "calculatedHead",
-  test_type: "testType",
-  npsha_status: "npshaStatus",
-  capacity_unit: "capacityUnit",
-  head_unit: "headUnit",
-  reference_voltage: "referenceVoltage",
-  reference_current: "referenceCurrent",
-  vnotch_baseline: "vnotchBaseline",
-  tested_by: "testedBy",
-  test_date: "testDate",
-  report_format: "reportFormat",
-  po_no: "poNo",
-  ec_no: "ecNo",
-  rev_no: "revNo",
-  rev_date: "revDate",
-  pump_serial_no: "pumpSerialNo",
-  vibration_sound_db: "vibrationSoundDb",
-  vibration_x_mm_sec: "vibrationXMmSec",
-  vibration_y_mm_sec: "vibrationYMmSec",
-  vibration_z_mm_sec: "vibrationZMmSec",
-  pump_started_at: "pumpStartedAt",
-  pump_stopped_at: "pumpStoppedAt",
-  total_run: "totalRun",
-  ambient_temp_c: "ambientTempC",
-  max_bearing_temp_c: "maxBearingTempC",
-  total_rise_c: "totalRiseC",
-  witness: "witness",
-  inspector: "inspector",
-  recorder: "recorder",
-  remarks: "remarks",
-};
-
-const POINT_FIELD_MAP: Record<string, string> = {
-  rpm: "rpm",
-  head_kgcm2: "headKgcm2",
-  head_mwc: "headMwc",
-  vnotch_height: "vnotchHeight",
-  initial_reading: "initialReading",
-  differential_height: "differentialHeight",
-  capacity_calculated_m3hr: "capacityCalculatedM3hr",
-  volts: "volts",
-  amps: "amps",
-  cos_phi: "cosPhi",
-  power_calculated_kw: "powerCalculatedKw",
-  theoretical_power_kw: "theoreticalPowerKw",
-  mechanical_efficiency: "mechanicalEfficiency",
-  theoretical_capacity_at_measured_rpm: "theoreticalCapacityAtMeasuredRpm",
-  slip_water: "slipWater",
-  slip_viscous: "slipViscous",
-  theoretical_capacity_at_rated_rpm: "theoreticalCapacityAtRatedRpm",
-  capacity_liquid_at_rated_rpm_m3hr: "capacityLiquidAtRatedRpmM3hr",
-  capacity_liquid_at_rated_rpm_lph: "capacityLiquidAtRatedRpmLph",
-  height_taken_for_filling: "heightTakenForFilling",
-  time_taken_to_fill_bucket_sec: "timeTakenToFillBucketSec",
-  volumetric_efficiency: "volumetricEfficiency",
-  volumetric_efficiency_liquid: "volumetricEfficiencyLiquid",
-  mechanical_efficiency_liquid: "mechanicalEfficiencyLiquid",
-};
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -124,7 +52,12 @@ export async function POST(req: Request) {
     }
   }
 
-  const reportValues: Record<string, unknown> = { model, requisitionId };
+  const seqResult = await db.execute<{ n: number }>(
+    sql`select nextval('pump_test_reports_report_no_seq') as n`
+  );
+  const reportNo = `TR-${String(seqResult.rows[0].n).padStart(6, "0")}`;
+
+  const reportValues: Record<string, unknown> = { model, requisitionId, reportNo };
   for (const [snakeKey, camelKey] of Object.entries(REPORT_FIELD_MAP)) {
     if (body[snakeKey] !== undefined && body[snakeKey] !== "") {
       reportValues[camelKey] = body[snakeKey];

@@ -80,6 +80,7 @@ export function reportToDict(r: ReportRow) {
   return {
     id: r.id,
     requisition_id: r.requisitionId,
+    report_no: r.reportNo,
     model: r.model,
     gearbox_no: r.gearboxNo,
     gearbox_ratio: r.gearboxRatio,

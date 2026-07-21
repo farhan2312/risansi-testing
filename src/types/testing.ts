@@ -124,6 +124,7 @@ export interface PumpTestReportPoint {
 export interface PumpTestReport {
   id: string;
   requisition_id: string | null;
+  report_no: string | null;
   model: string;
   gearbox_no: string | null;
   gearbox_ratio: string | null;

@@ -27,6 +27,59 @@
   color: var(--info);
 }
 
+.report-no-pill {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: monospace;
+  background: var(--bg-sunk);
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
+.detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.edit-report-btn {
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  background: var(--accent);
+  color: #fff;
+}
+
+.edit-report-btn:hover {
+  background: var(--accent-hover);
+}
+
+.delete-report-btn {
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--neg);
+  background: transparent;
+  color: var(--neg);
+  cursor: pointer;
+}
+
+.delete-report-btn:hover:not(:disabled) {
+  background: var(--neg-soft);
+}
+
+.delete-report-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .report-detail-page .back-link {
   color: var(--accent);
   text-decoration: none;

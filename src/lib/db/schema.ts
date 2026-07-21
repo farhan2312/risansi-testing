@@ -82,6 +82,10 @@ export const pumpTestReports = pgTable("pump_test_reports", {
   id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   requisitionId: uuid("requisition_id"),
 
+  // Human-readable sequential number, assigned via the DB sequence
+  // pump_test_reports_report_no_seq at insert time (see reports/route.ts POST).
+  reportNo: varchar("report_no", { length: 20 }),
+
   model: varchar("model", { length: 100 }).notNull(),
   gearboxNo: varchar("gearbox_no", { length: 255 }),
   gearboxRatio: varchar("gearbox_ratio", { length: 50 }),
