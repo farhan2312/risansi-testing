@@ -23,6 +23,15 @@
   margin-bottom: 16px;
 }
 
+.test-report-page .form-info-banner {
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
 .test-report-page .form-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

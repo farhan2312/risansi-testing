@@ -3,9 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import "./TestReportForm.css";
-import { submitReport, updateReport } from "@/services/testingService";
+import { getLatestObservationReport, getRequisition, submitReport, updateReport } from "@/services/testingService";
 import { computeViscosityChartPoint } from "@/lib/testReportCalc";
-import { clearReportDraft, loadReportDraft, saveReportDraft, type SharedReportDraft } from "@/lib/reportDraft";
+import {
+  clearReportDraft,
+  draftFromReport,
+  loadReportDraft,
+  saveReportDraft,
+  type SharedReportDraft,
+} from "@/lib/reportDraft";
 import {
   TEST_TYPES,
   VISCOSITY_CAPACITY_UNITS,
@@ -107,7 +113,9 @@ const ViscosityChartForm = ({
   onCancel,
 }: ViscosityChartFormProps) => {
   const [submitError, setSubmitError] = useState("");
+  const [autofillNotice, setAutofillNotice] = useState("");
   const scopeId = requisitionId ?? "standalone";
+  const lookedUpModel = useRef<string>("");
 
   const initialDraft = useRef<SharedReportDraft | null>(null);
   if (initialDraft.current === null) {
@@ -129,7 +137,7 @@ const ViscosityChartForm = ({
   const draft = initialDraft.current;
   const r = existingReport;
 
-  const { register, control, handleSubmit, formState: { isSubmitting, errors } } = useForm<ChartFormValues>({
+  const { register, control, handleSubmit, getValues, setValue, formState: { isSubmitting, errors } } = useForm<ChartFormValues>({
     defaultValues: {
       model: lockedModel ?? r?.model ?? draft.model ?? "",
       po_no: str(r?.po_no),
@@ -157,6 +165,68 @@ const ViscosityChartForm = ({
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "points" });
+
+  // Prefill from the same pump's Observation Sheet — fields the tester has
+  // already typed are left alone, only currently-empty ones are filled.
+  const applyAutofill = (source: Parameters<typeof draftFromReport>[0], reportNo?: string | null) => {
+    const d = draftFromReport(source);
+    let filledAny = false;
+    const setIfEmpty = (name: keyof ChartFormValues, value?: string) => {
+      if (!value || getValues(name)) return;
+      setValue(name, value as never);
+      filledAny = true;
+    };
+    setIfEmpty("test_type", d.test_type);
+    setIfEmpty("liquid", d.liquid);
+    if (d.capacity_unit && VISCOSITY_CAPACITY_UNITS.includes(d.capacity_unit as never)) {
+      setIfEmpty("capacity_unit", d.capacity_unit);
+    }
+    if (d.head_unit && VISCOSITY_HEAD_UNITS.includes(d.head_unit as never)) {
+      setIfEmpty("head_unit", d.head_unit);
+    }
+    setIfEmpty("rated_capacity", d.rated_capacity);
+    setIfEmpty("rated_head", d.rated_head);
+    setIfEmpty("specific_gravity", d.specific_gravity);
+    setIfEmpty("viscosity_cps", d.viscosity_cps);
+    setIfEmpty("k_for_given_cps", d.k_for_given_cps);
+    setIfEmpty("rated_rpm", d.rated_rpm);
+    setIfEmpty("q_theoretical_100rev", d.q_theoretical_100rev);
+    setIfEmpty("tested_by", d.tested_by);
+    setIfEmpty("test_date", d.test_date);
+    if (filledAny) {
+      setAutofillNotice(
+        `Prefilled from the Observation Sheet${reportNo ? ` (${reportNo})` : ""} already submitted for this pump — edit anything as needed.`
+      );
+    }
+  };
+
+  // Requisition-linked: this exact job's Observation Sheet report (if any)
+  // is the authoritative source, known as soon as the requisition loads.
+  useEffect(() => {
+    if (existingReport || !requisitionId) return;
+    getRequisition(requisitionId)
+      .then((req) => {
+        const obs = req.reports?.find((rep) => (rep.report_format ?? "observation") === "observation");
+        if (obs) {
+          applyAutofill(obs, obs.report_no);
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requisitionId, existingReport]);
+
+  // Standalone: look up by model once the tester finishes typing it.
+  const handleModelBlur = () => {
+    if (existingReport || requisitionId) return;
+    const modelVal = getValues("model").trim();
+    if (!modelVal || modelVal === lookedUpModel.current) return;
+    lookedUpModel.current = modelVal;
+    getLatestObservationReport(modelVal)
+      .then((obs) => {
+        if (obs) applyAutofill(obs, obs.report_no);
+      })
+      .catch(() => {});
+  };
 
   const sharedFieldsWatch = useWatch({
     control,
@@ -290,6 +360,7 @@ const ViscosityChartForm = ({
       <p className="subtitle">{subheading}</p>
 
       {submitError && <div className="form-error-banner">{submitError}</div>}
+      {autofillNotice && <div className="form-info-banner">{autofillNotice}</div>}
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="form-grid">
@@ -301,7 +372,19 @@ const ViscosityChartForm = ({
           ) : (
             <div className="field">
               <label>Model No. *</label>
-              <input {...register("model", { required: true })} placeholder="e.g. RMOH1115" />
+              {(() => {
+                const modelReg = register("model", { required: true });
+                return (
+                  <input
+                    {...modelReg}
+                    onBlur={(e) => {
+                      modelReg.onBlur(e);
+                      handleModelBlur();
+                    }}
+                    placeholder="e.g. RMOH1115"
+                  />
+                );
+              })()}
               {errors.model && <span className="field-error">Model is required</span>}
             </div>
           )}

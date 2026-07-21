@@ -69,3 +69,16 @@ export const updateReport = async (
 export const deleteReport = async (id: string): Promise<void> => {
   await apiClient.delete(`/reports/${id}`);
 };
+
+/** Latest Observation Sheet report submitted for this exact pump model, if
+ * any — used to prefill the Viscosity Correction Chart form for the same pump. */
+export const getLatestObservationReport = async (model: string): Promise<ArchiveReportSummary | null> => {
+  const trimmed = model.trim();
+  if (!trimmed) return null;
+  const rows = await listReports(trimmed);
+  const matches = rows
+    .filter((r) => r.model.toLowerCase() === trimmed.toLowerCase())
+    .filter((r) => (r.report_format ?? "observation") === "observation")
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return matches[0] ?? null;
+};

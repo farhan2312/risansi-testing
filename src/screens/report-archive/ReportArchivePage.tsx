@@ -13,6 +13,8 @@ interface PumpGroup {
   reportCount: number;
   totalPoints: number;
   latestTestDate: string;
+  hasObservation: boolean;
+  hasViscosityChart: boolean;
   reports: ArchiveReportSummary[];
 }
 
@@ -32,6 +34,8 @@ const groupByPump = (reports: ArchiveReportSummary[]): PumpGroup[] => {
         reportCount: reports.length,
         totalPoints: reports.reduce((sum, r) => sum + r.pointCount, 0),
         latestTestDate: dates.sort().at(-1) ?? "-",
+        hasObservation: reports.some((r) => (r.report_format ?? "observation") === "observation"),
+        hasViscosityChart: reports.some((r) => r.report_format === "viscosity-chart"),
         reports: [...reports].sort((a, b) =>
           (b.test_date ?? b.created_at).localeCompare(a.test_date ?? a.created_at)
         ),
@@ -132,6 +136,7 @@ const ReportArchivePage = () => {
               <th></th>
               <th>Pump Model</th>
               <th>Reports</th>
+              <th>Formats</th>
               <th>Total Test Points</th>
               <th>Latest Test Date</th>
             </tr>
@@ -145,13 +150,17 @@ const ReportArchivePage = () => {
                     <td className="expand-toggle">{isOpen ? "−" : "+"}</td>
                     <td className="pump-model-cell">{g.model}</td>
                     <td>{g.reportCount}</td>
+                    <td>
+                      <span className={`format-badge ${g.hasObservation ? "present" : "missing"}`}>Obs</span>
+                      <span className={`format-badge ${g.hasViscosityChart ? "present" : "missing"}`}>VC</span>
+                    </td>
                     <td>{g.totalPoints}</td>
                     <td>{g.latestTestDate}</td>
                   </tr>
                   {isOpen && (
                     <tr className="pump-detail-row">
                       <td></td>
-                      <td colSpan={4}>
+                      <td colSpan={5}>
                         <table className="nested-report-table">
                           <thead>
                             <tr>
