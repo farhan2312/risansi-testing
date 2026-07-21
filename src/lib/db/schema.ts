@@ -125,6 +125,21 @@ export const pumpTestReports = pgTable("pump_test_reports", {
   revNo: varchar("rev_no", { length: 20 }),
   revDate: date("rev_date"),
   pumpSerialNo: varchar("pump_serial_no", { length: 100 }),
+
+  // Vibration test + run summary footer block, Observation Sheet only.
+  vibrationSoundDb: numeric("vibration_sound_db", { precision: 6, scale: 2 }),
+  vibrationXMmSec: numeric("vibration_x_mm_sec", { precision: 6, scale: 2 }),
+  vibrationYMmSec: numeric("vibration_y_mm_sec", { precision: 6, scale: 2 }),
+  vibrationZMmSec: numeric("vibration_z_mm_sec", { precision: 6, scale: 2 }),
+  pumpStartedAt: varchar("pump_started_at", { length: 20 }),
+  pumpStoppedAt: varchar("pump_stopped_at", { length: 20 }),
+  totalRun: varchar("total_run", { length: 20 }),
+  ambientTempC: numeric("ambient_temp_c", { precision: 6, scale: 2 }),
+  maxBearingTempC: numeric("max_bearing_temp_c", { precision: 6, scale: 2 }),
+  totalRiseC: numeric("total_rise_c", { precision: 6, scale: 2 }),
+  witness: varchar("witness", { length: 100 }),
+  inspector: varchar("inspector", { length: 100 }),
+  recorder: varchar("recorder", { length: 100 }),
 });
 
 export const pumpTestReportPoints = pgTable("pump_test_report_points", {

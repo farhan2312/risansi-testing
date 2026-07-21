@@ -111,6 +111,19 @@ export function reportToDict(r: ReportRow) {
     rev_no: r.revNo,
     rev_date: r.revDate,
     pump_serial_no: r.pumpSerialNo,
+    vibration_sound_db: r.vibrationSoundDb,
+    vibration_x_mm_sec: r.vibrationXMmSec,
+    vibration_y_mm_sec: r.vibrationYMmSec,
+    vibration_z_mm_sec: r.vibrationZMmSec,
+    pump_started_at: r.pumpStartedAt,
+    pump_stopped_at: r.pumpStoppedAt,
+    total_run: r.totalRun,
+    ambient_temp_c: r.ambientTempC,
+    max_bearing_temp_c: r.maxBearingTempC,
+    total_rise_c: r.totalRiseC,
+    witness: r.witness,
+    inspector: r.inspector,
+    recorder: r.recorder,
   };
 }
 

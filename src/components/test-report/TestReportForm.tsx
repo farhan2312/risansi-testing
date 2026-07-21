@@ -50,6 +50,19 @@ interface ReportFormValues {
   vnotch_baseline: string;
   tested_by: string;
   test_date: string;
+  vibration_sound_db: string;
+  vibration_x_mm_sec: string;
+  vibration_y_mm_sec: string;
+  vibration_z_mm_sec: string;
+  pump_started_at: string;
+  pump_stopped_at: string;
+  total_run: string;
+  ambient_temp_c: string;
+  max_bearing_temp_c: string;
+  total_rise_c: string;
+  witness: string;
+  inspector: string;
+  recorder: string;
   points: PointFormValues[];
 }
 
@@ -115,6 +128,19 @@ const TestReportForm = ({
       q_theoretical_100rev: draft.q_theoretical_100rev ?? "",
       tested_by: draft.tested_by ?? "",
       test_date: draft.test_date ?? "",
+      vibration_sound_db: "",
+      vibration_x_mm_sec: "",
+      vibration_y_mm_sec: "",
+      vibration_z_mm_sec: "",
+      pump_started_at: "",
+      pump_stopped_at: "",
+      total_run: "",
+      ambient_temp_c: "",
+      max_bearing_temp_c: "",
+      total_rise_c: "",
+      witness: "",
+      inspector: "",
+      recorder: "",
       points: [emptyPoint],
     },
   });
@@ -237,6 +263,19 @@ const TestReportForm = ({
         vnotch_baseline: numOrUndef(values.vnotch_baseline),
         tested_by: values.tested_by || undefined,
         test_date: values.test_date || undefined,
+        vibration_sound_db: numOrUndef(values.vibration_sound_db),
+        vibration_x_mm_sec: numOrUndef(values.vibration_x_mm_sec),
+        vibration_y_mm_sec: numOrUndef(values.vibration_y_mm_sec),
+        vibration_z_mm_sec: numOrUndef(values.vibration_z_mm_sec),
+        pump_started_at: values.pump_started_at || undefined,
+        pump_stopped_at: values.pump_stopped_at || undefined,
+        total_run: values.total_run || undefined,
+        ambient_temp_c: numOrUndef(values.ambient_temp_c),
+        max_bearing_temp_c: numOrUndef(values.max_bearing_temp_c),
+        total_rise_c: numOrUndef(values.total_rise_c),
+        witness: values.witness || undefined,
+        inspector: values.inspector || undefined,
+        recorder: values.recorder || undefined,
         points,
       });
       clearReportDraft(scopeId);
@@ -450,6 +489,65 @@ const TestReportForm = ({
         <button type="button" className="add-point-btn" onClick={() => append(emptyPoint)}>
           + Add Test Point
         </button>
+
+        <h2 className="points-heading">Vibration Test &amp; Run Summary</h2>
+        <div className="form-grid">
+          <div className="field">
+            <label>Vibration — Sound (Db)</label>
+            <input type="number" step="any" {...register("vibration_sound_db")} />
+          </div>
+          <div className="field">
+            <label>Vibration — X (mm/sec)</label>
+            <input type="number" step="any" {...register("vibration_x_mm_sec")} />
+          </div>
+          <div className="field">
+            <label>Vibration — Y (mm/sec)</label>
+            <input type="number" step="any" {...register("vibration_y_mm_sec")} />
+          </div>
+          <div className="field">
+            <label>Vibration — Z (mm/sec)</label>
+            <input type="number" step="any" {...register("vibration_z_mm_sec")} />
+          </div>
+
+          <div className="field">
+            <label>Pump Started At</label>
+            <input {...register("pump_started_at")} placeholder="e.g. 11:30 AM" />
+          </div>
+          <div className="field">
+            <label>Pump Stopped At</label>
+            <input {...register("pump_stopped_at")} placeholder="e.g. 12:00 PM" />
+          </div>
+          <div className="field">
+            <label>Total Run</label>
+            <input {...register("total_run")} placeholder="e.g. 00:30 hrs" />
+          </div>
+
+          <div className="field">
+            <label>Ambient Temp (°C)</label>
+            <input type="number" step="any" {...register("ambient_temp_c")} />
+          </div>
+          <div className="field">
+            <label>Max. Bearing Temp (°C)</label>
+            <input type="number" step="any" {...register("max_bearing_temp_c")} />
+          </div>
+          <div className="field">
+            <label>Total Rise (°C)</label>
+            <input type="number" step="any" {...register("total_rise_c")} />
+          </div>
+
+          <div className="field">
+            <label>Witness</label>
+            <input {...register("witness")} />
+          </div>
+          <div className="field">
+            <label>Inspector</label>
+            <input {...register("inspector")} />
+          </div>
+          <div className="field">
+            <label>Recorder</label>
+            <input {...register("recorder")} />
+          </div>
+        </div>
 
         <div className="form-actions">
           <button type="button" className="secondary" onClick={onCancel}>

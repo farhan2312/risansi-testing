@@ -67,6 +67,14 @@ const ReportDetailPage = () => {
     points.some((p) => p[row.field] !== null && p[row.field] !== undefined)
   );
 
+  const isObservationSheet = (report.report_format ?? "observation") === "observation";
+  const hasVibrationSummary = [
+    report.vibration_sound_db, report.vibration_x_mm_sec, report.vibration_y_mm_sec,
+    report.vibration_z_mm_sec, report.pump_started_at, report.pump_stopped_at, report.total_run,
+    report.ambient_temp_c, report.max_bearing_temp_c, report.total_rise_c,
+    report.witness, report.inspector, report.recorder,
+  ].some((v) => v !== null && v !== undefined && v !== "");
+
   return (
     <div className="report-detail-page">
       <div className="detail-header">
@@ -220,6 +228,56 @@ const ReportDetailPage = () => {
           </table>
         </div>
       </section>
+
+      {isObservationSheet && hasVibrationSummary && (
+        <section className="detail-card">
+          <h2>Vibration Test &amp; Run Summary</h2>
+          <table className="sheet-table header-sheet-table">
+            <tbody>
+              <tr>
+                <th>Vibration — Sound</th>
+                <td>{fmt(report.vibration_sound_db)} Db</td>
+                <th>X</th>
+                <td>{fmt(report.vibration_x_mm_sec)} mm/sec</td>
+              </tr>
+              <tr>
+                <th>Y</th>
+                <td>{fmt(report.vibration_y_mm_sec)} mm/sec</td>
+                <th>Z</th>
+                <td>{fmt(report.vibration_z_mm_sec)} mm/sec</td>
+              </tr>
+              <tr>
+                <th>Pump Started At</th>
+                <td>{fmt(report.pump_started_at)}</td>
+                <th>Pump Stopped At</th>
+                <td>{fmt(report.pump_stopped_at)}</td>
+              </tr>
+              <tr>
+                <th>Total Run</th>
+                <td>{fmt(report.total_run)}</td>
+                <th>Ambient Temp</th>
+                <td>{fmt(report.ambient_temp_c)} °C</td>
+              </tr>
+              <tr>
+                <th>Max. Bearing Temp</th>
+                <td>{fmt(report.max_bearing_temp_c)} °C</td>
+                <th>Total Rise</th>
+                <td>{fmt(report.total_rise_c)} °C</td>
+              </tr>
+              <tr>
+                <th>Witness</th>
+                <td>{fmt(report.witness)}</td>
+                <th>Inspector</th>
+                <td>{fmt(report.inspector)}</td>
+              </tr>
+              <tr>
+                <th>Recorder</th>
+                <td colSpan={3}>{fmt(report.recorder)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      )}
     </div>
   );
 };

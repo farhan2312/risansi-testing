@@ -157,6 +157,22 @@ export interface PumpTestReport {
   rev_no: string | null;
   rev_date: string | null;
   pump_serial_no: string | null;
+
+  // Vibration test + run summary footer block, Observation Sheet only.
+  vibration_sound_db: number | null;
+  vibration_x_mm_sec: number | null;
+  vibration_y_mm_sec: number | null;
+  vibration_z_mm_sec: number | null;
+  pump_started_at: string | null;
+  pump_stopped_at: string | null;
+  total_run: string | null;
+  ambient_temp_c: number | null;
+  max_bearing_temp_c: number | null;
+  total_rise_c: number | null;
+  witness: string | null;
+  inspector: string | null;
+  recorder: string | null;
+
   points: PumpTestReportPoint[];
 }
 
@@ -192,6 +208,19 @@ export interface NewReportInput {
   rev_no?: string;
   rev_date?: string;
   pump_serial_no?: string;
+  vibration_sound_db?: number;
+  vibration_x_mm_sec?: number;
+  vibration_y_mm_sec?: number;
+  vibration_z_mm_sec?: number;
+  pump_started_at?: string;
+  pump_stopped_at?: string;
+  total_run?: string;
+  ambient_temp_c?: number;
+  max_bearing_temp_c?: number;
+  total_rise_c?: number;
+  witness?: string;
+  inspector?: string;
+  recorder?: string;
   points: Omit<PumpTestReportPoint, "id">[];
 }
 

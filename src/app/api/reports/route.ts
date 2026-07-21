@@ -36,6 +36,19 @@ const REPORT_FIELD_MAP: Record<string, string> = {
   rev_no: "revNo",
   rev_date: "revDate",
   pump_serial_no: "pumpSerialNo",
+  vibration_sound_db: "vibrationSoundDb",
+  vibration_x_mm_sec: "vibrationXMmSec",
+  vibration_y_mm_sec: "vibrationYMmSec",
+  vibration_z_mm_sec: "vibrationZMmSec",
+  pump_started_at: "pumpStartedAt",
+  pump_stopped_at: "pumpStoppedAt",
+  total_run: "totalRun",
+  ambient_temp_c: "ambientTempC",
+  max_bearing_temp_c: "maxBearingTempC",
+  total_rise_c: "totalRiseC",
+  witness: "witness",
+  inspector: "inspector",
+  recorder: "recorder",
 };
 
 const POINT_FIELD_MAP: Record<string, string> = {
