@@ -63,6 +63,7 @@ interface ReportFormValues {
   witness: string;
   inspector: string;
   recorder: string;
+  remarks: string;
   points: PointFormValues[];
 }
 
@@ -141,6 +142,7 @@ const TestReportForm = ({
       witness: "",
       inspector: "",
       recorder: "",
+      remarks: "",
       points: [emptyPoint],
     },
   });
@@ -276,6 +278,7 @@ const TestReportForm = ({
         witness: values.witness || undefined,
         inspector: values.inspector || undefined,
         recorder: values.recorder || undefined,
+        remarks: values.remarks || undefined,
         points,
       });
       clearReportDraft(scopeId);
@@ -546,6 +549,14 @@ const TestReportForm = ({
           <div className="field">
             <label>Recorder</label>
             <input {...register("recorder")} />
+          </div>
+        </div>
+
+        <h2 className="points-heading">Remarks</h2>
+        <div className="form-grid">
+          <div className="field field-full">
+            <label>Remarks</label>
+            <textarea rows={3} {...register("remarks")} placeholder="Any additional observations or comments" />
           </div>
         </div>
 

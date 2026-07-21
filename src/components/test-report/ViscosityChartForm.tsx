@@ -47,6 +47,7 @@ interface ChartFormValues {
   calculated_head: string;
   tested_by: string;
   test_date: string;
+  remarks: string;
   points: PointFormValues[];
 }
 
@@ -119,6 +120,7 @@ const ViscosityChartForm = ({
       q_theoretical_100rev: draft.q_theoretical_100rev ?? "",
       tested_by: draft.tested_by ?? "",
       test_date: draft.test_date ?? "",
+      remarks: "",
       points: [emptyPoint],
     },
   });
@@ -237,6 +239,7 @@ const ViscosityChartForm = ({
         calculated_head: numOrUndef(values.calculated_head),
         tested_by: values.tested_by || undefined,
         test_date: values.test_date || undefined,
+        remarks: values.remarks || undefined,
         points,
       });
       clearReportDraft(scopeId);
@@ -438,6 +441,14 @@ const ViscosityChartForm = ({
         <button type="button" className="add-point-btn" onClick={() => append(emptyPoint)}>
           + Add Test Point
         </button>
+
+        <h2 className="points-heading">Remarks</h2>
+        <div className="form-grid">
+          <div className="field field-full">
+            <label>Remarks</label>
+            <textarea rows={3} {...register("remarks")} placeholder="Any additional observations or comments" />
+          </div>
+        </div>
 
         <div className="form-actions">
           <button type="button" className="secondary" onClick={onCancel}>

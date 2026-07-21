@@ -173,6 +173,8 @@ export interface PumpTestReport {
   inspector: string | null;
   recorder: string | null;
 
+  remarks: string | null;
+
   points: PumpTestReportPoint[];
 }
 
@@ -221,6 +223,7 @@ export interface NewReportInput {
   witness?: string;
   inspector?: string;
   recorder?: string;
+  remarks?: string;
   points: Omit<PumpTestReportPoint, "id">[];
 }
 

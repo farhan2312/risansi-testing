@@ -140,6 +140,8 @@ export const pumpTestReports = pgTable("pump_test_reports", {
   witness: varchar("witness", { length: 100 }),
   inspector: varchar("inspector", { length: 100 }),
   recorder: varchar("recorder", { length: 100 }),
+
+  remarks: text("remarks"),
 });
 
 export const pumpTestReportPoints = pgTable("pump_test_report_points", {

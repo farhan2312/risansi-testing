@@ -124,6 +124,7 @@ export function reportToDict(r: ReportRow) {
     witness: r.witness,
     inspector: r.inspector,
     recorder: r.recorder,
+    remarks: r.remarks,
   };
 }
 

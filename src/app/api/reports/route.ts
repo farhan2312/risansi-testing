@@ -49,6 +49,7 @@ const REPORT_FIELD_MAP: Record<string, string> = {
   witness: "witness",
   inspector: "inspector",
   recorder: "recorder",
+  remarks: "remarks",
 };
 
 const POINT_FIELD_MAP: Record<string, string> = {

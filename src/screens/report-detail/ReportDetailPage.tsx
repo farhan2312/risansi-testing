@@ -278,6 +278,13 @@ const ReportDetailPage = () => {
           </table>
         </section>
       )}
+
+      {report.remarks && (
+        <section className="detail-card">
+          <h2>Remarks</h2>
+          <p className="remarks-text">{report.remarks}</p>
+        </section>
+      )}
     </div>
   );
 };

@@ -53,13 +53,24 @@
 }
 
 .test-report-page .field input,
-.test-report-page .field select {
+.test-report-page .field select,
+.test-report-page .field textarea {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   padding: 8px 10px;
   font-size: 14px;
   background: var(--surface);
   color: var(--text);
+  font-family: inherit;
+}
+
+.test-report-page .field textarea {
+  resize: vertical;
+  min-height: 70px;
+}
+
+.test-report-page .field-full {
+  grid-column: 1 / -1;
 }
 
 .points-heading {
