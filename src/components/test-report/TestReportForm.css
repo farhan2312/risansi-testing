@@ -137,6 +137,12 @@
   white-space: nowrap;
 }
 
+.computed-field {
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  text-align: left;
+}
+
 .remove-point-btn {
   border: none;
   background: var(--neg-soft);

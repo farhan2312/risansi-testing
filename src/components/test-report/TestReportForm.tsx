@@ -55,7 +55,6 @@ interface ReportFormValues {
   vibration_z_mm_sec: string;
   pump_started_at: string;
   pump_stopped_at: string;
-  total_run: string;
   ambient_temp_c: string;
   max_bearing_temp_c: string;
   total_rise_c: string;
@@ -81,6 +80,20 @@ const num = (v: string): number | null => (v.trim() === "" ? null : Number(v));
 const numOrUndef = (v: string): number | undefined => (v.trim() === "" ? undefined : Number(v));
 const fmt = (v: number | null) => (v === null || Number.isNaN(v) ? "-" : v);
 const str = (v: string | number | null | undefined): string => (v === null || v === undefined ? "" : String(v));
+
+/** Duration between two "HH:MM" (24-hour) times, formatted "HH:MM hrs".
+ * Assumes a stop time earlier than the start crossed midnight. */
+const computeTotalRun = (start: string, stop: string): string => {
+  if (!start || !stop) return "";
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = stop.split(":").map(Number);
+  if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return "";
+  let minutes = eh * 60 + em - (sh * 60 + sm);
+  if (minutes < 0) minutes += 24 * 60;
+  const hh = String(Math.floor(minutes / 60)).padStart(2, "0");
+  const mm = String(minutes % 60).padStart(2, "0");
+  return `${hh}:${mm} hrs`;
+};
 
 const pointsFromExistingReport = (report: PumpTestReport): PointFormValues[] => {
   const isFlowMeter = report.test_type === "Flow Meter";
@@ -161,7 +174,6 @@ const TestReportForm = ({
       vibration_z_mm_sec: str(r?.vibration_z_mm_sec),
       pump_started_at: str(r?.pump_started_at),
       pump_stopped_at: str(r?.pump_stopped_at),
-      total_run: str(r?.total_run),
       ambient_temp_c: str(r?.ambient_temp_c),
       max_bearing_temp_c: str(r?.max_bearing_temp_c),
       total_rise_c: str(r?.total_rise_c),
@@ -203,6 +215,9 @@ const TestReportForm = ({
   const kVal = useWatch({ control, name: "k_for_given_cps" });
   const baselineVal = useWatch({ control, name: "vnotch_baseline" });
   const watchedPoints = useWatch({ control, name: "points" });
+  const pumpStartedAt = useWatch({ control, name: "pump_started_at" });
+  const pumpStoppedAt = useWatch({ control, name: "pump_stopped_at" });
+  const totalRun = computeTotalRun(pumpStartedAt ?? "", pumpStoppedAt ?? "");
 
   const header = {
     testType,
@@ -296,7 +311,7 @@ const TestReportForm = ({
         vibration_z_mm_sec: numOrUndef(values.vibration_z_mm_sec),
         pump_started_at: values.pump_started_at || undefined,
         pump_stopped_at: values.pump_stopped_at || undefined,
-        total_run: values.total_run || undefined,
+        total_run: computeTotalRun(values.pump_started_at, values.pump_stopped_at) || undefined,
         ambient_temp_c: numOrUndef(values.ambient_temp_c),
         max_bearing_temp_c: numOrUndef(values.max_bearing_temp_c),
         total_rise_c: numOrUndef(values.total_rise_c),
@@ -535,15 +550,15 @@ const TestReportForm = ({
 
           <div className="field">
             <label>Pump Started At</label>
-            <input {...register("pump_started_at")} placeholder="e.g. 11:30 AM" />
+            <input type="time" {...register("pump_started_at")} />
           </div>
           <div className="field">
             <label>Pump Stopped At</label>
-            <input {...register("pump_stopped_at")} placeholder="e.g. 12:00 PM" />
+            <input type="time" {...register("pump_stopped_at")} />
           </div>
           <div className="field">
             <label>Total Run</label>
-            <input {...register("total_run")} placeholder="e.g. 00:30 hrs" />
+            <div className="computed-cell computed-field">{totalRun || "-"}</div>
           </div>
 
           <div className="field">
