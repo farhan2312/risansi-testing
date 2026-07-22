@@ -17,7 +17,7 @@ const STATUS_TABS: { label: string; value: RequisitionStatus | "All" }[] = [
 
 const DashboardPage = () => {
   const [requisitions, setRequisitions] = useState<TestRequisition[]>([]);
-  const [activeStatus, setActiveStatus] = useState<RequisitionStatus | "All">("Pending");
+  const [activeStatus, setActiveStatus] = useState<RequisitionStatus | "All">("All");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const canCreateRequisition = getCurrentUser()?.role !== "testing";
