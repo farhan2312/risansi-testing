@@ -7,7 +7,7 @@ import { z } from "zod";
 import { useRouter } from "next/navigation";
 import "./NewRequisitionPage.css";
 import { createRequisition } from "@/services/testingService";
-import { REQUISITION_CATEGORIES, SOURCE_TEAMS } from "@/types/testing";
+import { REQUISITION_CATEGORIES, RESPONSIBLE_PERSONS, SOURCE_TEAMS } from "@/types/testing";
 
 const optionalNumber = <T extends z.ZodTypeAny>(inner: T) =>
   z.preprocess((v) => (v === "" || v === undefined ? undefined : v), inner.optional());
@@ -39,7 +39,11 @@ const NewRequisitionPage = () => {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { category: REQUISITION_CATEGORIES[0], source_team: SOURCE_TEAMS[0] },
+    defaultValues: {
+      category: REQUISITION_CATEGORIES[0],
+      source_team: SOURCE_TEAMS[0],
+      responsible_person: RESPONSIBLE_PERSONS[0],
+    },
   });
 
   const onSubmit = async (values: FormValues) => {
@@ -96,7 +100,13 @@ const NewRequisitionPage = () => {
 
           <div className="field">
             <label htmlFor="responsible_person">Responsible Person (RES.) *</label>
-            <input id="responsible_person" {...register("responsible_person")} />
+            <select id="responsible_person" {...register("responsible_person")}>
+              {RESPONSIBLE_PERSONS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
             {errors.responsible_person && (
               <span className="field-error">{errors.responsible_person.message}</span>
             )}

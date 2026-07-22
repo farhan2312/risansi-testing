@@ -13,6 +13,8 @@ export const REQUISITION_CATEGORIES = [
 
 export const SOURCE_TEAMS = ["Sales", "Planning", "Research", "Higher Management"] as const;
 
+export const RESPONSIBLE_PERSONS = ["Sachin", "Vikas"] as const;
+
 export const TEST_TYPES = ["V-notch", "Barrel", "Flow Meter"] as const;
 export type TestType = (typeof TEST_TYPES)[number];
 
