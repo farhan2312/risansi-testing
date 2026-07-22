@@ -74,6 +74,9 @@ const RequisitionDetailPage = () => {
 
   const hasPriorReports = (dedup?.priorReports.length ?? 0) > 0;
   const submittedReport = requisition.reports?.[0];
+  const hasObservation =
+    requisition.reports?.some((r) => (r.report_format ?? "observation") === "observation") ?? false;
+  const hasViscosityChart = requisition.reports?.some((r) => r.report_format === "viscosity-chart") ?? false;
 
   return (
     <div className="requisition-detail-page">
@@ -222,9 +225,41 @@ const RequisitionDetailPage = () => {
               </>
             )}
           </p>
+
+          {(!hasObservation || !hasViscosityChart) && (
+            <>
+              <p className="dedup-note">
+                This pump is still missing its {!hasObservation ? "Observation Sheet" : "Viscosity Correction Chart"}
+                {" "}— submit it below so both reports exist for this pump.
+              </p>
+              <div className="retest-actions">
+                {!hasObservation && (
+                  <button onClick={() => router.push(`/requisitions/${requisition.id}/report/observation`)}>
+                    + Fill Observation Sheet
+                  </button>
+                )}
+                {!hasViscosityChart && (
+                  <button onClick={() => router.push(`/requisitions/${requisition.id}/report/viscosity-chart`)}>
+                    + Fill Viscosity Correction Chart
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+
           {requisition.reports?.map((r) => (
             <table key={r.id} className="prior-reports-table">
               <tbody>
+                <tr>
+                  <td className="label">
+                    <Link href={`/reports/${r.id}`}>
+                      {(r.report_format ?? "observation") === "viscosity-chart"
+                        ? "Viscosity Correction Chart"
+                        : "Observation Sheet"}
+                    </Link>
+                  </td>
+                  <td colSpan={3}>{r.report_no ?? "-"}</td>
+                </tr>
                 <tr>
                   <td className="label">Gearbox No.</td>
                   <td>{r.gearbox_no ?? "-"}</td>
