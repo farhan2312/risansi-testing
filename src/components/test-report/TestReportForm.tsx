@@ -32,7 +32,6 @@ interface ReportFormValues {
   gearbox_ratio: string;
   motor: string;
   motor_rpm: string;
-  suction_type: string;
   test_type: TestType;
   npsha_status: string;
   capacity_unit: string;
@@ -139,7 +138,6 @@ const TestReportForm = ({
       gearbox_ratio: str(r?.gearbox_ratio),
       motor: str(r?.motor),
       motor_rpm: str(r?.motor_rpm),
-      suction_type: str(r?.suction_type),
       liquid: r?.liquid ?? draft.liquid ?? "WATER",
       test_type: (r?.test_type as TestType) ?? (draft.test_type as TestType) ?? "V-notch",
       npsha_status: r?.npsha_status ?? "POSITIVE",
@@ -275,7 +273,6 @@ const TestReportForm = ({
         gearbox_ratio: values.gearbox_ratio || undefined,
         motor: values.motor || undefined,
         motor_rpm: numOrUndef(values.motor_rpm),
-        suction_type: values.suction_type || undefined,
         test_type: values.test_type,
         npsha_status: values.npsha_status,
         capacity_unit: values.capacity_unit,
@@ -390,14 +387,6 @@ const TestReportForm = ({
           <div className="field">
             <label>Motor RPM</label>
             <input type="number" step="any" {...register("motor_rpm")} />
-          </div>
-          <div className="field">
-            <label>Suction Type</label>
-            <select {...register("suction_type")}>
-              <option value="">-</option>
-              <option value="Flooded">Flooded</option>
-              <option value="Negative">Negative</option>
-            </select>
           </div>
           <div className="field">
             <label>Liquid</label>
