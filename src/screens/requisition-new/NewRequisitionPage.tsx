@@ -16,6 +16,7 @@ const schema = z.object({
   model: z.string().min(1, "Model is required"),
   category: z.string().min(1, "Category is required"),
   ec_quotation_no: z.string().optional(),
+  offer_date: z.string().optional(),
   responsible_person: z.string().min(1, "Responsible person (RES.) is required"),
   source_team: z.string().min(1, "Source team is required"),
   date_of_receipt: z.string().optional(),
@@ -96,6 +97,11 @@ const NewRequisitionPage = () => {
           <div className="field">
             <label htmlFor="ec_quotation_no">EC/Quotation/Offer No.</label>
             <input id="ec_quotation_no" {...register("ec_quotation_no")} placeholder="N/A" />
+          </div>
+
+          <div className="field">
+            <label htmlFor="offer_date">Offer Date</label>
+            <input id="offer_date" type="date" {...register("offer_date")} />
           </div>
 
           <div className="field">

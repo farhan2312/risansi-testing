@@ -40,6 +40,7 @@ export function requisitionToDict(r: RequisitionRow) {
     model: r.model,
     category: r.category,
     ec_quotation_no: r.ecQuotationNo,
+    offer_date: r.offerDate,
     responsible_person: r.responsiblePerson,
     source_team: r.sourceTeam,
     date_of_receipt: r.dateOfReceipt,

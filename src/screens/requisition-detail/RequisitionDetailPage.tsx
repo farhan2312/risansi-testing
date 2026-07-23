@@ -110,6 +110,10 @@ const RequisitionDetailPage = () => {
             <span>{requisition.ec_quotation_no ?? "-"}</span>
           </div>
           <div>
+            <span className="label">Offer Date</span>
+            <span>{requisition.offer_date ?? "-"}</span>
+          </div>
+          <div>
             <span className="label">Responsible Person</span>
             <span>{requisition.responsible_person ?? "-"}</span>
           </div>

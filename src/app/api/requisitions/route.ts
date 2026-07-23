@@ -11,6 +11,7 @@ const CAMEL_BY_SNAKE = {
   model: "model",
   category: "category",
   ec_quotation_no: "ecQuotationNo",
+  offer_date: "offerDate",
   responsible_person: "responsiblePerson",
   source_team: "sourceTeam",
   date_of_receipt: "dateOfReceipt",

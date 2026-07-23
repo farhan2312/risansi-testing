@@ -39,6 +39,7 @@ export const testRequisitions = pgTable("test_requisitions", {
   model: varchar("model", { length: 100 }).notNull(),
   category: varchar("category", { length: 100 }),
   ecQuotationNo: varchar("ec_quotation_no", { length: 100 }),
+  offerDate: date("offer_date"),
   responsiblePerson: varchar("responsible_person", { length: 100 }),
   sourceTeam: varchar("source_team", { length: 50 }),
   dateOfReceipt: date("date_of_receipt"),

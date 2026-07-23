@@ -35,6 +35,7 @@ export interface TestRequisition {
   model: string;
   category: string | null;
   ec_quotation_no: string | null;
+  offer_date: string | null;
   responsible_person: string | null;
   source_team: string | null;
   date_of_receipt: string | null;
@@ -81,6 +82,7 @@ export interface NewRequisitionInput {
   model: string;
   category: string;
   ec_quotation_no?: string;
+  offer_date?: string;
   responsible_person: string;
   source_team: string;
   date_of_receipt?: string;

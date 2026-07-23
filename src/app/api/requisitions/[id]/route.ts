@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 const PATCH_FIELD_MAP: Record<string, string> = {
   category: "category",
   ec_quotation_no: "ecQuotationNo",
+  offer_date: "offerDate",
   responsible_person: "responsiblePerson",
   source_team: "sourceTeam",
   date_of_receipt: "dateOfReceipt",
