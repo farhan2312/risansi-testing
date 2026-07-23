@@ -84,6 +84,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  let claims;
+  try {
+    claims = decodeToken(req);
+  } catch (e) {
+    if (e instanceof AuthError) return error(e.message, e.statusCode);
+    throw e;
+  }
+  if (claims.role === "source") {
+    return error("Source team cannot update requisitions.", 403);
+  }
+
   const { id } = await params;
 
   let body: Record<string, unknown>;

@@ -36,7 +36,7 @@ export const updateRequisition = async (
   id: string,
   patch: Partial<TestRequisition>
 ): Promise<TestRequisition> => {
-  const { data } = await apiClient.patch<TestRequisition>(`/requisitions/${id}`, patch);
+  const { data } = await apiClient.patch<TestRequisition>(`/requisitions/${id}`, patch, authHeader());
   return data;
 };
 

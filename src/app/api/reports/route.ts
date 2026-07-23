@@ -41,6 +41,10 @@ export async function POST(req: Request) {
     throw e;
   }
 
+  if (claims.role === "source") {
+    return error("Source team cannot submit test reports.", 403);
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();

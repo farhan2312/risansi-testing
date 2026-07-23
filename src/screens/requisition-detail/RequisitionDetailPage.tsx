@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import "./RequisitionDetailPage.css";
 import { dedupCheck, getRequisition, updateRequisition } from "@/services/testingService";
+import { getCurrentUser } from "@/services/session";
 import type { DedupCheckResult, TestRequisition } from "@/types/testing";
 
 const RequisitionDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const canProcessTesting = getCurrentUser()?.role !== "source";
 
   const [requisition, setRequisition] = useState<TestRequisition | null>(null);
   const [dedup, setDedup] = useState<DedupCheckResult | null>(null);
@@ -188,7 +190,7 @@ const RequisitionDetailPage = () => {
           </>
         )}
 
-        {requisition.status === "Pending" && (
+        {requisition.status === "Pending" && canProcessTesting && (
           <div className="retest-actions">
             {hasPriorReports ? (
               <>
@@ -208,7 +210,7 @@ const RequisitionDetailPage = () => {
         )}
       </section>
 
-      {(requisition.status === "In Testing" || requisition.status === "Retest Needed") && (
+      {(requisition.status === "In Testing" || requisition.status === "Retest Needed") && canProcessTesting && (
         <section className="detail-card">
           <h2>Test Report</h2>
           <p className="dedup-note">
@@ -234,7 +236,7 @@ const RequisitionDetailPage = () => {
             )}
           </p>
 
-          {(!hasObservation || !hasViscosityChart) && (
+          {(!hasObservation || !hasViscosityChart) && canProcessTesting && (
             <>
               <p className="dedup-note">
                 This pump is still missing its {!hasObservation ? "Observation Sheet" : "Viscosity Correction Chart"}
