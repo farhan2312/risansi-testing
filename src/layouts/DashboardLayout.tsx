@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import "./DashboardLayout.css";
-import { clearSession, getCurrentUser, isAdminOrCentralAdmin } from "@/services/session";
+import { clearSession, getCurrentUser, isAdmin } from "@/services/session";
 import { useTheme } from "@/contexts/ThemeContext";
 import EditPasswordModal from "@/components/ui/EditPasswordModal";
 
@@ -71,7 +71,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
             </Link>
           ))}
 
-          {isAdminOrCentralAdmin() && (
+          {isAdmin() && (
             <>
               <p className="testing-nav-group-label">Admin</p>
               <Link

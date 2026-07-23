@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
 import { error, json } from "@/lib/api";
-import { AuthError, requireAdminOrCentralAdmin } from "@/lib/auth";
+import { AuthError, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 
@@ -14,9 +14,8 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ userId: string }> },
 ) {
-  let claims;
   try {
-    claims = requireAdminOrCentralAdmin(req);
+    requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
@@ -42,12 +41,6 @@ export async function PATCH(
   const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   if (!user) {
     return error("User not found", 404);
-  }
-
-  // central-admin can reset passwords for routine accounts, but not for
-  // another admin — that would let it effectively take over a system admin.
-  if (claims.role !== "admin" && user.role === "admin") {
-    return error("Only a system admin can reset another admin's password.", 403);
   }
 
   const newHash = await bcrypt.hash(newPassword, 12);

@@ -75,15 +75,3 @@ export function requireAdmin(req: Request): TokenClaims {
   }
   return claims;
 }
-
-/** "central-admin" is a delegated admin tier below "admin" (system admin) —
- * can do routine admin work (review access requests, assign roles, reset
- * passwords) but not touch the admin role itself. See the per-route checks
- * in users/[userId]/route.ts and users/[userId]/password/route.ts. */
-export function requireAdminOrCentralAdmin(req: Request): TokenClaims {
-  const claims = decodeToken(req);
-  if (claims.role !== "admin" && claims.role !== "central-admin") {
-    throw new AuthError("Admin access required", 403);
-  }
-  return claims;
-}

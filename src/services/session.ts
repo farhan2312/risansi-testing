@@ -34,6 +34,4 @@ export const isAdmin = (): boolean => getCurrentUser()?.role === "admin";
 
 export const isCentralAdmin = (): boolean => getCurrentUser()?.role === "central-admin";
 
-export const isAdminOrCentralAdmin = (): boolean => isAdmin() || isCentralAdmin();
-
 export const isSource = (): boolean => getCurrentUser()?.role === "source";

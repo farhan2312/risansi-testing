@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { error, json, userToDict } from "@/lib/api";
-import { AuthError, requireAdminOrCentralAdmin } from "@/lib/auth";
+import { AuthError, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 
@@ -15,7 +15,7 @@ export async function PATCH(
 ) {
   let claims;
   try {
-    claims = requireAdminOrCentralAdmin(req);
+    claims = requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
@@ -42,17 +42,6 @@ export async function PATCH(
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) {
       return error("User not found", 404);
-    }
-
-    // central-admin is a delegated tier below admin — it can't grant the
-    // admin role, and can't change an existing admin's role either.
-    if (claims.role !== "admin") {
-      if (newRole === "admin") {
-        return error("Only a system admin can grant the admin role.", 403);
-      }
-      if (user.role === "admin") {
-        return error("Only a system admin can change another admin's role.", 403);
-      }
     }
 
     const [updated] = await db
