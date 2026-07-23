@@ -46,6 +46,25 @@
   gap: 14px;
 }
 
+.print-header {
+  display: none;
+}
+
+.export-pdf-btn {
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.export-pdf-btn:hover {
+  background: var(--accent-soft);
+}
+
 .edit-report-btn {
   padding: 7px 14px;
   border-radius: var(--radius);
@@ -182,4 +201,62 @@
   line-height: 1.6;
   white-space: pre-wrap;
   margin: 0;
+}
+
+@media print {
+  .report-detail-page {
+    max-width: none;
+    gap: 12px;
+  }
+
+  .print-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 14px;
+    margin-bottom: 6px;
+    border-bottom: 2px solid var(--border-strong);
+  }
+
+  .print-header img {
+    height: 44px;
+    width: auto;
+  }
+
+  .print-header strong {
+    display: block;
+    font-size: 15px;
+    color: var(--text-h);
+  }
+
+  .print-header span {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .detail-header-actions,
+  .format-pill {
+    display: none !important;
+  }
+
+  .report-detail-page .detail-card {
+    box-shadow: none;
+    border: 1px solid var(--border);
+    break-inside: avoid;
+  }
+
+  .sheet-table-wrapper {
+    overflow: visible;
+  }
+
+  .points-sheet-table {
+    min-width: 0;
+    font-size: 9px;
+  }
+
+  .sheet-table th,
+  .sheet-table td {
+    padding: 4px 6px;
+  }
 }

@@ -105,3 +105,39 @@ body,
   transition: background-color 0.2s ease, color 0.2s ease,
     border-color 0.2s ease;
 }
+
+/* Printing (Export PDF) always uses the light palette, regardless of the
+   viewer's current theme — dark backgrounds waste ink and print poorly. */
+@media print {
+  :root,
+  [data-theme="dark"] {
+    --bg-app: #ffffff;
+    --surface: #ffffff;
+    --surface-hover: #f4f6fb;
+    --bg-sunk: #f0f2f7;
+
+    --text: #0d1b2e;
+    --text-h: #0a3d8f;
+    --text-muted: #4b5b6e;
+    --text-faint: #7c8a9a;
+
+    --border: #d5dbe6;
+    --border-soft: #e6e9f0;
+    --border-strong: #b7c0cf;
+
+    --accent: #1a5cb8;
+    --shadow: none;
+    --shadow-lg: none;
+
+    --pos: #059669;
+    --pos-soft: #e3f7ee;
+    --neg: #dc2626;
+    --neg-soft: #fdeaea;
+    --warn: #b45309;
+    --warn-soft: #fdf3d9;
+    --info: #2563eb;
+    --info-soft: #e5eefd;
+
+    color-scheme: light;
+  }
+}

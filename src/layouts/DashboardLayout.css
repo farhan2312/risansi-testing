@@ -252,3 +252,24 @@
   transform: translateX(16px);
   background: #fff;
 }
+
+/* Export PDF (window.print()) — the sidebar/profile don't belong on a
+   printed report, and the content should flow as a plain page. */
+@media print {
+  .testing-sidebar {
+    display: none !important;
+  }
+
+  .testing-layout {
+    display: block;
+  }
+
+  .testing-content {
+    display: block;
+  }
+
+  .testing-main {
+    padding: 0;
+    overflow: visible;
+  }
+}

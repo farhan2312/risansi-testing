@@ -95,6 +95,19 @@ const ReportDetailPage = () => {
 
   return (
     <div className="report-detail-page">
+      {/* Only visible when printing (Export PDF) — a plain header showing
+       * the Risansi logo doesn't belong in the on-screen app chrome. */}
+      <div className="print-header">
+        <img src="/logo.png" alt="Risansi Industries" />
+        <div>
+          <strong>Risansi Industries Ltd</strong>
+          <span>
+            Pump Test Report — {FORMAT_LABELS[report.report_format ?? ""] ?? "Observation Sheet"}
+            {report.report_no ? ` — ${report.report_no}` : ""}
+          </span>
+        </div>
+      </div>
+
       <div className="detail-header">
         <div>
           <h1>
@@ -106,6 +119,9 @@ const ReportDetailPage = () => {
           </span>
         </div>
         <div className="detail-header-actions">
+          <button type="button" className="export-pdf-btn" onClick={() => window.print()}>
+            Export PDF
+          </button>
           {isWithinReportEditWindow(report.created_at) && (
             <Link href={`/reports/${report.id}/edit`} className="edit-report-btn">
               Edit
