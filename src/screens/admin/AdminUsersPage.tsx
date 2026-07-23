@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import "./AdminAccessRequestsPage.css";
 import { listAllUsers, setUserRole, type PendingUser } from "@/services/adminService";
+import { isAdmin } from "@/services/session";
 import AdminSetPasswordModal from "@/components/ui/AdminSetPasswordModal";
 
 // "user" is a legacy/placeholder role, no longer assignable — only shown
 // below if an existing account still has it, so it can be reassigned away.
-const ROLES = ["source", "testing", "admin"] as const;
+const ROLES = ["source", "testing", "central-admin", "admin"] as const;
 
 const AdminUsersPage = () => {
   const [users, setUsers] = useState<PendingUser[]>([]);
@@ -15,6 +16,7 @@ const AdminUsersPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [passwordTarget, setPasswordTarget] = useState<PendingUser | null>(null);
   const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null);
+  const viewerIsSystemAdmin = isAdmin();
 
   useEffect(() => {
     listAllUsers()
@@ -61,37 +63,56 @@ const AdminUsersPage = () => {
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
-              <tr key={u.id}>
-                <td>{u.name ?? "—"}</td>
-                <td>{u.email}</td>
-                <td>
-                  <select
-                    className="role-select"
-                    value={u.role}
-                    disabled={roleUpdatingId === u.id}
-                    onChange={(e) => handleRoleChange(u.id, e.target.value as (typeof ROLES)[number])}
-                  >
-                    {!(ROLES as readonly string[]).includes(u.role) && (
-                      <option value={u.role}>{u.role} (unassigned)</option>
-                    )}
-                    {ROLES.map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>{u.status}</td>
-                <td>
-                  <div className="action-buttons">
-                    <button className="approve-btn" onClick={() => setPasswordTarget(u)}>
-                      Reset Password
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {users.map((u) => {
+              // A central-admin can't touch an admin's role or password —
+              // only a system admin can (see the API routes' own checks).
+              const locked = !viewerIsSystemAdmin && u.role === "admin";
+              // Always include this row's own current role as an option
+              // (even "admin", disabled below) so a locked row doesn't
+              // visually show the wrong role just because it's unpickable.
+              const assignableRoles =
+                viewerIsSystemAdmin || u.role === "admin"
+                  ? ROLES
+                  : ROLES.filter((role) => role !== "admin");
+
+              return (
+                <tr key={u.id}>
+                  <td>{u.name ?? "—"}</td>
+                  <td>{u.email}</td>
+                  <td>
+                    <select
+                      className="role-select"
+                      value={u.role}
+                      disabled={roleUpdatingId === u.id || locked}
+                      title={locked ? "Only a system admin can change another admin's role." : undefined}
+                      onChange={(e) => handleRoleChange(u.id, e.target.value as (typeof ROLES)[number])}
+                    >
+                      {!(ROLES as readonly string[]).includes(u.role) && (
+                        <option value={u.role}>{u.role} (unassigned)</option>
+                      )}
+                      {assignableRoles.map((role) => (
+                        <option key={role} value={role}>
+                          {role}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>{u.status}</td>
+                  <td>
+                    <div className="action-buttons">
+                      <button
+                        className="approve-btn"
+                        disabled={locked}
+                        title={locked ? "Only a system admin can reset another admin's password." : undefined}
+                        onClick={() => setPasswordTarget(u)}
+                      >
+                        Reset Password
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

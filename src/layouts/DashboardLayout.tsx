@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import "./DashboardLayout.css";
-import { clearSession, getCurrentUser, isAdmin } from "@/services/session";
+import { clearSession, getCurrentUser, isAdminOrCentralAdmin } from "@/services/session";
 import { useTheme } from "@/contexts/ThemeContext";
 import EditPasswordModal from "@/components/ui/EditPasswordModal";
 
@@ -17,9 +17,9 @@ const NAV_ITEMS = [
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "System Admin",
+  "central-admin": "Central Admin",
   source: "Source Team",
   testing: "Testing Team",
-  user: "Tester",
 };
 
 const DashboardLayout = ({ children }: { children: ReactNode }) => {
@@ -27,7 +27,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const user = getCurrentUser();
   const { theme, toggleTheme } = useTheme();
-  const role = user?.role ?? "user";
+  const role = user?.role ?? "testing";
   const navItems = NAV_ITEMS.filter((item) => !item.hideFor?.includes(role));
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -71,7 +71,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
             </Link>
           ))}
 
-          {isAdmin() && (
+          {isAdminOrCentralAdmin() && (
             <>
               <p className="testing-nav-group-label">Admin</p>
               <Link
@@ -126,7 +126,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
             <span className="sidebar-avatar">{initial}</span>
             <span className="sidebar-profile-text">
               <strong>{displayName}</strong>
-              <span>{ROLE_LABELS[user?.role ?? "user"] ?? "Tester"}</span>
+              <span>{ROLE_LABELS[user?.role ?? "testing"] ?? "Tester"}</span>
             </span>
             <span className={`sidebar-chevron ${menuOpen ? "open" : ""}`}>&#9662;</span>
           </button>

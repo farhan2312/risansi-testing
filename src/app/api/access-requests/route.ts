@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   if (!existing) {
     const [user] = await db
       .insert(users)
-      .values({ name, email, passwordHash, role: "user", status: "pending" })
+      .values({ name, email, passwordHash, role: "testing", status: "pending" })
       .returning();
     return json(userToDict(user), 201);
   }

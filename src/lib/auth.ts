@@ -43,7 +43,7 @@ export function createToken(user: TokenUser): string {
   const payload = {
     sub: String(user.id),
     email: user.email,
-    role: user.role ?? "user",
+    role: user.role ?? "testing",
     iat: now,
     exp: now + JWT_EXPIRY_SECONDS,
   };
@@ -71,6 +71,18 @@ export function decodeToken(req: Request): TokenClaims {
 export function requireAdmin(req: Request): TokenClaims {
   const claims = decodeToken(req);
   if (claims.role !== "admin") {
+    throw new AuthError("Admin access required", 403);
+  }
+  return claims;
+}
+
+/** "central-admin" is a delegated admin tier below "admin" (system admin) —
+ * can do routine admin work (review access requests, assign roles, reset
+ * passwords) but not touch the admin role itself. See the per-route checks
+ * in users/[userId]/route.ts and users/[userId]/password/route.ts. */
+export function requireAdminOrCentralAdmin(req: Request): TokenClaims {
+  const claims = decodeToken(req);
+  if (claims.role !== "admin" && claims.role !== "central-admin") {
     throw new AuthError("Admin access required", 403);
   }
   return claims;

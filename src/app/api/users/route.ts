@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 
 import { error, json, userToDict } from "@/lib/api";
-import { AuthError, requireAdmin } from "@/lib/auth";
+import { AuthError, requireAdminOrCentralAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
-    requireAdmin(req);
+    requireAdminOrCentralAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
