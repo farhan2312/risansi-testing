@@ -52,7 +52,7 @@ export const setUserPassword = async (userId: string, newPassword: string) => {
 
 export const setUserRole = async (
   userId: string,
-  role: "user" | "source" | "testing" | "admin"
+  role: "source" | "testing" | "admin"
 ): Promise<PendingUser> => {
   const { data } = await apiClient.patch<PendingUser>(`/users/${userId}`, { role }, authHeader());
   return data;

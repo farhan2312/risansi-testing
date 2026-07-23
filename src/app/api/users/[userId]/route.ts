@@ -35,8 +35,8 @@ export async function PATCH(
 
   if (body.role !== undefined) {
     const newRole = body.role;
-    if (newRole !== "user" && newRole !== "source" && newRole !== "testing" && newRole !== "admin") {
-      return error("'role' must be 'user', 'source', 'testing', or 'admin'", 400);
+    if (newRole !== "source" && newRole !== "testing" && newRole !== "admin") {
+      return error("'role' must be 'source', 'testing', or 'admin'", 400);
     }
 
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);

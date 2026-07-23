@@ -5,7 +5,9 @@ import "./AdminAccessRequestsPage.css";
 import { listAllUsers, setUserRole, type PendingUser } from "@/services/adminService";
 import AdminSetPasswordModal from "@/components/ui/AdminSetPasswordModal";
 
-const ROLES = ["user", "source", "testing", "admin"] as const;
+// "user" is a legacy/placeholder role, no longer assignable — only shown
+// below if an existing account still has it, so it can be reassigned away.
+const ROLES = ["source", "testing", "admin"] as const;
 
 const AdminUsersPage = () => {
   const [users, setUsers] = useState<PendingUser[]>([]);
@@ -70,6 +72,9 @@ const AdminUsersPage = () => {
                     disabled={roleUpdatingId === u.id}
                     onChange={(e) => handleRoleChange(u.id, e.target.value as (typeof ROLES)[number])}
                   >
+                    {!(ROLES as readonly string[]).includes(u.role) && (
+                      <option value={u.role}>{u.role} (unassigned)</option>
+                    )}
                     {ROLES.map((role) => (
                       <option key={role} value={role}>
                         {role}
