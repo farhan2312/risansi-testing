@@ -146,6 +146,12 @@ export const pumpTestReports = pgTable("pump_test_reports", {
   recorder: varchar("recorder", { length: 100 }),
 
   remarks: text("remarks"),
+
+  // Who submitted this report through the portal — captured server-side from
+  // the logged-in account at creation, distinct from "tested_by" (a free-text
+  // name for whoever physically ran the test, which may not have a login).
+  // Never touched by edits — reflects the original submitter, always.
+  preparedBy: varchar("prepared_by", { length: 100 }),
 });
 
 export const pumpTestReportPoints = pgTable("pump_test_report_points", {

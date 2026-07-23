@@ -48,7 +48,7 @@ export const dedupCheck = async (model: string): Promise<DedupCheckResult> => {
 };
 
 export const submitReport = async (input: NewReportInput): Promise<PumpTestReport> => {
-  const { data } = await apiClient.post<PumpTestReport>("/reports", input);
+  const { data } = await apiClient.post<PumpTestReport>("/reports", input, authHeader());
   return data;
 };
 

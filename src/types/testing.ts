@@ -177,6 +177,7 @@ export interface PumpTestReport {
   recorder: string | null;
 
   remarks: string | null;
+  prepared_by: string | null;
 
   points: PumpTestReportPoint[];
 }

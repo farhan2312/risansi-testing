@@ -1,8 +1,9 @@
 import { desc, eq, ilike, inArray, sql } from "drizzle-orm";
 
 import { error, json, pointToDict, reportToDict } from "@/lib/api";
+import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { pumpTestReportPoints, pumpTestReports, testRequisitions } from "@/lib/db/schema";
+import { pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
 import { POINT_FIELD_MAP, REPORT_FIELD_MAP } from "@/lib/reportFieldMaps";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,14 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  let claims;
+  try {
+    claims = decodeToken(req);
+  } catch (e) {
+    if (e instanceof AuthError) return error(e.message, e.statusCode);
+    throw e;
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -57,7 +66,12 @@ export async function POST(req: Request) {
   );
   const reportNo = `TR-${String(seqResult.rows[0].n).padStart(6, "0")}`;
 
-  const reportValues: Record<string, unknown> = { model, requisitionId, reportNo };
+  // "Prepared By" is always the logged-in submitter, computed server-side —
+  // never trusted from the request body, and never touched on edit.
+  const [submitter] = await db.select().from(users).where(eq(users.id, claims.sub)).limit(1);
+  const preparedBy = submitter?.name ?? claims.email;
+
+  const reportValues: Record<string, unknown> = { model, requisitionId, reportNo, preparedBy };
   for (const [snakeKey, camelKey] of Object.entries(REPORT_FIELD_MAP)) {
     if (body[snakeKey] !== undefined && body[snakeKey] !== "") {
       reportValues[camelKey] = body[snakeKey];

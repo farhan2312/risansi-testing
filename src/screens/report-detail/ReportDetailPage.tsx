@@ -242,6 +242,12 @@ const ReportDetailPage = () => {
                 )}
               </td>
             </tr>
+            {report.prepared_by && (
+              <tr>
+                <th>Prepared By</th>
+                <td colSpan={5}>{report.prepared_by}</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </section>

@@ -126,6 +126,7 @@ export function reportToDict(r: ReportRow) {
     inspector: r.inspector,
     recorder: r.recorder,
     remarks: r.remarks,
+    prepared_by: r.preparedBy,
   };
 }
 
