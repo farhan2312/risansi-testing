@@ -1,4 +1,5 @@
 import apiClient from "./apiClient";
+import { getToken } from "./session";
 import type {
   ArchiveReportSummary,
   DedupCheckResult,
@@ -9,20 +10,25 @@ import type {
   TestRequisition,
 } from "../types/testing";
 
+const authHeader = () => ({
+  headers: { Authorization: `Bearer ${getToken()}` },
+});
+
 export const listRequisitions = async (status?: RequisitionStatus): Promise<TestRequisition[]> => {
   const { data } = await apiClient.get<TestRequisition[]>("/requisitions", {
+    ...authHeader(),
     params: status ? { status } : undefined,
   });
   return data;
 };
 
 export const getRequisition = async (id: string): Promise<TestRequisition> => {
-  const { data } = await apiClient.get<TestRequisition>(`/requisitions/${id}`);
+  const { data } = await apiClient.get<TestRequisition>(`/requisitions/${id}`, authHeader());
   return data;
 };
 
 export const createRequisition = async (input: NewRequisitionInput): Promise<TestRequisition> => {
-  const { data } = await apiClient.post<TestRequisition>("/requisitions", input);
+  const { data } = await apiClient.post<TestRequisition>("/requisitions", input, authHeader());
   return data;
 };
 

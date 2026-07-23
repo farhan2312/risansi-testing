@@ -1,6 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
 
 import { error, json, pointToDict, reportToDict, requisitionToDict } from "@/lib/api";
+import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports, testRequisitions } from "@/lib/db/schema";
 
@@ -40,12 +41,23 @@ const PATCH_FIELD_MAP: Record<string, string> = {
   action_remarks: "actionRemarks",
 };
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  let claims;
+  try {
+    claims = decodeToken(req);
+  } catch (e) {
+    if (e instanceof AuthError) return error(e.message, e.statusCode);
+    throw e;
+  }
+
   const { id } = await params;
 
   const [requisition] = await db.select().from(testRequisitions).where(eq(testRequisitions.id, id)).limit(1);
   if (!requisition) {
     return error("Requisition not found", 404);
+  }
+  if (claims.role === "source" && requisition.createdBy !== claims.sub) {
+    return error("You can only view requisitions you raised.", 403);
   }
 
   const reports = await db.select().from(pumpTestReports).where(eq(pumpTestReports.requisitionId, id));

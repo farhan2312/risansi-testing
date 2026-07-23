@@ -1,6 +1,7 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { error, json, requisitionToDict } from "@/lib/api";
+import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReports, testRequisitions } from "@/lib/db/schema";
 
@@ -23,11 +24,25 @@ const CAMEL_BY_SNAKE = {
 };
 
 export async function GET(req: Request) {
+  let claims;
+  try {
+    claims = decodeToken(req);
+  } catch (e) {
+    if (e instanceof AuthError) return error(e.message, e.statusCode);
+    throw e;
+  }
+
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
 
-  const rows = status
-    ? await db.select().from(testRequisitions).where(eq(testRequisitions.status, status)).orderBy(desc(testRequisitions.createdAt))
+  const conditions = [];
+  if (status) conditions.push(eq(testRequisitions.status, status));
+  // Source teams only see the requisitions they personally raised — testing
+  // team and admins still see everything, since they process all of them.
+  if (claims.role === "source") conditions.push(eq(testRequisitions.createdBy, claims.sub));
+
+  const rows = conditions.length
+    ? await db.select().from(testRequisitions).where(and(...conditions)).orderBy(desc(testRequisitions.createdAt))
     : await db.select().from(testRequisitions).orderBy(desc(testRequisitions.createdAt));
 
   const requisitionIds = rows.map((r) => r.id);
@@ -45,6 +60,14 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  let claims;
+  try {
+    claims = decodeToken(req);
+  } catch (e) {
+    if (e instanceof AuthError) return error(e.message, e.statusCode);
+    throw e;
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -65,7 +88,7 @@ export async function POST(req: Request) {
 
   const [requisition] = await db
     .insert(testRequisitions)
-    .values({ ...values, status: "Pending" } as typeof testRequisitions.$inferInsert)
+    .values({ ...values, status: "Pending", createdBy: claims.sub } as typeof testRequisitions.$inferInsert)
     .returning();
 
   return json(requisitionToDict(requisition), 201);
