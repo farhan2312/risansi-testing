@@ -74,6 +74,11 @@ export const testRequisitions = pgTable("test_requisitions", {
   actionRemarks: text("action_remarks"),
 
   createdBy: uuid("created_by"),
+  // Display name for who raised this requisition, resolved server-side from
+  // the logged-in account at creation time — same pattern as pump_test_reports
+  // .prepared_by. created_by (above) stays a uuid, used only for the
+  // source-role visibility filter, not for display.
+  submittedBy: varchar("submitted_by", { length: 100 }),
   createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
   updatedAt: timestamp("updated_at", { withTimezone: true }).$defaultFn(() => new Date()),
   closedAt: timestamp("closed_at", { withTimezone: true }),

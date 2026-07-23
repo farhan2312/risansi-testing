@@ -70,6 +70,7 @@ export interface TestRequisition {
   action_remarks: string | null;
 
   created_by: string | null;
+  submitted_by: string | null;
   created_at: string;
   updated_at: string;
   closed_at: string | null;

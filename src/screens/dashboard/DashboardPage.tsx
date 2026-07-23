@@ -83,6 +83,7 @@ const DashboardPage = () => {
               <th>Source Team</th>
               <th>Date of Receipt</th>
               <th>Retest Needed</th>
+              <th>Submitted By</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -98,6 +99,7 @@ const DashboardPage = () => {
                 <td>{r.source_team ?? "-"}</td>
                 <td>{r.date_of_receipt ?? "-"}</td>
                 <td>{r.retest_needed === null ? "-" : r.retest_needed ? "Yes" : "No"}</td>
+                <td>{r.submitted_by ?? "-"}</td>
                 <td>
                   {r.status === "Closed" && r.report_id ? (
                     <Link href={`/reports/${r.report_id}`} className="status-pill status-view-report">

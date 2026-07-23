@@ -143,6 +143,10 @@ const RequisitionDetailPage = () => {
             <span className="label">RPM</span>
             <span>{requisition.rpm ?? "-"}</span>
           </div>
+          <div>
+            <span className="label">Submitted By</span>
+            <span>{requisition.submitted_by ?? "-"}</span>
+          </div>
         </div>
       </section>
 

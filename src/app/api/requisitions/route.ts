@@ -3,7 +3,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { error, json, requisitionToDict } from "@/lib/api";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { pumpTestReports, testRequisitions } from "@/lib/db/schema";
+import { pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -87,9 +87,19 @@ export async function POST(req: Request) {
     }
   }
 
+  // "Submitted By" is always the logged-in creator, resolved server-side —
+  // never trusted from the request body.
+  const [creator] = await db.select().from(users).where(eq(users.id, claims.sub)).limit(1);
+  const submittedBy = creator?.name ?? claims.email;
+
   const [requisition] = await db
     .insert(testRequisitions)
-    .values({ ...values, status: "Pending", createdBy: claims.sub } as typeof testRequisitions.$inferInsert)
+    .values({
+      ...values,
+      status: "Pending",
+      createdBy: claims.sub,
+      submittedBy,
+    } as typeof testRequisitions.$inferInsert)
     .returning();
 
   return json(requisitionToDict(requisition), 201);

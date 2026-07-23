@@ -71,6 +71,7 @@ export function requisitionToDict(r: RequisitionRow) {
     general_remarks: r.generalRemarks,
     action_remarks: r.actionRemarks,
     created_by: r.createdBy,
+    submitted_by: r.submittedBy,
     created_at: r.createdAt,
     updated_at: r.updatedAt,
     closed_at: r.closedAt,
