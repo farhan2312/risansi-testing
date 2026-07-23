@@ -55,6 +55,22 @@
   font-weight: 600;
 }
 
+.value-unit-group {
+  display: flex;
+  gap: 6px;
+}
+
+.value-unit-group input {
+  flex: 3;
+  min-width: 0;
+}
+
+.value-unit-group select {
+  flex: 2;
+  min-width: 0;
+  padding: 0 4px;
+}
+
 .test-report-page .required-hint {
   font-weight: 400;
   color: var(--accent);

@@ -371,23 +371,6 @@ const TestReportForm = ({
             </select>
           </div>
           <div className="field">
-            <label>Capacity Unit</label>
-            <select {...register("capacity_unit")}>
-              {CAPACITY_UNITS.map((u) => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label>Head Unit</label>
-            <select {...register("head_unit")}>
-              {HEAD_UNITS.map((u) => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="field">
             <label>Gearbox No.</label>
             <input {...register("gearbox_no")} />
           </div>
@@ -410,11 +393,25 @@ const TestReportForm = ({
 
           <div className="field">
             <label>Rated Capacity</label>
-            <input type="number" step="any" {...register("rated_capacity")} />
+            <div className="value-unit-group">
+              <input type="number" step="any" {...register("rated_capacity")} />
+              <select {...register("capacity_unit")}>
+                {CAPACITY_UNITS.map((u) => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="field">
             <label>Rated Head</label>
-            <input type="number" step="any" {...register("rated_head")} />
+            <div className="value-unit-group">
+              <input type="number" step="any" {...register("rated_head")} />
+              <select {...register("head_unit")}>
+                {HEAD_UNITS.map((u) => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="field">
             <label>Specific Gravity</label>
