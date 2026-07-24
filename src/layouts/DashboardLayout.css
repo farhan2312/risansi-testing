@@ -1,6 +1,7 @@
 .testing-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: var(--bg-app);
   color: var(--text);
 }
@@ -13,6 +14,7 @@
   display: flex;
   flex-direction: column;
   padding: 16px 12px;
+  overflow-y: auto;
 }
 
 /* White logo chip, matching the sales portal's sidebar header */
