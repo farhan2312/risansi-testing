@@ -11,7 +11,8 @@ import type { DedupCheckResult, TestRequisition } from "@/types/testing";
 const RequisitionDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const canProcessTesting = getCurrentUser()?.role !== "source";
+  const currentUser = getCurrentUser();
+  const canProcessTesting = currentUser?.role !== "source";
 
   const [requisition, setRequisition] = useState<TestRequisition | null>(null);
   const [dedup, setDedup] = useState<DedupCheckResult | null>(null);
@@ -79,6 +80,7 @@ const RequisitionDetailPage = () => {
   const hasObservation =
     requisition.reports?.some((r) => (r.report_format ?? "observation") === "observation") ?? false;
   const hasViscosityChart = requisition.reports?.some((r) => r.report_format === "viscosity-chart") ?? false;
+  const canEditRequisition = currentUser?.role === "source" && requisition.created_by === currentUser.id;
 
   return (
     <div className="requisition-detail-page">
@@ -95,9 +97,16 @@ const RequisitionDetailPage = () => {
             </span>
           )}
         </div>
-        <Link href="/dashboard" className="back-link">
-          &larr; Back to requisitions
-        </Link>
+        <div className="detail-header-actions">
+          {canEditRequisition && (
+            <Link href={`/requisitions/${requisition.id}/edit`} className="edit-report-btn">
+              Edit
+            </Link>
+          )}
+          <Link href="/dashboard" className="back-link">
+            &larr; Back to requisitions
+          </Link>
+        </div>
       </div>
 
       <section className="detail-card">

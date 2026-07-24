@@ -27,6 +27,26 @@
   text-decoration: underline;
 }
 
+.detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.edit-report-btn {
+  padding: 7px 16px;
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  font-weight: 500;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.edit-report-btn:hover {
+  background: var(--surface-hover);
+}
+
 .detail-card {
   background: var(--surface);
   border-radius: var(--radius);

@@ -8,6 +8,7 @@ import { pumpTestReportPoints, pumpTestReports, testRequisitions } from "@/lib/d
 export const dynamic = "force-dynamic";
 
 const PATCH_FIELD_MAP: Record<string, string> = {
+  model: "model",
   category: "category",
   ec_quotation_no: "ecQuotationNo",
   offer_date: "offerDate",
@@ -41,6 +42,26 @@ const PATCH_FIELD_MAP: Record<string, string> = {
   general_remarks: "generalRemarks",
   action_remarks: "actionRemarks",
 };
+
+// Source team can only correct the intake details they themselves filled in
+// on the New Requisition form -- not testing-workflow fields (status, retest
+// flags, observation/results, etc.), which stay testing-team-only.
+const SOURCE_EDITABLE_FIELDS = new Set([
+  "model",
+  "category",
+  "ec_quotation_no",
+  "offer_date",
+  "responsible_person",
+  "source_team",
+  "date_of_receipt",
+  "test_qty",
+  "qth",
+  "power_hp",
+  "power_kw",
+  "head_kgcm2",
+  "rpm",
+  "req_capacity",
+]);
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   let claims;
@@ -91,11 +112,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
   }
-  if (claims.role === "source") {
-    return error("Source team cannot update requisitions.", 403);
-  }
-
   const { id } = await params;
+
+  if (claims.role === "source") {
+    const [existing] = await db.select().from(testRequisitions).where(eq(testRequisitions.id, id)).limit(1);
+    if (!existing) {
+      return error("Requisition not found", 404);
+    }
+    if (existing.createdBy !== claims.sub) {
+      return error("You can only edit requisitions you raised.", 403);
+    }
+  }
 
   let body: Record<string, unknown>;
   try {
@@ -107,11 +134,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const values: Record<string, unknown> = {};
   for (const [snakeKey, camelKey] of Object.entries(PATCH_FIELD_MAP)) {
     if (body[snakeKey] !== undefined) {
+      if (claims.role === "source" && !SOURCE_EDITABLE_FIELDS.has(snakeKey)) {
+        continue;
+      }
       values[camelKey] = body[snakeKey];
     }
   }
   values.updatedAt = new Date();
-  if (body.status === "Closed") {
+  if (claims.role !== "source" && body.status === "Closed") {
     values.closedAt = new Date();
   }
 
