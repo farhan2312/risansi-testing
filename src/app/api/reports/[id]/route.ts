@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { error, json, pointToDict, reportToDict } from "@/lib/api";
+import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports, testRequisitions } from "@/lib/db/schema";
 import { isWithinReportEditWindow, REPORT_EDIT_WINDOW_DAYS } from "@/lib/reportEditWindow";
@@ -22,6 +23,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  let claims;
+  try {
+    claims = decodeToken(req);
+  } catch (e) {
+    if (e instanceof AuthError) return error(e.message, e.statusCode);
+    throw e;
+  }
+  if (claims.role !== "testing") {
+    return error("Only the testing team can edit reports.", 403);
+  }
+
   const { id } = await params;
 
   const [existing] = await db.select().from(pumpTestReports).where(eq(pumpTestReports.id, id)).limit(1);
@@ -82,7 +94,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   return json({ ...reportToDict(report), points: points.map(pointToDict) });
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  let claims;
+  try {
+    claims = decodeToken(req);
+  } catch (e) {
+    if (e instanceof AuthError) return error(e.message, e.statusCode);
+    throw e;
+  }
+  if (claims.role !== "testing") {
+    return error("Only the testing team can delete reports.", 403);
+  }
+
   const { id } = await params;
 
   const [report] = await db.select().from(pumpTestReports).where(eq(pumpTestReports.id, id)).limit(1);

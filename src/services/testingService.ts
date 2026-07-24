@@ -68,12 +68,12 @@ export const updateReport = async (
   id: string,
   input: Omit<NewReportInput, "requisitionId">
 ): Promise<PumpTestReport> => {
-  const { data } = await apiClient.patch<PumpTestReport>(`/reports/${id}`, input);
+  const { data } = await apiClient.patch<PumpTestReport>(`/reports/${id}`, input, authHeader());
   return data;
 };
 
 export const deleteReport = async (id: string): Promise<void> => {
-  await apiClient.delete(`/reports/${id}`);
+  await apiClient.delete(`/reports/${id}`, authHeader());
 };
 
 /** Latest Observation Sheet report submitted for this exact pump model, if

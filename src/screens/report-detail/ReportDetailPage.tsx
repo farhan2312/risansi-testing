@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import "./ReportDetailPage.css";
 import { deleteReport, getReport } from "@/services/testingService";
+import { getCurrentUser } from "@/services/session";
 import { isWithinReportEditWindow, REPORT_EDIT_WINDOW_DAYS } from "@/lib/reportEditWindow";
 import type { PumpTestReport, PumpTestReportPoint } from "@/types/testing";
 
@@ -54,6 +55,7 @@ const ReportDetailPage = () => {
   const [report, setReport] = useState<PumpTestReport | null>(null);
   const [error, setError] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const canEditOrDelete = getCurrentUser()?.role === "testing";
 
   useEffect(() => {
     if (!id) return;
@@ -122,14 +124,16 @@ const ReportDetailPage = () => {
           <button type="button" className="export-pdf-btn" onClick={() => window.print()}>
             Export PDF
           </button>
-          {isWithinReportEditWindow(report.created_at) && (
+          {canEditOrDelete && isWithinReportEditWindow(report.created_at) && (
             <Link href={`/reports/${report.id}/edit`} className="edit-report-btn">
               Edit
             </Link>
           )}
-          <button type="button" className="delete-report-btn" onClick={handleDelete} disabled={isDeleting}>
-            {isDeleting ? "Deleting..." : "Delete"}
-          </button>
+          {canEditOrDelete && (
+            <button type="button" className="delete-report-btn" onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting ? "Deleting..." : "Delete"}
+            </button>
+          )}
           <Link href="/reports" className="back-link">
             &larr; Back to archive
           </Link>
