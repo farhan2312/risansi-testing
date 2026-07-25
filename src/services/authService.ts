@@ -20,8 +20,8 @@ export const login = async (email: string, password: string): Promise<LoginResul
   return data;
 };
 
-export const requestAccess = async (name: string, email: string, password: string) => {
-  const { data } = await apiClient.post("/access-requests", { name, email, password });
+export const requestAccess = async (name: string, email: string, password: string, role: string) => {
+  const { data } = await apiClient.post("/access-requests", { name, email, password, role });
   return data;
 };
 

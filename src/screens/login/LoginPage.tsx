@@ -27,6 +27,7 @@ const LoginPage = () => {
 
   const [name, setName] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState<"source" | "testing">("testing");
 
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -111,12 +112,13 @@ const LoginPage = () => {
 
     setIsSubmitting(true);
     try {
-      await requestAccess(trimmedName, email.trim(), password);
+      await requestAccess(trimmedName, email.trim(), password, role);
       setFormSuccess("Request submitted — an admin will approve your account before you can sign in.");
       setName("");
       setEmail("");
       setPassword("");
       setConfirmPassword("");
+      setRole("testing");
       setMode("login");
     } catch (err) {
       setFormError(errorMessage(err, "Unable to submit your request. Please try again."));
@@ -271,6 +273,16 @@ const LoginPage = () => {
                 {nameError}
               </span>
             )}
+
+            <label htmlFor="request-role">Role</label>
+            <select
+              id="request-role"
+              value={role}
+              onChange={(e) => setRole(e.target.value as "source" | "testing")}
+            >
+              <option value="testing">Testing Team</option>
+              <option value="source">Source Team</option>
+            </select>
 
             <label htmlFor="request-email">Company Email</label>
             <input

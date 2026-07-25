@@ -7,6 +7,11 @@ import { users } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
+// Admin and central-admin are assigned by an existing admin, not
+// self-requested -- only the two day-to-day operational roles are offered
+// on the public Request Access form.
+const REQUESTABLE_ROLES = ["source", "testing"];
+
 export async function POST(req: Request) {
   let body: Record<string, unknown>;
   try {
@@ -18,8 +23,12 @@ export async function POST(req: Request) {
   const name = String(body.name ?? "").trim();
   const email = String(body.email ?? "").trim().toLowerCase();
   const password = String(body.password ?? "");
+  const role = String(body.role ?? "");
   if (!name || !email || !password) {
     return error("'name', 'email', and 'password' are required", 400);
+  }
+  if (!REQUESTABLE_ROLES.includes(role)) {
+    return error(`'role' must be one of: ${REQUESTABLE_ROLES.join(", ")}`, 400);
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
@@ -28,7 +37,7 @@ export async function POST(req: Request) {
   if (!existing) {
     const [user] = await db
       .insert(users)
-      .values({ name, email, passwordHash, role: "testing", status: "pending" })
+      .values({ name, email, passwordHash, role, status: "pending" })
       .returning();
     return json(userToDict(user), 201);
   }
@@ -46,6 +55,7 @@ export async function POST(req: Request) {
     .set({
       name,
       passwordHash,
+      role,
       status: "pending",
       reviewedBy: null,
       reviewedAt: null,
