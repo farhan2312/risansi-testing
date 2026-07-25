@@ -11,7 +11,7 @@ export const REQUISITION_CATEGORIES = [
   "Against EC Based",
 ] as const;
 
-export const SOURCE_TEAMS = ["Planning", "Research", "Operation"] as const;
+export const SOURCE_TEAMS = ["Planning", "Research", "Operations"] as const;
 
 export const RESPONSIBLE_PERSONS = ["Sachin", "Vikas"] as const;
 
