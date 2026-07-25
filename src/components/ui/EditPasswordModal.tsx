@@ -6,6 +6,10 @@ import { changePassword } from "@/services/authService";
 
 interface EditPasswordModalProps {
   onClose: () => void;
+  /** First-login forced change: no close/cancel, overlay click does nothing,
+   * and a successful change calls onSuccess instead of just showing a message. */
+  mandatory?: boolean;
+  onSuccess?: () => void;
 }
 
 const MIN_PASSWORD_LENGTH = 6;
@@ -15,7 +19,7 @@ const errorMessage = (err: unknown, fallback: string): string => {
   return response?.data?.error ?? fallback;
 };
 
-const EditPasswordModal = ({ onClose }: EditPasswordModalProps) => {
+const EditPasswordModal = ({ onClose, mandatory = false, onSuccess }: EditPasswordModalProps) => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -66,10 +70,14 @@ const EditPasswordModal = ({ onClose }: EditPasswordModalProps) => {
 
     try {
       await changePassword(currentPassword, newPassword);
-      setSuccessMessage("Password updated successfully.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      if (mandatory && onSuccess) {
+        onSuccess();
+      } else {
+        setSuccessMessage("Password updated successfully.");
+      }
     } catch (err) {
       setFormError(errorMessage(err, "Could not update password."));
     } finally {
@@ -78,7 +86,7 @@ const EditPasswordModal = ({ onClose }: EditPasswordModalProps) => {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={mandatory ? undefined : onClose}>
       <div
         className="settings-modal"
         onClick={(e) => e.stopPropagation()}
@@ -88,12 +96,19 @@ const EditPasswordModal = ({ onClose }: EditPasswordModalProps) => {
       >
         <div className="settings-modal-header">
           <h3 id="edit-password-title">Change Password</h3>
-          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
-            &#10005;
-          </button>
+          {!mandatory && (
+            <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
+              &#10005;
+            </button>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} noValidate>
+          {mandatory && (
+            <p className="modal-mandatory-note">
+              For security, you must set a new password before continuing.
+            </p>
+          )}
           {formError && (
             <div className="modal-form-error" role="alert">
               {formError}
@@ -145,9 +160,11 @@ const EditPasswordModal = ({ onClose }: EditPasswordModalProps) => {
           {errors.confirm && <span className="error-text">{errors.confirm}</span>}
 
           <div className="settings-modal-actions">
-            <button type="button" className="btn-secondary" onClick={onClose}>
-              Cancel
-            </button>
+            {!mandatory && (
+              <button type="button" className="btn-secondary" onClick={onClose}>
+                Cancel
+              </button>
+            )}
             <button type="submit" className="btn-primary" disabled={isSubmitting}>
               {isSubmitting ? "Updating..." : "Update Password"}
             </button>

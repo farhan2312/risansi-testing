@@ -37,6 +37,12 @@ export async function POST(req: Request) {
   const token = createToken({ id: user.id, email: user.email, role: user.role });
   return json({
     token,
-    user: { id: String(user.id), name: user.name, email: user.email, role: user.role },
+    user: {
+      id: String(user.id),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      must_change_password: user.mustChangePassword,
+    },
   });
 }

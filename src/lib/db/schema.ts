@@ -31,6 +31,9 @@ export const users = pgTable("users", {
   reviewedBy: uuid("reviewed_by"),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
+  // Forces a password change on first login. Defaults true for new accounts;
+  // cleared once the user successfully changes their password.
+  mustChangePassword: boolean("must_change_password").notNull().default(true),
 });
 
 export const testRequisitions = pgTable("test_requisitions", {

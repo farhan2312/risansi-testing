@@ -27,6 +27,12 @@ export const getCurrentUser = (): AuthUser | null => {
   }
 };
 
+export const updateCurrentUser = (patch: Partial<AuthUser>) => {
+  const current = getCurrentUser();
+  if (!current) return;
+  localStorage.setItem(USER_KEY, JSON.stringify({ ...current, ...patch }));
+};
+
 export const isAuthenticated = (): boolean =>
   getToken() !== null && getCurrentUser() !== null;
 

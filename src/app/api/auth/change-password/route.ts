@@ -42,6 +42,9 @@ export async function POST(req: Request) {
   }
 
   const newHash = await bcrypt.hash(newPassword, 12);
-  await db.update(users).set({ passwordHash: newHash }).where(eq(users.id, user.id));
+  await db
+    .update(users)
+    .set({ passwordHash: newHash, mustChangePassword: false })
+    .where(eq(users.id, user.id));
   return json({ success: true });
 }

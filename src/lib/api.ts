@@ -31,6 +31,7 @@ export function userToDict(u: UserRow) {
     reviewed_by: u.reviewedBy,
     reviewed_at: u.reviewedAt,
     created_at: u.createdAt,
+    must_change_password: u.mustChangePassword,
   };
 }
 

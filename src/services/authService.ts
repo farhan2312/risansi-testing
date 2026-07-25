@@ -6,6 +6,7 @@ export interface AuthUser {
   name: string | null;
   email: string;
   role: "source" | "testing" | "central-admin" | "admin";
+  must_change_password: boolean;
 }
 
 export interface LoginResult {

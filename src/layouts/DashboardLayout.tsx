@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import "./DashboardLayout.css";
-import { clearSession, getCurrentUser, isAdmin } from "@/services/session";
+import { clearSession, getCurrentUser, isAdmin, updateCurrentUser } from "@/services/session";
 import { useTheme } from "@/contexts/ThemeContext";
 import EditPasswordModal from "@/components/ui/EditPasswordModal";
 
@@ -32,6 +32,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(user?.must_change_password ?? false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -137,7 +138,18 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
         <main className="testing-main">{children}</main>
       </div>
 
-      {showEditPassword && <EditPasswordModal onClose={() => setShowEditPassword(false)} />}
+      {mustChangePassword ? (
+        <EditPasswordModal
+          mandatory
+          onClose={() => {}}
+          onSuccess={() => {
+            updateCurrentUser({ must_change_password: false });
+            setMustChangePassword(false);
+          }}
+        />
+      ) : (
+        showEditPassword && <EditPasswordModal onClose={() => setShowEditPassword(false)} />
+      )}
     </div>
   );
 };
