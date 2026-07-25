@@ -92,7 +92,6 @@ const ReportDetailPage = () => {
     report.vibration_sound_db, report.vibration_x_mm_sec, report.vibration_y_mm_sec,
     report.vibration_z_mm_sec, report.pump_started_at, report.pump_stopped_at, report.total_run,
     report.ambient_temp_c, report.max_bearing_temp_c, report.total_rise_c,
-    report.witness, report.inspector, report.recorder,
   ].some((v) => v !== null && v !== undefined && v !== "");
 
   return (
@@ -321,27 +320,36 @@ const ReportDetailPage = () => {
                 <th>Total Rise</th>
                 <td>{fmt(report.total_rise_c)} °C</td>
               </tr>
-              <tr>
-                <th>Witness</th>
-                <td>{fmt(report.witness)}</td>
-                <th>Inspector</th>
-                <td>{fmt(report.inspector)}</td>
-              </tr>
-              <tr>
-                <th>Recorder</th>
-                <td colSpan={3}>{fmt(report.recorder)}</td>
-              </tr>
             </tbody>
           </table>
         </section>
       )}
 
-      {report.remarks && (
-        <section className="detail-card">
-          <h2>Remarks</h2>
-          <p className="remarks-text">{report.remarks}</p>
-        </section>
-      )}
+      {/* Always shown, on screen and in the printed PDF, even when blank --
+       * these are sign-off fields meant to be filled by hand on the printed
+       * sheet if they weren't already filled in through the app. */}
+      <section className="detail-card">
+        <h2>Witness, Inspection &amp; Remarks</h2>
+        <table className="sheet-table header-sheet-table sign-off-table">
+          <tbody>
+            <tr>
+              <th>Witness</th>
+              <td className={report.witness ? "" : "signature-line"}>{fmt(report.witness)}</td>
+              <th>Inspector</th>
+              <td className={report.inspector ? "" : "signature-line"}>{fmt(report.inspector)}</td>
+              <th>Recorder</th>
+              <td className={report.recorder ? "" : "signature-line"}>{fmt(report.recorder)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div className={report.remarks ? "remarks-box" : "remarks-box remarks-box-blank"}>
+          {report.remarks ? (
+            <p className="remarks-text">{report.remarks}</p>
+          ) : (
+            <span className="remarks-placeholder">Remarks</span>
+          )}
+        </div>
+      </section>
     </div>
   );
 };

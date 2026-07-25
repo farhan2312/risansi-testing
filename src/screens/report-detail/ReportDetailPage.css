@@ -203,6 +203,40 @@
   margin: 0;
 }
 
+/* Witness/Inspector/Recorder cells: when a value exists it's shown as
+ * normal text; when blank, an underline is drawn instead so there's
+ * somewhere to sign by hand on the printed sheet. */
+.sign-off-table td.signature-line {
+  min-width: 140px;
+  border-bottom: 1px solid var(--text-muted);
+}
+
+.remarks-box {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  min-height: 70px;
+}
+
+.remarks-box-blank {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 21px,
+    var(--border) 22px
+  );
+  background-position: 0 26px;
+}
+
+.remarks-placeholder {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 @media print {
   .report-detail-page {
     max-width: none;
