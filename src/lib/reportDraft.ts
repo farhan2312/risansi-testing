@@ -46,7 +46,6 @@ export interface SharedReportDraft {
   pump_stopped_at?: string;
   ambient_temp_c?: string;
   max_bearing_temp_c?: string;
-  total_rise_c?: string;
   witness?: string;
   inspector?: string;
   recorder?: string;
@@ -120,7 +119,6 @@ export function draftFromReport(report: {
   pump_stopped_at?: string | null;
   ambient_temp_c?: number | string | null;
   max_bearing_temp_c?: number | string | null;
-  total_rise_c?: number | string | null;
   witness?: string | null;
   inspector?: string | null;
   recorder?: string | null;
@@ -163,7 +161,6 @@ export function draftFromReport(report: {
     pump_stopped_at: s(report.pump_stopped_at),
     ambient_temp_c: s(report.ambient_temp_c),
     max_bearing_temp_c: s(report.max_bearing_temp_c),
-    total_rise_c: s(report.total_rise_c),
     witness: s(report.witness),
     inspector: s(report.inspector),
     recorder: s(report.recorder),

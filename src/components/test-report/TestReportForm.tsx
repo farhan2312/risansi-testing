@@ -63,7 +63,6 @@ interface ReportFormValues {
   pump_stopped_at: string;
   ambient_temp_c: string;
   max_bearing_temp_c: string;
-  total_rise_c: string;
   witness: string;
   inspector: string;
   recorder: string;
@@ -99,6 +98,15 @@ const computeTotalRun = (start: string, stop: string): string => {
   const hh = String(Math.floor(minutes / 60)).padStart(2, "0");
   const mm = String(minutes % 60).padStart(2, "0");
   return `${hh}:${mm} hrs`;
+};
+
+/** Total Rise = Max. Bearing Temp − Ambient Temp. */
+const computeTotalRise = (ambient: string, maxBearing: string): number | null => {
+  if (ambient.trim() === "" || maxBearing.trim() === "") return null;
+  const a = Number(ambient);
+  const m = Number(maxBearing);
+  if (Number.isNaN(a) || Number.isNaN(m)) return null;
+  return Math.round((m - a) * 100) / 100;
 };
 
 const pointsFromExistingReport = (report: PumpTestReport): PointFormValues[] => {
@@ -188,7 +196,6 @@ const TestReportForm = ({
       pump_stopped_at: str(r?.pump_stopped_at) || draft.pump_stopped_at || "",
       ambient_temp_c: str(r?.ambient_temp_c) || draft.ambient_temp_c || "",
       max_bearing_temp_c: str(r?.max_bearing_temp_c) || draft.max_bearing_temp_c || "",
-      total_rise_c: str(r?.total_rise_c) || draft.total_rise_c || "",
       witness: str(r?.witness) || draft.witness || "",
       inspector: str(r?.inspector) || draft.inspector || "",
       recorder: str(r?.recorder) || draft.recorder || "",
@@ -208,7 +215,7 @@ const TestReportForm = ({
       "viscosity_cps", "k_for_given_cps", "rated_rpm", "q_theoretical_100rev", "calculated_head",
       "reference_voltage", "reference_current", "vnotch_baseline", "tested_by", "test_date",
       "vibration_sound_db", "vibration_x_mm_sec", "vibration_y_mm_sec", "vibration_z_mm_sec",
-      "pump_started_at", "pump_stopped_at", "ambient_temp_c", "max_bearing_temp_c", "total_rise_c",
+      "pump_started_at", "pump_stopped_at", "ambient_temp_c", "max_bearing_temp_c",
       "witness", "inspector", "recorder",
     ],
   });
@@ -219,7 +226,7 @@ const TestReportForm = ({
       head_unit, specific_gravity, viscosity_cps, k_for_given_cps, rated_rpm, q_theoretical_100rev,
       calculated_head, reference_voltage, reference_current, vnotch_baseline, tested_by, test_date,
       vibration_sound_db, vibration_x_mm_sec, vibration_y_mm_sec, vibration_z_mm_sec,
-      pump_started_at, pump_stopped_at, ambient_temp_c, max_bearing_temp_c, total_rise_c,
+      pump_started_at, pump_stopped_at, ambient_temp_c, max_bearing_temp_c,
       witness, inspector, recorder] = sharedFieldsWatch;
     const nextDraft: SharedReportDraft = {
       model: lockedModel ?? model, po_no, ec_no, rev_no, rev_date, pump_serial_no, gearbox_no,
@@ -228,7 +235,7 @@ const TestReportForm = ({
       rated_rpm, q_theoretical_100rev, calculated_head, reference_voltage, reference_current,
       vnotch_baseline, tested_by, test_date, vibration_sound_db, vibration_x_mm_sec,
       vibration_y_mm_sec, vibration_z_mm_sec, pump_started_at, pump_stopped_at, ambient_temp_c,
-      max_bearing_temp_c, total_rise_c, witness, inspector, recorder,
+      max_bearing_temp_c, witness, inspector, recorder,
     };
     saveReportDraft(scopeId, nextDraft);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -243,6 +250,9 @@ const TestReportForm = ({
   const pumpStartedAt = useWatch({ control, name: "pump_started_at" });
   const pumpStoppedAt = useWatch({ control, name: "pump_stopped_at" });
   const totalRun = computeTotalRun(pumpStartedAt ?? "", pumpStoppedAt ?? "");
+  const ambientTempVal = useWatch({ control, name: "ambient_temp_c" });
+  const maxBearingTempVal = useWatch({ control, name: "max_bearing_temp_c" });
+  const totalRise = computeTotalRise(ambientTempVal ?? "", maxBearingTempVal ?? "");
 
   const header = {
     testType,
@@ -345,7 +355,7 @@ const TestReportForm = ({
         total_run: computeTotalRun(values.pump_started_at, values.pump_stopped_at) || undefined,
         ambient_temp_c: numOrUndef(values.ambient_temp_c),
         max_bearing_temp_c: numOrUndef(values.max_bearing_temp_c),
-        total_rise_c: numOrUndef(values.total_rise_c),
+        total_rise_c: computeTotalRise(values.ambient_temp_c, values.max_bearing_temp_c) ?? undefined,
         witness: values.witness || undefined,
         inspector: values.inspector || undefined,
         recorder: values.recorder || undefined,
@@ -624,7 +634,7 @@ const TestReportForm = ({
           </div>
           <div className="field">
             <label>Total Rise (°C)</label>
-            <input type="number" step="any" {...register("total_rise_c")} />
+            <div className="computed-cell computed-field">{totalRise ?? "-"}</div>
           </div>
         </div>
 
