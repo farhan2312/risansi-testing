@@ -35,6 +35,20 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const [mustChangePassword, setMustChangePassword] = useState(user?.must_change_password ?? false);
   const menuRef = useRef<HTMLDivElement>(null);
 
+  // The useState initializer above only runs on this component's very first
+  // render. AuthGuard (the parent) renders null until its own auth check
+  // resolves, and by the time DashboardLayout first mounts the session
+  // should already be in localStorage -- but re-checking explicitly on mount
+  // removes any dependency on exact render timing, so a stale/false initial
+  // value can never get permanently stuck.
+  useEffect(() => {
+    const current = getCurrentUser();
+    if (current && current.must_change_password && !mustChangePassword) {
+      setMustChangePassword(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
