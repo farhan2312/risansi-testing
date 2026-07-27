@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { error, json, userToDict } from "@/lib/api";
 import { AuthError, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { testRequisitions, users } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -100,7 +100,21 @@ export async function DELETE(
     return error("User not found", 404);
   }
 
-  await db.delete(users).where(eq(users.id, userId));
+  // test_requisitions.created_by and users.reviewed_by both have a foreign
+  // key to users.id at the DB level (not modeled in schema.ts, since this
+  // app doesn't own that constraint) -- deleting a user who's ever raised a
+  // requisition or reviewed an access request would otherwise fail with a
+  // FK violation. Clear those references first; the human-readable trail
+  // survives independently (test_requisitions.submitted_by is a separate
+  // name snapshot, and status/reviewed_at stay on the reviewed account).
+  await db.transaction(async (tx) => {
+    await tx
+      .update(testRequisitions)
+      .set({ createdBy: null })
+      .where(eq(testRequisitions.createdBy, userId));
+    await tx.update(users).set({ reviewedBy: null }).where(eq(users.reviewedBy, userId));
+    await tx.delete(users).where(eq(users.id, userId));
+  });
 
   return json({ success: true });
 }
