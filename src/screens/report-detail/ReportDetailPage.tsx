@@ -7,6 +7,7 @@ import "./ReportDetailPage.css";
 import { deleteReport, getReport } from "@/services/testingService";
 import { getCurrentUser } from "@/services/session";
 import { isWithinReportEditWindow, REPORT_EDIT_WINDOW_DAYS } from "@/lib/reportEditWindow";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import type { PumpTestReport, PumpTestReportPoint } from "@/types/testing";
 
 const fmt = (v: number | string | null | undefined) => (v === null || v === undefined || v === "" ? "-" : v);
@@ -55,6 +56,7 @@ const ReportDetailPage = () => {
   const [report, setReport] = useState<PumpTestReport | null>(null);
   const [error, setError] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const canEditOrDelete = getCurrentUser()?.role === "testing";
 
   useEffect(() => {
@@ -64,9 +66,6 @@ const ReportDetailPage = () => {
 
   const handleDelete = async () => {
     if (!report) return;
-    if (!window.confirm(`Delete report ${report.report_no ?? report.id}? This cannot be undone.`)) {
-      return;
-    }
     setIsDeleting(true);
     try {
       await deleteReport(report.id);
@@ -128,7 +127,12 @@ const ReportDetailPage = () => {
             </Link>
           )}
           {canEditOrDelete && (
-            <button type="button" className="delete-report-btn" onClick={handleDelete} disabled={isDeleting}>
+            <button
+              type="button"
+              className="delete-report-btn"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isDeleting}
+            >
               {isDeleting ? "Deleting..." : "Delete"}
             </button>
           )}
@@ -347,6 +351,18 @@ const ReportDetailPage = () => {
           )}
         </div>
       </section>
+
+      {showDeleteConfirm && (
+        <ConfirmModal
+          title="Delete report"
+          message={`Delete report ${report.report_no ?? report.id}? This cannot be undone.`}
+          confirmLabel="Delete"
+          danger
+          isConfirming={isDeleting}
+          onConfirm={handleDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
     </div>
   );
 };

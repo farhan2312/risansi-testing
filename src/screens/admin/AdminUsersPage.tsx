@@ -5,6 +5,7 @@ import "./AdminAccessRequestsPage.css";
 import { deleteUser, listAllUsers, setUserRole, type PendingUser } from "@/services/adminService";
 import { getCurrentUser } from "@/services/session";
 import AdminSetPasswordModal from "@/components/ui/AdminSetPasswordModal";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 // "user" is a legacy/placeholder role, no longer assignable — only shown
 // below if an existing account still has it, so it can be reassigned away.
@@ -17,6 +18,7 @@ const AdminUsersPage = () => {
   const [passwordTarget, setPasswordTarget] = useState<PendingUser | null>(null);
   const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PendingUser | null>(null);
   const currentUserId = getCurrentUser()?.id;
 
   useEffect(() => {
@@ -38,14 +40,14 @@ const AdminUsersPage = () => {
     }
   };
 
-  const handleDelete = async (user: PendingUser) => {
-    if (!window.confirm(`Delete ${user.name ?? user.email}? This cannot be undone.`)) {
-      return;
-    }
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const user = deleteTarget;
     setDeletingId(user.id);
     try {
       await deleteUser(user.id);
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      setDeleteTarget(null);
     } catch {
       setError("Couldn't delete this user.");
     } finally {
@@ -110,7 +112,7 @@ const AdminUsersPage = () => {
                       <button
                         className="reject-btn"
                         disabled={deletingId === u.id}
-                        onClick={() => handleDelete(u)}
+                        onClick={() => setDeleteTarget(u)}
                       >
                         {deletingId === u.id ? "Deleting..." : "Delete"}
                       </button>
@@ -128,6 +130,18 @@ const AdminUsersPage = () => {
           userId={passwordTarget.id}
           userLabel={passwordTarget.name ?? passwordTarget.email}
           onClose={() => setPasswordTarget(null)}
+        />
+      )}
+
+      {deleteTarget && (
+        <ConfirmModal
+          title="Delete user"
+          message={`Delete ${deleteTarget.name ?? deleteTarget.email}? This cannot be undone.`}
+          confirmLabel="Delete"
+          danger
+          isConfirming={deletingId === deleteTarget.id}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteTarget(null)}
         />
       )}
     </div>
