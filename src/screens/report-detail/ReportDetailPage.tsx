@@ -87,7 +87,6 @@ const ReportDetailPage = () => {
     points.some((p) => p[row.field] !== null && p[row.field] !== undefined)
   );
 
-  const isObservationSheet = (report.report_format ?? "observation") === "observation";
   const hasVibrationSummary = [
     report.vibration_sound_db, report.vibration_x_mm_sec, report.vibration_y_mm_sec,
     report.vibration_z_mm_sec, report.pump_started_at, report.pump_stopped_at, report.total_run,
@@ -143,33 +142,24 @@ const ReportDetailPage = () => {
         <h2>Given Data</h2>
         <table className="sheet-table header-sheet-table">
           <tbody>
-            {report.report_format === "viscosity-chart" ? (
-              <tr>
-                <th>PO No.</th>
-                <td>{fmt(report.po_no)}</td>
-                <th>EC No.</th>
-                <td>{fmt(report.ec_no)}</td>
-                <th>Rev No. / Date</th>
-                <td>
-                  {fmt(report.rev_no)} / {fmt(report.rev_date)}
-                </td>
-              </tr>
-            ) : (
-              <tr>
-                <th>Gear Box No.</th>
-                <td>{fmt(report.gearbox_no)}</td>
-                <th>Ratio</th>
-                <td>{fmt(report.gearbox_ratio)}</td>
-                <th>Suction</th>
-                <td>{fmt(report.suction_type)}</td>
-              </tr>
-            )}
-            {report.report_format === "viscosity-chart" && (
-              <tr>
-                <th>Pump S.No.</th>
-                <td colSpan={5}>{fmt(report.pump_serial_no)}</td>
-              </tr>
-            )}
+            <tr>
+              <th>PO No.</th>
+              <td>{fmt(report.po_no)}</td>
+              <th>EC No.</th>
+              <td>{fmt(report.ec_no)}</td>
+              <th>Rev No. / Date</th>
+              <td>
+                {fmt(report.rev_no)} / {fmt(report.rev_date)}
+              </td>
+            </tr>
+            <tr>
+              <th>Pump S.No.</th>
+              <td>{fmt(report.pump_serial_no)}</td>
+              <th>Gear Box No.</th>
+              <td>{fmt(report.gearbox_no)}</td>
+              <th>Gearbox Ratio</th>
+              <td>{fmt(report.gearbox_ratio)}</td>
+            </tr>
             <tr>
               <th>Motor</th>
               <td>{fmt(report.motor)}</td>
@@ -210,32 +200,25 @@ const ReportDetailPage = () => {
               <th>K for Given CPS</th>
               <td className="highlight">{fmt(report.k_for_given_cps)}</td>
             </tr>
-            {report.report_format === "viscosity-chart" ? (
-              <tr>
-                <th>Q Theoretical / 100 Rev</th>
-                <td className="highlight">{fmt(report.q_theoretical_100rev)}</td>
-                <th>Calculated Head</th>
-                <td className="highlight" colSpan={3}>{fmt(report.calculated_head)}</td>
-              </tr>
-            ) : (
-              <tr>
-                <th>Q Theoretical / 100 Rev</th>
-                <td className="highlight">{fmt(report.q_theoretical_100rev)}</td>
-                <th>Reference Voltage (Vin)</th>
-                <td className="highlight">{fmt(report.reference_voltage)}</td>
-                <th>Reference Current (Iin)</th>
-                <td className="highlight">{fmt(report.reference_current)}</td>
-              </tr>
-            )}
             <tr>
-              {report.report_format !== "viscosity-chart" && (
-                <>
-                  <th>V-Notch Baseline (Hin)</th>
-                  <td className="highlight">{fmt(report.vnotch_baseline)}</td>
-                </>
-              )}
+              <th>Q Theoretical / 100 Rev</th>
+              <td className="highlight">{fmt(report.q_theoretical_100rev)}</td>
+              <th>Calculated Head</th>
+              <td className="highlight">{fmt(report.calculated_head)}</td>
+              <th>Suction</th>
+              <td>{fmt(report.suction_type)}</td>
+            </tr>
+            <tr>
+              <th>Reference Voltage (Vin)</th>
+              <td className="highlight">{fmt(report.reference_voltage)}</td>
+              <th>Reference Current (Iin)</th>
+              <td className="highlight">{fmt(report.reference_current)}</td>
+              <th>V-Notch Baseline (Hin)</th>
+              <td className="highlight">{fmt(report.vnotch_baseline)}</td>
+            </tr>
+            <tr>
               <th>Linked Requisition</th>
-              <td colSpan={report.report_format === "viscosity-chart" ? 5 : 3}>
+              <td colSpan={5}>
                 {report.requisition_id ? (
                   <Link href={`/requisitions/${report.requisition_id}`}>
                     {report.requisition_id.slice(0, 8)}
@@ -285,7 +268,7 @@ const ReportDetailPage = () => {
         </div>
       </section>
 
-      {isObservationSheet && hasVibrationSummary && (
+      {hasVibrationSummary && (
         <section className="detail-card">
           <h2>Vibration Test &amp; Run Summary</h2>
           <table className="sheet-table header-sheet-table">

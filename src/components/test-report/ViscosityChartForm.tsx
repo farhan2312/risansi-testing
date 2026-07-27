@@ -13,6 +13,7 @@ import {
   type SharedReportDraft,
 } from "@/lib/reportDraft";
 import {
+  NPSHA_STATUSES,
   TEST_TYPES,
   VISCOSITY_CAPACITY_UNITS,
   VISCOSITY_HEAD_UNITS,
@@ -39,7 +40,12 @@ interface ChartFormValues {
   rev_no: string;
   rev_date: string;
   pump_serial_no: string;
+  gearbox_no: string;
+  gearbox_ratio: string;
+  motor: string;
+  motor_rpm: string;
   test_type: TestType;
+  npsha_status: string;
   liquid: string;
   rated_capacity: string;
   capacity_unit: string;
@@ -51,8 +57,23 @@ interface ChartFormValues {
   rated_rpm: string;
   q_theoretical_100rev: string;
   calculated_head: string;
+  reference_voltage: string;
+  reference_current: string;
+  vnotch_baseline: string;
   tested_by: string;
   test_date: string;
+  vibration_sound_db: string;
+  vibration_x_mm_sec: string;
+  vibration_y_mm_sec: string;
+  vibration_z_mm_sec: string;
+  pump_started_at: string;
+  pump_stopped_at: string;
+  ambient_temp_c: string;
+  max_bearing_temp_c: string;
+  total_rise_c: string;
+  witness: string;
+  inspector: string;
+  recorder: string;
   remarks: string;
   points: PointFormValues[];
 }
@@ -73,6 +94,20 @@ const num = (v: string): number | null => (v.trim() === "" ? null : Number(v));
 const numOrUndef = (v: string): number | undefined => (v.trim() === "" ? undefined : Number(v));
 const fmt = (v: number | null) => (v === null || Number.isNaN(v) ? "-" : v);
 const str = (v: string | number | null | undefined): string => (v === null || v === undefined ? "" : String(v));
+
+/** Duration between two "HH:MM" (24-hour) times, formatted "HH:MM hrs".
+ * Assumes a stop time earlier than the start crossed midnight. */
+const computeTotalRun = (start: string, stop: string): string => {
+  if (!start || !stop) return "";
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = stop.split(":").map(Number);
+  if ([sh, sm, eh, em].some((n) => Number.isNaN(n))) return "";
+  let minutes = eh * 60 + em - (sh * 60 + sm);
+  if (minutes < 0) minutes += 24 * 60;
+  const hh = String(Math.floor(minutes / 60)).padStart(2, "0");
+  const mm = String(minutes % 60).padStart(2, "0");
+  return `${hh}:${mm} hrs`;
+};
 
 const pointsFromExistingReport = (report: PumpTestReport): PointFormValues[] => {
   const isFlowMeter = report.test_type === "Flow Meter";
@@ -140,13 +175,18 @@ const ViscosityChartForm = ({
   const { register, control, handleSubmit, getValues, setValue, formState: { isSubmitting, errors } } = useForm<ChartFormValues>({
     defaultValues: {
       model: lockedModel ?? r?.model ?? draft.model ?? "",
-      po_no: str(r?.po_no),
-      ec_no: str(r?.ec_no),
-      rev_no: str(r?.rev_no),
-      rev_date: str(r?.rev_date),
-      pump_serial_no: str(r?.pump_serial_no),
+      po_no: str(r?.po_no) || draft.po_no || "",
+      ec_no: str(r?.ec_no) || draft.ec_no || "",
+      rev_no: str(r?.rev_no) || draft.rev_no || "",
+      rev_date: str(r?.rev_date) || draft.rev_date || "",
+      pump_serial_no: str(r?.pump_serial_no) || draft.pump_serial_no || "",
+      gearbox_no: str(r?.gearbox_no) || draft.gearbox_no || "",
+      gearbox_ratio: str(r?.gearbox_ratio) || draft.gearbox_ratio || "",
+      motor: str(r?.motor) || draft.motor || "",
+      motor_rpm: str(r?.motor_rpm) || draft.motor_rpm || "",
       liquid: r?.liquid ?? draft.liquid ?? "WATER",
       test_type: (r?.test_type as TestType) ?? (draft.test_type as TestType) ?? "V-notch",
+      npsha_status: r?.npsha_status ?? draft.npsha_status ?? "POSITIVE",
       capacity_unit: r?.capacity_unit ?? draft.capacity_unit ?? "M3/HR",
       head_unit: r?.head_unit ?? draft.head_unit ?? "MWC",
       rated_capacity: str(r?.rated_capacity) || draft.rated_capacity || "",
@@ -156,9 +196,24 @@ const ViscosityChartForm = ({
       k_for_given_cps: str(r?.k_for_given_cps) || draft.k_for_given_cps || "1",
       rated_rpm: str(r?.rated_rpm) || draft.rated_rpm || "",
       q_theoretical_100rev: str(r?.q_theoretical_100rev) || draft.q_theoretical_100rev || "",
-      calculated_head: str(r?.calculated_head),
+      calculated_head: str(r?.calculated_head) || draft.calculated_head || "",
+      reference_voltage: str(r?.reference_voltage) || draft.reference_voltage || "",
+      reference_current: str(r?.reference_current) || draft.reference_current || "",
+      vnotch_baseline: str(r?.vnotch_baseline) || draft.vnotch_baseline || "",
       tested_by: r?.tested_by ?? draft.tested_by ?? "",
       test_date: r?.test_date ?? draft.test_date ?? "",
+      vibration_sound_db: str(r?.vibration_sound_db) || draft.vibration_sound_db || "",
+      vibration_x_mm_sec: str(r?.vibration_x_mm_sec) || draft.vibration_x_mm_sec || "",
+      vibration_y_mm_sec: str(r?.vibration_y_mm_sec) || draft.vibration_y_mm_sec || "",
+      vibration_z_mm_sec: str(r?.vibration_z_mm_sec) || draft.vibration_z_mm_sec || "",
+      pump_started_at: str(r?.pump_started_at) || draft.pump_started_at || "",
+      pump_stopped_at: str(r?.pump_stopped_at) || draft.pump_stopped_at || "",
+      ambient_temp_c: str(r?.ambient_temp_c) || draft.ambient_temp_c || "",
+      max_bearing_temp_c: str(r?.max_bearing_temp_c) || draft.max_bearing_temp_c || "",
+      total_rise_c: str(r?.total_rise_c) || draft.total_rise_c || "",
+      witness: str(r?.witness) || draft.witness || "",
+      inspector: str(r?.inspector) || draft.inspector || "",
+      recorder: str(r?.recorder) || draft.recorder || "",
       remarks: str(r?.remarks),
       points: r ? pointsFromExistingReport(r) : [emptyPoint],
     },
@@ -176,7 +231,17 @@ const ViscosityChartForm = ({
       setValue(name, value as never);
       filledAny = true;
     };
+    setIfEmpty("po_no", d.po_no);
+    setIfEmpty("ec_no", d.ec_no);
+    setIfEmpty("rev_no", d.rev_no);
+    setIfEmpty("rev_date", d.rev_date);
+    setIfEmpty("pump_serial_no", d.pump_serial_no);
+    setIfEmpty("gearbox_no", d.gearbox_no);
+    setIfEmpty("gearbox_ratio", d.gearbox_ratio);
+    setIfEmpty("motor", d.motor);
+    setIfEmpty("motor_rpm", d.motor_rpm);
     setIfEmpty("test_type", d.test_type);
+    setIfEmpty("npsha_status", d.npsha_status);
     setIfEmpty("liquid", d.liquid);
     if (d.capacity_unit && VISCOSITY_CAPACITY_UNITS.includes(d.capacity_unit as never)) {
       setIfEmpty("capacity_unit", d.capacity_unit);
@@ -191,8 +256,24 @@ const ViscosityChartForm = ({
     setIfEmpty("k_for_given_cps", d.k_for_given_cps);
     setIfEmpty("rated_rpm", d.rated_rpm);
     setIfEmpty("q_theoretical_100rev", d.q_theoretical_100rev);
+    setIfEmpty("calculated_head", d.calculated_head);
+    setIfEmpty("reference_voltage", d.reference_voltage);
+    setIfEmpty("reference_current", d.reference_current);
+    setIfEmpty("vnotch_baseline", d.vnotch_baseline);
     setIfEmpty("tested_by", d.tested_by);
     setIfEmpty("test_date", d.test_date);
+    setIfEmpty("vibration_sound_db", d.vibration_sound_db);
+    setIfEmpty("vibration_x_mm_sec", d.vibration_x_mm_sec);
+    setIfEmpty("vibration_y_mm_sec", d.vibration_y_mm_sec);
+    setIfEmpty("vibration_z_mm_sec", d.vibration_z_mm_sec);
+    setIfEmpty("pump_started_at", d.pump_started_at);
+    setIfEmpty("pump_stopped_at", d.pump_stopped_at);
+    setIfEmpty("ambient_temp_c", d.ambient_temp_c);
+    setIfEmpty("max_bearing_temp_c", d.max_bearing_temp_c);
+    setIfEmpty("total_rise_c", d.total_rise_c);
+    setIfEmpty("witness", d.witness);
+    setIfEmpty("inspector", d.inspector);
+    setIfEmpty("recorder", d.recorder);
 
     // Test points are the actual measured data — copy them over exactly as
     // recorded on the Observation Sheet (same rule as the header fields
@@ -252,20 +333,33 @@ const ViscosityChartForm = ({
   const sharedFieldsWatch = useWatch({
     control,
     name: [
-      "model", "test_type", "liquid", "rated_capacity", "capacity_unit", "rated_head",
-      "head_unit", "specific_gravity", "viscosity_cps", "k_for_given_cps", "rated_rpm",
-      "q_theoretical_100rev", "tested_by", "test_date",
+      "model", "po_no", "ec_no", "rev_no", "rev_date", "pump_serial_no", "gearbox_no",
+      "gearbox_ratio", "motor", "motor_rpm", "test_type", "npsha_status", "liquid",
+      "rated_capacity", "capacity_unit", "rated_head", "head_unit", "specific_gravity",
+      "viscosity_cps", "k_for_given_cps", "rated_rpm", "q_theoretical_100rev", "calculated_head",
+      "reference_voltage", "reference_current", "vnotch_baseline", "tested_by", "test_date",
+      "vibration_sound_db", "vibration_x_mm_sec", "vibration_y_mm_sec", "vibration_z_mm_sec",
+      "pump_started_at", "pump_stopped_at", "ambient_temp_c", "max_bearing_temp_c", "total_rise_c",
+      "witness", "inspector", "recorder",
     ],
   });
   useEffect(() => {
     if (existingReport) return;
-    const [model, test_type, liquid, rated_capacity, capacity_unit, rated_head, head_unit,
-      specific_gravity, viscosity_cps, k_for_given_cps, rated_rpm, q_theoretical_100rev,
-      tested_by, test_date] = sharedFieldsWatch;
-    const nextDraft: SharedReportDraft = {
-      model: lockedModel ?? model, test_type, liquid, rated_capacity, capacity_unit, rated_head,
+    const [model, po_no, ec_no, rev_no, rev_date, pump_serial_no, gearbox_no, gearbox_ratio,
+      motor, motor_rpm, test_type, npsha_status, liquid, rated_capacity, capacity_unit, rated_head,
       head_unit, specific_gravity, viscosity_cps, k_for_given_cps, rated_rpm, q_theoretical_100rev,
-      tested_by, test_date,
+      calculated_head, reference_voltage, reference_current, vnotch_baseline, tested_by, test_date,
+      vibration_sound_db, vibration_x_mm_sec, vibration_y_mm_sec, vibration_z_mm_sec,
+      pump_started_at, pump_stopped_at, ambient_temp_c, max_bearing_temp_c, total_rise_c,
+      witness, inspector, recorder] = sharedFieldsWatch;
+    const nextDraft: SharedReportDraft = {
+      model: lockedModel ?? model, po_no, ec_no, rev_no, rev_date, pump_serial_no, gearbox_no,
+      gearbox_ratio, motor, motor_rpm, test_type, npsha_status, liquid, rated_capacity,
+      capacity_unit, rated_head, head_unit, specific_gravity, viscosity_cps, k_for_given_cps,
+      rated_rpm, q_theoretical_100rev, calculated_head, reference_voltage, reference_current,
+      vnotch_baseline, tested_by, test_date, vibration_sound_db, vibration_x_mm_sec,
+      vibration_y_mm_sec, vibration_z_mm_sec, pump_started_at, pump_stopped_at, ambient_temp_c,
+      max_bearing_temp_c, total_rise_c, witness, inspector, recorder,
     };
     saveReportDraft(scopeId, nextDraft);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -276,6 +370,9 @@ const ViscosityChartForm = ({
   const ratedRpmVal = useWatch({ control, name: "rated_rpm" });
   const kVal = useWatch({ control, name: "k_for_given_cps" });
   const watchedPoints = useWatch({ control, name: "points" });
+  const pumpStartedAt = useWatch({ control, name: "pump_started_at" });
+  const pumpStoppedAt = useWatch({ control, name: "pump_stopped_at" });
+  const totalRun = computeTotalRun(pumpStartedAt ?? "", pumpStoppedAt ?? "");
 
   const header = {
     testType,
@@ -347,7 +444,12 @@ const ViscosityChartForm = ({
         rev_no: values.rev_no || undefined,
         rev_date: values.rev_date || undefined,
         pump_serial_no: values.pump_serial_no || undefined,
+        gearbox_no: values.gearbox_no || undefined,
+        gearbox_ratio: values.gearbox_ratio || undefined,
+        motor: values.motor || undefined,
+        motor_rpm: numOrUndef(values.motor_rpm),
         test_type: values.test_type,
+        npsha_status: values.npsha_status,
         capacity_unit: values.capacity_unit,
         head_unit: values.head_unit,
         liquid: values.liquid || undefined,
@@ -359,8 +461,24 @@ const ViscosityChartForm = ({
         rated_rpm: numOrUndef(values.rated_rpm),
         q_theoretical_100rev: numOrUndef(values.q_theoretical_100rev),
         calculated_head: numOrUndef(values.calculated_head),
+        reference_voltage: numOrUndef(values.reference_voltage),
+        reference_current: numOrUndef(values.reference_current),
+        vnotch_baseline: numOrUndef(values.vnotch_baseline),
         tested_by: values.tested_by || undefined,
         test_date: values.test_date || undefined,
+        vibration_sound_db: numOrUndef(values.vibration_sound_db),
+        vibration_x_mm_sec: numOrUndef(values.vibration_x_mm_sec),
+        vibration_y_mm_sec: numOrUndef(values.vibration_y_mm_sec),
+        vibration_z_mm_sec: numOrUndef(values.vibration_z_mm_sec),
+        pump_started_at: values.pump_started_at || undefined,
+        pump_stopped_at: values.pump_stopped_at || undefined,
+        total_run: computeTotalRun(values.pump_started_at, values.pump_stopped_at) || undefined,
+        ambient_temp_c: numOrUndef(values.ambient_temp_c),
+        max_bearing_temp_c: numOrUndef(values.max_bearing_temp_c),
+        total_rise_c: numOrUndef(values.total_rise_c),
+        witness: values.witness || undefined,
+        inspector: values.inspector || undefined,
+        recorder: values.recorder || undefined,
         remarks: values.remarks || undefined,
         points,
       };
@@ -430,12 +548,36 @@ const ViscosityChartForm = ({
             <label>Pump S.No.</label>
             <input {...register("pump_serial_no")} />
           </div>
+          <div className="field">
+            <label>Gearbox No.</label>
+            <input {...register("gearbox_no")} />
+          </div>
+          <div className="field">
+            <label>Gearbox Ratio</label>
+            <input {...register("gearbox_ratio")} placeholder="e.g. 10:1" />
+          </div>
+          <div className="field">
+            <label>Motor</label>
+            <input {...register("motor")} placeholder="e.g. CGL 3HP" />
+          </div>
+          <div className="field">
+            <label>Motor RPM</label>
+            <input type="number" step="any" {...register("motor_rpm")} />
+          </div>
 
           <div className="field">
             <label>Type of Testing</label>
             <select {...register("test_type")}>
               {TEST_TYPES.map((t) => (
                 <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>NPSHa</label>
+            <select {...register("npsha_status")}>
+              {NPSHA_STATUSES.map((s) => (
+                <option key={s} value={s}>{s}</option>
               ))}
             </select>
           </div>
@@ -490,6 +632,19 @@ const ViscosityChartForm = ({
           <div className="field">
             <label>Calculated Head (MWC)</label>
             <input type="number" step="any" {...register("calculated_head")} />
+          </div>
+
+          <div className="field">
+            <label>Reference Voltage (Vin)</label>
+            <input type="number" step="any" {...register("reference_voltage")} />
+          </div>
+          <div className="field">
+            <label>Reference Current (Iin)</label>
+            <input type="number" step="any" {...register("reference_current")} />
+          </div>
+          <div className="field">
+            <label>V-Notch Baseline (Hin)</label>
+            <input type="number" step="any" {...register("vnotch_baseline")} />
           </div>
 
           <div className="field">
@@ -578,6 +733,65 @@ const ViscosityChartForm = ({
         <button type="button" className="add-point-btn" onClick={() => append(emptyPoint)}>
           + Add Test Point
         </button>
+
+        <h2 className="points-heading">Vibration Test &amp; Run Summary</h2>
+        <div className="form-grid">
+          <div className="field">
+            <label>Vibration — Sound (Db)</label>
+            <input type="number" step="any" {...register("vibration_sound_db")} />
+          </div>
+          <div className="field">
+            <label>Vibration — X (mm/sec)</label>
+            <input type="number" step="any" {...register("vibration_x_mm_sec")} />
+          </div>
+          <div className="field">
+            <label>Vibration — Y (mm/sec)</label>
+            <input type="number" step="any" {...register("vibration_y_mm_sec")} />
+          </div>
+          <div className="field">
+            <label>Vibration — Z (mm/sec)</label>
+            <input type="number" step="any" {...register("vibration_z_mm_sec")} />
+          </div>
+
+          <div className="field">
+            <label>Pump Started At</label>
+            <input type="time" {...register("pump_started_at")} />
+          </div>
+          <div className="field">
+            <label>Pump Stopped At</label>
+            <input type="time" {...register("pump_stopped_at")} />
+          </div>
+          <div className="field">
+            <label>Total Run</label>
+            <div className="computed-cell computed-field">{totalRun || "-"}</div>
+          </div>
+
+          <div className="field">
+            <label>Ambient Temp (°C)</label>
+            <input type="number" step="any" {...register("ambient_temp_c")} />
+          </div>
+          <div className="field">
+            <label>Max. Bearing Temp (°C)</label>
+            <input type="number" step="any" {...register("max_bearing_temp_c")} />
+          </div>
+          <div className="field">
+            <label>Total Rise (°C)</label>
+            <input type="number" step="any" {...register("total_rise_c")} />
+          </div>
+
+          <div className="field">
+            <label>Witness</label>
+            <input {...register("witness")} />
+          </div>
+          <div className="field">
+            <label>Inspector</label>
+            <input {...register("inspector")} />
+          </div>
+          <div className="field">
+            <label>Recorder</label>
+            <input {...register("recorder")} />
+          </div>
+        </div>
 
         <h2 className="points-heading">Remarks</h2>
         <div className="form-grid">

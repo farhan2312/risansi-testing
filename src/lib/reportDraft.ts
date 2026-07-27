@@ -11,7 +11,17 @@
 
 export interface SharedReportDraft {
   model?: string;
+  po_no?: string;
+  ec_no?: string;
+  rev_no?: string;
+  rev_date?: string;
+  pump_serial_no?: string;
+  gearbox_no?: string;
+  gearbox_ratio?: string;
+  motor?: string;
+  motor_rpm?: string;
   test_type?: string;
+  npsha_status?: string;
   liquid?: string;
   rated_capacity?: string;
   capacity_unit?: string;
@@ -22,8 +32,24 @@ export interface SharedReportDraft {
   k_for_given_cps?: string;
   rated_rpm?: string;
   q_theoretical_100rev?: string;
+  calculated_head?: string;
+  reference_voltage?: string;
+  reference_current?: string;
+  vnotch_baseline?: string;
   tested_by?: string;
   test_date?: string;
+  vibration_sound_db?: string;
+  vibration_x_mm_sec?: string;
+  vibration_y_mm_sec?: string;
+  vibration_z_mm_sec?: string;
+  pump_started_at?: string;
+  pump_stopped_at?: string;
+  ambient_temp_c?: string;
+  max_bearing_temp_c?: string;
+  total_rise_c?: string;
+  witness?: string;
+  inspector?: string;
+  recorder?: string;
 }
 
 const draftKey = (scopeId: string) => `test-report-draft:${scopeId}`;
@@ -59,7 +85,17 @@ export function clearReportDraft(scopeId: string) {
  * not just within one browser tab. */
 export function draftFromReport(report: {
   model: string;
+  po_no?: string | null;
+  ec_no: string | null;
+  rev_no?: string | null;
+  rev_date?: string | null;
+  pump_serial_no?: string | null;
+  gearbox_no?: string | null;
+  gearbox_ratio?: string | null;
+  motor?: string | null;
+  motor_rpm?: number | string | null;
   test_type: string | null;
+  npsha_status?: string | null;
   liquid: string | null;
   rated_capacity: number | string | null;
   capacity_unit: string | null;
@@ -70,13 +106,39 @@ export function draftFromReport(report: {
   k_for_given_cps: number | string | null;
   rated_rpm: number | string | null;
   q_theoretical_100rev: number | string | null;
+  calculated_head?: number | string | null;
+  reference_voltage?: number | string | null;
+  reference_current?: number | string | null;
+  vnotch_baseline?: number | string | null;
   tested_by: string | null;
   test_date: string | null;
+  vibration_sound_db?: number | string | null;
+  vibration_x_mm_sec?: number | string | null;
+  vibration_y_mm_sec?: number | string | null;
+  vibration_z_mm_sec?: number | string | null;
+  pump_started_at?: string | null;
+  pump_stopped_at?: string | null;
+  ambient_temp_c?: number | string | null;
+  max_bearing_temp_c?: number | string | null;
+  total_rise_c?: number | string | null;
+  witness?: string | null;
+  inspector?: string | null;
+  recorder?: string | null;
 }): SharedReportDraft {
   const s = (v: unknown): string | undefined => (v === null || v === undefined ? undefined : String(v));
   return {
     model: report.model,
+    po_no: s(report.po_no),
+    ec_no: s(report.ec_no),
+    rev_no: s(report.rev_no),
+    rev_date: s(report.rev_date),
+    pump_serial_no: s(report.pump_serial_no),
+    gearbox_no: s(report.gearbox_no),
+    gearbox_ratio: s(report.gearbox_ratio),
+    motor: s(report.motor),
+    motor_rpm: s(report.motor_rpm),
     test_type: s(report.test_type),
+    npsha_status: s(report.npsha_status),
     liquid: s(report.liquid),
     rated_capacity: s(report.rated_capacity),
     capacity_unit: s(report.capacity_unit),
@@ -87,7 +149,23 @@ export function draftFromReport(report: {
     k_for_given_cps: s(report.k_for_given_cps),
     rated_rpm: s(report.rated_rpm),
     q_theoretical_100rev: s(report.q_theoretical_100rev),
+    calculated_head: s(report.calculated_head),
+    reference_voltage: s(report.reference_voltage),
+    reference_current: s(report.reference_current),
+    vnotch_baseline: s(report.vnotch_baseline),
     tested_by: s(report.tested_by),
     test_date: s(report.test_date),
+    vibration_sound_db: s(report.vibration_sound_db),
+    vibration_x_mm_sec: s(report.vibration_x_mm_sec),
+    vibration_y_mm_sec: s(report.vibration_y_mm_sec),
+    vibration_z_mm_sec: s(report.vibration_z_mm_sec),
+    pump_started_at: s(report.pump_started_at),
+    pump_stopped_at: s(report.pump_stopped_at),
+    ambient_temp_c: s(report.ambient_temp_c),
+    max_bearing_temp_c: s(report.max_bearing_temp_c),
+    total_rise_c: s(report.total_rise_c),
+    witness: s(report.witness),
+    inspector: s(report.inspector),
+    recorder: s(report.recorder),
   };
 }

@@ -28,6 +28,11 @@ interface PointFormValues {
 
 interface ReportFormValues {
   model: string;
+  po_no: string;
+  ec_no: string;
+  rev_no: string;
+  rev_date: string;
+  pump_serial_no: string;
   gearbox_no: string;
   gearbox_ratio: string;
   motor: string;
@@ -44,6 +49,7 @@ interface ReportFormValues {
   k_for_given_cps: string;
   rated_rpm: string;
   q_theoretical_100rev: string;
+  calculated_head: string;
   reference_voltage: string;
   reference_current: string;
   vnotch_baseline: string;
@@ -147,13 +153,18 @@ const TestReportForm = ({
   const { register, control, handleSubmit, formState: { isSubmitting, errors } } = useForm<ReportFormValues>({
     defaultValues: {
       model: lockedModel ?? r?.model ?? draft.model ?? "",
-      gearbox_no: str(r?.gearbox_no),
-      gearbox_ratio: str(r?.gearbox_ratio),
-      motor: str(r?.motor),
-      motor_rpm: str(r?.motor_rpm),
+      po_no: str(r?.po_no) || draft.po_no || "",
+      ec_no: str(r?.ec_no) || draft.ec_no || "",
+      rev_no: str(r?.rev_no) || draft.rev_no || "",
+      rev_date: str(r?.rev_date) || draft.rev_date || "",
+      pump_serial_no: str(r?.pump_serial_no) || draft.pump_serial_no || "",
+      gearbox_no: str(r?.gearbox_no) || draft.gearbox_no || "",
+      gearbox_ratio: str(r?.gearbox_ratio) || draft.gearbox_ratio || "",
+      motor: str(r?.motor) || draft.motor || "",
+      motor_rpm: str(r?.motor_rpm) || draft.motor_rpm || "",
       liquid: r?.liquid ?? draft.liquid ?? "WATER",
       test_type: (r?.test_type as TestType) ?? (draft.test_type as TestType) ?? "V-notch",
-      npsha_status: r?.npsha_status ?? "POSITIVE",
+      npsha_status: r?.npsha_status ?? draft.npsha_status ?? "POSITIVE",
       capacity_unit: r?.capacity_unit ?? draft.capacity_unit ?? "M3/HR",
       head_unit: r?.head_unit ?? draft.head_unit ?? "KG/CM2",
       rated_capacity: str(r?.rated_capacity) || draft.rated_capacity || "",
@@ -163,23 +174,24 @@ const TestReportForm = ({
       k_for_given_cps: str(r?.k_for_given_cps) || draft.k_for_given_cps || "1",
       rated_rpm: str(r?.rated_rpm) || draft.rated_rpm || "",
       q_theoretical_100rev: str(r?.q_theoretical_100rev) || draft.q_theoretical_100rev || "",
-      reference_voltage: str(r?.reference_voltage),
-      reference_current: str(r?.reference_current),
-      vnotch_baseline: str(r?.vnotch_baseline),
+      calculated_head: str(r?.calculated_head) || draft.calculated_head || "",
+      reference_voltage: str(r?.reference_voltage) || draft.reference_voltage || "",
+      reference_current: str(r?.reference_current) || draft.reference_current || "",
+      vnotch_baseline: str(r?.vnotch_baseline) || draft.vnotch_baseline || "",
       tested_by: r?.tested_by ?? draft.tested_by ?? "",
       test_date: r?.test_date ?? draft.test_date ?? "",
-      vibration_sound_db: str(r?.vibration_sound_db),
-      vibration_x_mm_sec: str(r?.vibration_x_mm_sec),
-      vibration_y_mm_sec: str(r?.vibration_y_mm_sec),
-      vibration_z_mm_sec: str(r?.vibration_z_mm_sec),
-      pump_started_at: str(r?.pump_started_at),
-      pump_stopped_at: str(r?.pump_stopped_at),
-      ambient_temp_c: str(r?.ambient_temp_c),
-      max_bearing_temp_c: str(r?.max_bearing_temp_c),
-      total_rise_c: str(r?.total_rise_c),
-      witness: str(r?.witness),
-      inspector: str(r?.inspector),
-      recorder: str(r?.recorder),
+      vibration_sound_db: str(r?.vibration_sound_db) || draft.vibration_sound_db || "",
+      vibration_x_mm_sec: str(r?.vibration_x_mm_sec) || draft.vibration_x_mm_sec || "",
+      vibration_y_mm_sec: str(r?.vibration_y_mm_sec) || draft.vibration_y_mm_sec || "",
+      vibration_z_mm_sec: str(r?.vibration_z_mm_sec) || draft.vibration_z_mm_sec || "",
+      pump_started_at: str(r?.pump_started_at) || draft.pump_started_at || "",
+      pump_stopped_at: str(r?.pump_stopped_at) || draft.pump_stopped_at || "",
+      ambient_temp_c: str(r?.ambient_temp_c) || draft.ambient_temp_c || "",
+      max_bearing_temp_c: str(r?.max_bearing_temp_c) || draft.max_bearing_temp_c || "",
+      total_rise_c: str(r?.total_rise_c) || draft.total_rise_c || "",
+      witness: str(r?.witness) || draft.witness || "",
+      inspector: str(r?.inspector) || draft.inspector || "",
+      recorder: str(r?.recorder) || draft.recorder || "",
       remarks: str(r?.remarks),
       points: r ? pointsFromExistingReport(r) : [emptyPoint],
     },
@@ -190,20 +202,33 @@ const TestReportForm = ({
   const sharedFieldsWatch = useWatch({
     control,
     name: [
-      "model", "test_type", "liquid", "rated_capacity", "capacity_unit", "rated_head",
-      "head_unit", "specific_gravity", "viscosity_cps", "k_for_given_cps", "rated_rpm",
-      "q_theoretical_100rev", "tested_by", "test_date",
+      "model", "po_no", "ec_no", "rev_no", "rev_date", "pump_serial_no", "gearbox_no",
+      "gearbox_ratio", "motor", "motor_rpm", "test_type", "npsha_status", "liquid",
+      "rated_capacity", "capacity_unit", "rated_head", "head_unit", "specific_gravity",
+      "viscosity_cps", "k_for_given_cps", "rated_rpm", "q_theoretical_100rev", "calculated_head",
+      "reference_voltage", "reference_current", "vnotch_baseline", "tested_by", "test_date",
+      "vibration_sound_db", "vibration_x_mm_sec", "vibration_y_mm_sec", "vibration_z_mm_sec",
+      "pump_started_at", "pump_stopped_at", "ambient_temp_c", "max_bearing_temp_c", "total_rise_c",
+      "witness", "inspector", "recorder",
     ],
   });
   useEffect(() => {
     if (existingReport) return;
-    const [model, test_type, liquid, rated_capacity, capacity_unit, rated_head, head_unit,
-      specific_gravity, viscosity_cps, k_for_given_cps, rated_rpm, q_theoretical_100rev,
-      tested_by, test_date] = sharedFieldsWatch;
-    const nextDraft: SharedReportDraft = {
-      model: lockedModel ?? model, test_type, liquid, rated_capacity, capacity_unit, rated_head,
+    const [model, po_no, ec_no, rev_no, rev_date, pump_serial_no, gearbox_no, gearbox_ratio,
+      motor, motor_rpm, test_type, npsha_status, liquid, rated_capacity, capacity_unit, rated_head,
       head_unit, specific_gravity, viscosity_cps, k_for_given_cps, rated_rpm, q_theoretical_100rev,
-      tested_by, test_date,
+      calculated_head, reference_voltage, reference_current, vnotch_baseline, tested_by, test_date,
+      vibration_sound_db, vibration_x_mm_sec, vibration_y_mm_sec, vibration_z_mm_sec,
+      pump_started_at, pump_stopped_at, ambient_temp_c, max_bearing_temp_c, total_rise_c,
+      witness, inspector, recorder] = sharedFieldsWatch;
+    const nextDraft: SharedReportDraft = {
+      model: lockedModel ?? model, po_no, ec_no, rev_no, rev_date, pump_serial_no, gearbox_no,
+      gearbox_ratio, motor, motor_rpm, test_type, npsha_status, liquid, rated_capacity,
+      capacity_unit, rated_head, head_unit, specific_gravity, viscosity_cps, k_for_given_cps,
+      rated_rpm, q_theoretical_100rev, calculated_head, reference_voltage, reference_current,
+      vnotch_baseline, tested_by, test_date, vibration_sound_db, vibration_x_mm_sec,
+      vibration_y_mm_sec, vibration_z_mm_sec, pump_started_at, pump_stopped_at, ambient_temp_c,
+      max_bearing_temp_c, total_rise_c, witness, inspector, recorder,
     };
     saveReportDraft(scopeId, nextDraft);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -284,6 +309,11 @@ const TestReportForm = ({
       const payload = {
         model,
         report_format: "observation" as const,
+        po_no: values.po_no || undefined,
+        ec_no: values.ec_no || undefined,
+        rev_no: values.rev_no || undefined,
+        rev_date: values.rev_date || undefined,
+        pump_serial_no: values.pump_serial_no || undefined,
         gearbox_no: values.gearbox_no || undefined,
         gearbox_ratio: values.gearbox_ratio || undefined,
         motor: values.motor || undefined,
@@ -300,6 +330,7 @@ const TestReportForm = ({
         k_for_given_cps: numOrUndef(values.k_for_given_cps),
         rated_rpm: numOrUndef(values.rated_rpm),
         q_theoretical_100rev: numOrUndef(values.q_theoretical_100rev),
+        calculated_head: numOrUndef(values.calculated_head),
         reference_voltage: numOrUndef(values.reference_voltage),
         reference_current: numOrUndef(values.reference_current),
         vnotch_baseline: numOrUndef(values.vnotch_baseline),
@@ -353,6 +384,27 @@ const TestReportForm = ({
               {errors.model && <span className="field-error">Model is required</span>}
             </div>
           )}
+
+          <div className="field">
+            <label>PO No.</label>
+            <input {...register("po_no")} />
+          </div>
+          <div className="field">
+            <label>EC No.</label>
+            <input {...register("ec_no")} />
+          </div>
+          <div className="field">
+            <label>Rev No.</label>
+            <input {...register("rev_no")} />
+          </div>
+          <div className="field">
+            <label>Rev Date</label>
+            <input type="date" {...register("rev_date")} />
+          </div>
+          <div className="field">
+            <label>Pump S.No.</label>
+            <input {...register("pump_serial_no")} />
+          </div>
 
           <div className="field">
             <label>Capacity Measurement Method</label>
@@ -432,6 +484,10 @@ const TestReportForm = ({
           <div className="field">
             <label>Q Theoretical / 100 Rev</label>
             <input type="number" step="any" {...register("q_theoretical_100rev")} />
+          </div>
+          <div className="field">
+            <label>Calculated Head (MWC)</label>
+            <input type="number" step="any" {...register("calculated_head")} />
           </div>
 
           <div className="field">
