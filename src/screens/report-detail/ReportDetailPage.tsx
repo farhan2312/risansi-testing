@@ -314,14 +314,28 @@ const ReportDetailPage = () => {
       <section className="detail-card">
         <h2>Witness, Inspection &amp; Remarks</h2>
         <table className="sheet-table header-sheet-table sign-off-table">
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Name</th>
+              <th>Signature</th>
+            </tr>
+          </thead>
           <tbody>
             <tr>
               <th>Witness</th>
-              <td className={report.witness ? "" : "signature-line"}>{fmt(report.witness)}</td>
+              <td>{fmt(report.witness)}</td>
+              <td className="signature-line"></td>
+            </tr>
+            <tr>
               <th>Inspector</th>
-              <td className={report.inspector ? "" : "signature-line"}>{fmt(report.inspector)}</td>
+              <td>{fmt(report.inspector)}</td>
+              <td className="signature-line"></td>
+            </tr>
+            <tr>
               <th>Recorder</th>
-              <td className={report.recorder ? "" : "signature-line"}>{fmt(report.recorder)}</td>
+              <td>{fmt(report.recorder)}</td>
+              <td className="signature-line"></td>
             </tr>
           </tbody>
         </table>

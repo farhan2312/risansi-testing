@@ -203,11 +203,16 @@
   margin: 0;
 }
 
-/* Witness/Inspector/Recorder cells: when a value exists it's shown as
- * normal text; when blank, an underline is drawn instead so there's
- * somewhere to sign by hand on the printed sheet. */
+/* Witness/Inspector/Recorder: Name is typed/digital, Signature is always a
+ * blank line meant to be signed by hand on the printed sheet — even when
+ * Name is already filled in. */
+.sign-off-table thead th {
+  width: auto;
+  text-align: left;
+}
+
 .sign-off-table td.signature-line {
-  min-width: 140px;
+  min-width: 160px;
   border-bottom: 1px solid var(--text-muted);
 }
 
