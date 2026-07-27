@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import "./TestReportForm.css";
-import { getLatestObservationReport, getRequisition, submitReport, updateReport } from "@/services/testingService";
+import { getLatestObservationReport, getReport, getRequisition, submitReport, updateReport } from "@/services/testingService";
 import { computeViscosityChartPoint } from "@/lib/testReportCalc";
 import {
   clearReportDraft,
@@ -164,7 +164,7 @@ const ViscosityChartForm = ({
     },
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: "points" });
+  const { fields, append, remove, replace } = useFieldArray({ control, name: "points" });
 
   // Prefill from the same pump's Observation Sheet — fields the tester has
   // already typed are left alone, only currently-empty ones are filled.
@@ -193,9 +193,25 @@ const ViscosityChartForm = ({
     setIfEmpty("q_theoretical_100rev", d.q_theoretical_100rev);
     setIfEmpty("tested_by", d.tested_by);
     setIfEmpty("test_date", d.test_date);
+
+    // Test points are the actual measured data — copy them over exactly as
+    // recorded on the Observation Sheet (same rule as the header fields
+    // above: only if nothing's been entered here yet, so we never clobber
+    // work in progress). The viscosity-corrected columns (VE/ME for liquid,
+    // slip, etc.) still recompute live from Specific Gravity / K / Viscosity
+    // via computeViscosityChartPoint — only the raw inputs are copied.
+    const currentPoints = getValues("points");
+    const pointsArePristine =
+      currentPoints.length === 1 && Object.values(currentPoints[0]).every((v) => !v);
+    const sourceReport = source as PumpTestReport;
+    if (pointsArePristine && sourceReport.points?.length > 0) {
+      replace(pointsFromExistingReport(sourceReport));
+      filledAny = true;
+    }
+
     if (filledAny) {
       setAutofillNotice(
-        `Prefilled from the Observation Sheet${reportNo ? ` (${reportNo})` : ""} already submitted for this pump — edit anything as needed.`
+        `Prefilled from the Observation Sheet${reportNo ? ` (${reportNo})` : ""} already submitted for this pump, including its test points — edit anything as needed.`
       );
     }
   };
@@ -223,7 +239,12 @@ const ViscosityChartForm = ({
     lookedUpModel.current = modelVal;
     getLatestObservationReport(modelVal)
       .then((obs) => {
-        if (obs) applyAutofill(obs, obs.report_no);
+        if (!obs) return;
+        // getLatestObservationReport only returns a summary (no points) --
+        // fetch the full report so its test points can be copied over too.
+        getReport(obs.id)
+          .then((full) => applyAutofill(full, full.report_no))
+          .catch(() => applyAutofill(obs, obs.report_no));
       })
       .catch(() => {});
   };
