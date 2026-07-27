@@ -238,6 +238,11 @@
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+
   .report-detail-page {
     max-width: none;
     gap: 12px;

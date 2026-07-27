@@ -264,10 +264,13 @@
 
   .testing-layout {
     display: block;
+    height: auto;
+    overflow: visible;
   }
 
   .testing-content {
     display: block;
+    height: auto;
   }
 
   .testing-main {
