@@ -74,3 +74,33 @@ export async function PATCH(
 
   return json(userToDict(updated));
 }
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ userId: string }> },
+) {
+  let claims;
+  try {
+    claims = requireAdmin(req);
+  } catch (e) {
+    if (e instanceof AuthError) return error(e.message, e.statusCode);
+    throw e;
+  }
+
+  const { userId } = await params;
+  if (!UUID_RE.test(userId)) {
+    return error("Invalid user id", 400);
+  }
+  if (userId === claims.sub) {
+    return error("You cannot delete your own account.", 400);
+  }
+
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) {
+    return error("User not found", 404);
+  }
+
+  await db.delete(users).where(eq(users.id, userId));
+
+  return json({ success: true });
+}

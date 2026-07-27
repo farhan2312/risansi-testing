@@ -57,3 +57,7 @@ export const setUserRole = async (
   const { data } = await apiClient.patch<PendingUser>(`/users/${userId}`, { role }, authHeader());
   return data;
 };
+
+export const deleteUser = async (userId: string): Promise<void> => {
+  await apiClient.delete(`/users/${userId}`, authHeader());
+};

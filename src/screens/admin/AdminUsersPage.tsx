@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import "./AdminAccessRequestsPage.css";
-import { listAllUsers, setUserRole, type PendingUser } from "@/services/adminService";
+import { deleteUser, listAllUsers, setUserRole, type PendingUser } from "@/services/adminService";
+import { getCurrentUser } from "@/services/session";
 import AdminSetPasswordModal from "@/components/ui/AdminSetPasswordModal";
 
 // "user" is a legacy/placeholder role, no longer assignable — only shown
@@ -15,6 +16,8 @@ const AdminUsersPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [passwordTarget, setPasswordTarget] = useState<PendingUser | null>(null);
   const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const currentUserId = getCurrentUser()?.id;
 
   useEffect(() => {
     listAllUsers()
@@ -32,6 +35,21 @@ const AdminUsersPage = () => {
       setError("Couldn't update this user's role.");
     } finally {
       setRoleUpdatingId(null);
+    }
+  };
+
+  const handleDelete = async (user: PendingUser) => {
+    if (!window.confirm(`Delete ${user.name ?? user.email}? This cannot be undone.`)) {
+      return;
+    }
+    setDeletingId(user.id);
+    try {
+      await deleteUser(user.id);
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+    } catch {
+      setError("Couldn't delete this user.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -88,6 +106,15 @@ const AdminUsersPage = () => {
                     <button className="approve-btn" onClick={() => setPasswordTarget(u)}>
                       Reset Password
                     </button>
+                    {u.id !== currentUserId && (
+                      <button
+                        className="reject-btn"
+                        disabled={deletingId === u.id}
+                        onClick={() => handleDelete(u)}
+                      >
+                        {deletingId === u.id ? "Deleting..." : "Delete"}
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
