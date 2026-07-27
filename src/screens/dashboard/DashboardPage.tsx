@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import "./DashboardPage.css";
-import { listRequisitions } from "@/services/testingService";
+import { listRequisitions, updateRequisition } from "@/services/testingService";
 import { getCurrentUser } from "@/services/session";
-import type { RequisitionStatus, TestRequisition } from "@/types/testing";
+import { RESPONSIBLE_PERSONS, type RequisitionStatus, type TestRequisition } from "@/types/testing";
 
 const STATUS_TABS: { label: string; value: RequisitionStatus | "All" }[] = [
   { label: "All", value: "All" },
@@ -21,6 +21,16 @@ const DashboardPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const canCreateRequisition = getCurrentUser()?.role !== "testing";
+  const canReassign = getCurrentUser()?.role === "testing";
+
+  const handleReassign = async (id: string, responsiblePerson: string) => {
+    try {
+      const updated = await updateRequisition(id, { responsible_person: responsiblePerson });
+      setRequisitions((prev) => prev.map((r) => (r.id === id ? updated : r)));
+    } catch {
+      setError("Could not update responsible person. Please try again.");
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -95,7 +105,26 @@ const DashboardPage = () => {
                 </td>
                 <td>{r.category ?? "-"}</td>
                 <td>{r.ec_quotation_no ?? "-"}</td>
-                <td>{r.responsible_person ?? "-"}</td>
+                <td>
+                  {canReassign ? (
+                    <select
+                      className="res-reassign-select"
+                      value={r.responsible_person ?? ""}
+                      onChange={(e) => handleReassign(r.id, e.target.value)}
+                    >
+                      <option value="" disabled>
+                        -
+                      </option>
+                      {RESPONSIBLE_PERSONS.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    r.responsible_person ?? "-"
+                  )}
+                </td>
                 <td>{r.source_team ?? "-"}</td>
                 <td>{r.date_of_receipt ?? "-"}</td>
                 <td>{r.retest_needed === null ? "-" : r.retest_needed ? "Yes" : "No"}</td>

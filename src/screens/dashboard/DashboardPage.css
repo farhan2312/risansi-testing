@@ -139,3 +139,12 @@
   color: #fff !important;
   text-decoration: none !important;
 }
+
+.res-reassign-select {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--text);
+}
