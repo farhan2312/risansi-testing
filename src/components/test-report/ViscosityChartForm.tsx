@@ -778,7 +778,10 @@ const ViscosityChartForm = ({
             <label>Total Rise (°C)</label>
             <input type="number" step="any" {...register("total_rise_c")} />
           </div>
+        </div>
 
+        <h2 className="points-heading">Witness, Inspector &amp; Recorder</h2>
+        <div className="form-grid">
           <div className="field">
             <label>Witness</label>
             <input {...register("witness")} />
