@@ -7,7 +7,7 @@ import { z } from "zod";
 import { useRouter } from "next/navigation";
 import "./NewRequisitionPage.css";
 import { createRequisition } from "@/services/testingService";
-import { REQUISITION_CATEGORIES, RESPONSIBLE_PERSONS, SOURCE_TEAMS } from "@/types/testing";
+import { ecQuotationLabel, REQUISITION_CATEGORIES, RESPONSIBLE_PERSONS, SOURCE_TEAMS } from "@/types/testing";
 
 const optionalNumber = <T extends z.ZodTypeAny>(inner: T) =>
   z.preprocess((v) => (v === "" || v === undefined ? undefined : v), inner.optional());
@@ -37,6 +37,7 @@ const NewRequisitionPage = () => {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -46,6 +47,7 @@ const NewRequisitionPage = () => {
       responsible_person: RESPONSIBLE_PERSONS[0],
     },
   });
+  const category = watch("category");
 
   const onSubmit = async (values: FormValues) => {
     setSubmitError("");
@@ -95,7 +97,7 @@ const NewRequisitionPage = () => {
           </div>
 
           <div className="field">
-            <label htmlFor="ec_quotation_no">EC/Quotation/Offer No.</label>
+            <label htmlFor="ec_quotation_no">{ecQuotationLabel(category)}</label>
             <input id="ec_quotation_no" {...register("ec_quotation_no")} placeholder="N/A" />
           </div>
 

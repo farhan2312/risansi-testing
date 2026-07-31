@@ -11,6 +11,13 @@ export const REQUISITION_CATEGORIES = [
   "Against EC Based",
 ] as const;
 
+/** Label for the EC/Quotation/Offer No. field, tailored to the requisition category. */
+export const ecQuotationLabel = (category?: string | null): string => {
+  if (category === "Against EC Based") return "EC No.";
+  if (category === "Against Quotation Test") return "Quotation No.";
+  return "EC/Quotation/Offer No.";
+};
+
 export const SOURCE_TEAMS = ["Planning", "Research", "Operations"] as const;
 
 export const RESPONSIBLE_PERSONS = ["Sachin", "Vikas"] as const;

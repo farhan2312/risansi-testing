@@ -7,7 +7,7 @@ import { z } from "zod";
 import { useParams, useRouter } from "next/navigation";
 import "../requisition-new/NewRequisitionPage.css";
 import { getRequisition, updateRequisition } from "@/services/testingService";
-import { REQUISITION_CATEGORIES, RESPONSIBLE_PERSONS, SOURCE_TEAMS } from "@/types/testing";
+import { ecQuotationLabel, REQUISITION_CATEGORIES, RESPONSIBLE_PERSONS, SOURCE_TEAMS } from "@/types/testing";
 
 const optionalNumber = <T extends z.ZodTypeAny>(inner: T) =>
   z.preprocess((v) => (v === "" || v === undefined || v === null ? undefined : v), inner.optional());
@@ -40,8 +40,10 @@ const EditRequisitionPage = () => {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  const category = watch("category");
 
   useEffect(() => {
     if (!id) return;
@@ -118,7 +120,7 @@ const EditRequisitionPage = () => {
           </div>
 
           <div className="field">
-            <label htmlFor="ec_quotation_no">EC/Quotation/Offer No.</label>
+            <label htmlFor="ec_quotation_no">{ecQuotationLabel(category)}</label>
             <input id="ec_quotation_no" {...register("ec_quotation_no")} placeholder="N/A" />
           </div>
 

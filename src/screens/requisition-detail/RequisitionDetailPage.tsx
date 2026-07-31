@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import "./RequisitionDetailPage.css";
 import { dedupCheck, getRequisition, updateRequisition } from "@/services/testingService";
 import { getCurrentUser } from "@/services/session";
+import { ecQuotationLabel } from "@/types/testing";
 import type { DedupCheckResult, TestRequisition } from "@/types/testing";
 
 const RequisitionDetailPage = () => {
@@ -117,7 +118,7 @@ const RequisitionDetailPage = () => {
             <span>{requisition.category ?? "-"}</span>
           </div>
           <div>
-            <span className="label">EC/Quotation No.</span>
+            <span className="label">{ecQuotationLabel(requisition.category)}</span>
             <span>{requisition.ec_quotation_no ?? "-"}</span>
           </div>
           <div>
