@@ -79,7 +79,11 @@ const ReportArchivePage = () => {
   const filteredPumps = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return pumpGroups;
-    return pumpGroups.filter((g) => g.model.toLowerCase().includes(q));
+    return pumpGroups.filter(
+      (g) =>
+        g.model.toLowerCase().includes(q) ||
+        g.reports.some((r) => r.ec_no?.toLowerCase().includes(q))
+    );
   }, [pumpGroups, search]);
 
   useEffect(() => {
@@ -116,7 +120,7 @@ const ReportArchivePage = () => {
         <h1>Report Archive</h1>
         <input
           type="text"
-          placeholder="Search by model..."
+          placeholder="Search by model or EC number..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="archive-search"
