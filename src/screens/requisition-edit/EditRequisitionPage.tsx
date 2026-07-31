@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useParams, useRouter } from "next/navigation";
 import "../requisition-new/NewRequisitionPage.css";
+import { uppercaseOnChange } from "@/lib/formUtils";
 import { getRequisition, updateRequisition } from "@/services/testingService";
 import { ecQuotationLabel, REQUISITION_CATEGORIES, RESPONSIBLE_PERSONS, SOURCE_TEAMS } from "@/types/testing";
 
@@ -93,7 +94,20 @@ const EditRequisitionPage = () => {
         <div className="form-grid">
           <div className="field">
             <label htmlFor="model">Model *</label>
-            <input id="model" {...register("model")} placeholder="e.g. H-30" />
+            {(() => {
+              const modelReg = register("model");
+              return (
+                <input
+                  id="model"
+                  {...modelReg}
+                  onChange={(e) => {
+                    uppercaseOnChange(e);
+                    modelReg.onChange(e);
+                  }}
+                  placeholder="e.g. H-30"
+                />
+              );
+            })()}
             {errors.model && <span className="field-error">{errors.model.message}</span>}
           </div>
 

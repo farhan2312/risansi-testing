@@ -5,6 +5,7 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import "./TestReportForm.css";
 import { submitReport, updateReport } from "@/services/testingService";
 import { computePoint } from "@/lib/testReportCalc";
+import { uppercaseOnChange } from "@/lib/formUtils";
 import { clearReportDraft, loadReportDraft, saveReportDraft, type SharedReportDraft } from "@/lib/reportDraft";
 import {
   CAPACITY_UNITS,
@@ -384,7 +385,19 @@ const TestReportForm = ({
           ) : (
             <div className="field">
               <label>Model *</label>
-              <input {...register("model", { required: true })} placeholder="e.g. H-30" />
+              {(() => {
+                const modelReg = register("model", { required: true });
+                return (
+                  <input
+                    {...modelReg}
+                    onChange={(e) => {
+                      uppercaseOnChange(e);
+                      modelReg.onChange(e);
+                    }}
+                    placeholder="e.g. H-30"
+                  />
+                );
+              })()}
               {errors.model && <span className="field-error">Model is required</span>}
             </div>
           )}
