@@ -7,6 +7,9 @@ import "./DashboardLayout.css";
 import { clearSession, getCurrentUser, isAdmin, updateCurrentUser } from "@/services/session";
 import { useTheme } from "@/contexts/ThemeContext";
 import EditPasswordModal from "@/components/ui/EditPasswordModal";
+import { listPendingUsers } from "@/services/adminService";
+
+const PENDING_REQUESTS_POLL_MS = 30000;
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Requisitions" },
@@ -33,7 +36,31 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [mustChangePassword, setMustChangePassword] = useState(user?.must_change_password ?? false);
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Polls for pending access requests so admins see a live badge on the nav
+  // item without having to open the Access Requests page to find out.
+  useEffect(() => {
+    if (!isAdmin()) return;
+
+    let cancelled = false;
+    const poll = () => {
+      listPendingUsers()
+        .then((rows) => {
+          if (!cancelled) setPendingRequestCount(rows.length);
+        })
+        .catch(() => {});
+    };
+
+    poll();
+    const interval = setInterval(poll, PENDING_REQUESTS_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // The useState initializer above only runs on this component's very first
   // render. AuthGuard (the parent) renders null until its own auth check
@@ -94,6 +121,9 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                 className={pathname === "/admin/access-requests" ? "active" : ""}
               >
                 Access Requests
+                {pendingRequestCount > 0 && (
+                  <span className="nav-badge">{pendingRequestCount}</span>
+                )}
               </Link>
               <Link
                 href="/admin/users"
