@@ -30,8 +30,6 @@ interface ReportFormValues {
   model: string;
   po_no: string;
   ec_no: string;
-  rev_no: string;
-  rev_date: string;
   pump_serial_no: string;
   gearbox_no: string;
   gearbox_ratio: string;
@@ -163,8 +161,6 @@ const TestReportForm = ({
       model: lockedModel ?? r?.model ?? draft.model ?? "",
       po_no: str(r?.po_no) || draft.po_no || "",
       ec_no: str(r?.ec_no) || draft.ec_no || "",
-      rev_no: str(r?.rev_no) || draft.rev_no || "",
-      rev_date: str(r?.rev_date) || draft.rev_date || "",
       pump_serial_no: str(r?.pump_serial_no) || draft.pump_serial_no || "",
       gearbox_no: str(r?.gearbox_no) || draft.gearbox_no || "",
       gearbox_ratio: str(r?.gearbox_ratio) || draft.gearbox_ratio || "",
@@ -209,7 +205,7 @@ const TestReportForm = ({
   const sharedFieldsWatch = useWatch({
     control,
     name: [
-      "model", "po_no", "ec_no", "rev_no", "rev_date", "pump_serial_no", "gearbox_no",
+      "model", "po_no", "ec_no", "pump_serial_no", "gearbox_no",
       "gearbox_ratio", "motor", "motor_rpm", "test_type", "npsha_status", "liquid",
       "rated_capacity", "capacity_unit", "rated_head", "head_unit", "specific_gravity",
       "viscosity_cps", "k_for_given_cps", "rated_rpm", "q_theoretical_100rev", "calculated_head",
@@ -221,7 +217,7 @@ const TestReportForm = ({
   });
   useEffect(() => {
     if (existingReport) return;
-    const [model, po_no, ec_no, rev_no, rev_date, pump_serial_no, gearbox_no, gearbox_ratio,
+    const [model, po_no, ec_no, pump_serial_no, gearbox_no, gearbox_ratio,
       motor, motor_rpm, test_type, npsha_status, liquid, rated_capacity, capacity_unit, rated_head,
       head_unit, specific_gravity, viscosity_cps, k_for_given_cps, rated_rpm, q_theoretical_100rev,
       calculated_head, reference_voltage, reference_current, vnotch_baseline, tested_by, test_date,
@@ -229,7 +225,7 @@ const TestReportForm = ({
       pump_started_at, pump_stopped_at, ambient_temp_c, max_bearing_temp_c,
       witness, inspector, recorder] = sharedFieldsWatch;
     const nextDraft: SharedReportDraft = {
-      model: lockedModel ?? model, po_no, ec_no, rev_no, rev_date, pump_serial_no, gearbox_no,
+      model: lockedModel ?? model, po_no, ec_no, pump_serial_no, gearbox_no,
       gearbox_ratio, motor, motor_rpm, test_type, npsha_status, liquid, rated_capacity,
       capacity_unit, rated_head, head_unit, specific_gravity, viscosity_cps, k_for_given_cps,
       rated_rpm, q_theoretical_100rev, calculated_head, reference_voltage, reference_current,
@@ -321,8 +317,6 @@ const TestReportForm = ({
         report_format: "observation" as const,
         po_no: values.po_no || undefined,
         ec_no: values.ec_no || undefined,
-        rev_no: values.rev_no || undefined,
-        rev_date: values.rev_date || undefined,
         pump_serial_no: values.pump_serial_no || undefined,
         gearbox_no: values.gearbox_no || undefined,
         gearbox_ratio: values.gearbox_ratio || undefined,
@@ -402,14 +396,6 @@ const TestReportForm = ({
           <div className="field">
             <label>EC No.</label>
             <input {...register("ec_no")} />
-          </div>
-          <div className="field">
-            <label>Rev No.</label>
-            <input {...register("rev_no")} />
-          </div>
-          <div className="field">
-            <label>Rev Date</label>
-            <input type="date" {...register("rev_date")} />
           </div>
           <div className="field">
             <label>Pump S.No.</label>

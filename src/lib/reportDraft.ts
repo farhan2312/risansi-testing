@@ -13,8 +13,6 @@ export interface SharedReportDraft {
   model?: string;
   po_no?: string;
   ec_no?: string;
-  rev_no?: string;
-  rev_date?: string;
   pump_serial_no?: string;
   gearbox_no?: string;
   gearbox_ratio?: string;
@@ -86,8 +84,6 @@ export function draftFromReport(report: {
   model: string;
   po_no?: string | null;
   ec_no: string | null;
-  rev_no?: string | null;
-  rev_date?: string | null;
   pump_serial_no?: string | null;
   gearbox_no?: string | null;
   gearbox_ratio?: string | null;
@@ -128,8 +124,6 @@ export function draftFromReport(report: {
     model: report.model,
     po_no: s(report.po_no),
     ec_no: s(report.ec_no),
-    rev_no: s(report.rev_no),
-    rev_date: s(report.rev_date),
     pump_serial_no: s(report.pump_serial_no),
     gearbox_no: s(report.gearbox_no),
     gearbox_ratio: s(report.gearbox_ratio),

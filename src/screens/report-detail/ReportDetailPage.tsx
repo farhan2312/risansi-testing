@@ -151,18 +151,16 @@ const ReportDetailPage = () => {
               <td>{fmt(report.po_no)}</td>
               <th>EC No.</th>
               <td>{fmt(report.ec_no)}</td>
-              <th>Rev No. / Date</th>
-              <td>
-                {fmt(report.rev_no)} / {fmt(report.rev_date)}
-              </td>
-            </tr>
-            <tr>
               <th>Pump S.No.</th>
               <td>{fmt(report.pump_serial_no)}</td>
+            </tr>
+            <tr>
               <th>Gear Box No.</th>
               <td>{fmt(report.gearbox_no)}</td>
               <th>Gearbox Ratio</th>
               <td>{fmt(report.gearbox_ratio)}</td>
+              <th></th>
+              <td></td>
             </tr>
             <tr>
               <th>Motor</th>
