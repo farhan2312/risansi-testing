@@ -80,7 +80,7 @@ const ReportDetailPage = () => {
   if (!report) return <p className="detail-empty">Loading...</p>;
 
   const points = [...report.points].sort(
-    (a, b) => (a.rpm ?? 0) - (b.rpm ?? 0) || (a.head_kgcm2 ?? 0) - (b.head_kgcm2 ?? 0)
+    (a, b) => (a.head_kgcm2 ?? 0) - (b.head_kgcm2 ?? 0) || (a.rpm ?? 0) - (b.rpm ?? 0)
   );
   const activeRows = POINT_ROWS.filter((row) =>
     points.some((p) => p[row.field] !== null && p[row.field] !== undefined)
