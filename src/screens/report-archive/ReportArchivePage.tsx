@@ -21,9 +21,10 @@ interface PumpGroup {
 const groupByPump = (reports: ArchiveReportSummary[]): PumpGroup[] => {
   const groups = new Map<string, ArchiveReportSummary[]>();
   for (const r of reports) {
-    const list = groups.get(r.model) ?? [];
+    const key = r.model.toUpperCase();
+    const list = groups.get(key) ?? [];
     list.push(r);
-    groups.set(r.model, list);
+    groups.set(key, list);
   }
 
   return [...groups.entries()]
