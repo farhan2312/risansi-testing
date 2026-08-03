@@ -18,7 +18,7 @@ export const ecQuotationLabel = (category?: string | null): string => {
   return "EC/Quotation/Offer No.";
 };
 
-export const SOURCE_TEAMS = ["Planning", "Research", "Operations"] as const;
+export const SOURCE_TEAMS = ["Research", "Proposal", "Testing"] as const;
 
 export const RESPONSIBLE_PERSONS = ["Sachin", "Vikas"] as const;
 
