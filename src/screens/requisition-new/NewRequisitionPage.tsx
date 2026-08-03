@@ -56,13 +56,13 @@ const NewRequisitionPage = () => {
       const requisition = await createRequisition(schema.parse(values));
       router.push(`/requisitions/${requisition.id}`);
     } catch {
-      setSubmitError("Could not create requisition. Please try again.");
+      setSubmitError("Could not create testing summary. Please try again.");
     }
   };
 
   return (
     <div className="requisition-form-page">
-      <h1>New Testing Requisition</h1>
+      <h1>New Requisition</h1>
       <p className="subtitle">Log a testing request as received from the source team.</p>
 
       {submitError && <div className="form-error-banner">{submitError}</div>}
@@ -180,7 +180,7 @@ const NewRequisitionPage = () => {
             Cancel
           </button>
           <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Submitting..." : "Submit Requisition"}
+            {isSubmitting ? "Submitting..." : "Submit Testing Summary"}
           </button>
         </div>
       </form>

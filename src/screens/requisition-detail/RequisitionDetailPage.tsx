@@ -32,7 +32,7 @@ const RequisitionDetailPage = () => {
       dedupResult.priorReports = dedupResult.priorReports.filter((r) => r.requisition_id !== id);
       setDedup(dedupResult);
     } catch {
-      setError("Could not load requisition.");
+      setError("Could not load testing summary.");
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +53,7 @@ const RequisitionDetailPage = () => {
       });
       setRequisition(updated);
     } catch {
-      setError("Could not update requisition.");
+      setError("Could not update testing summary.");
     } finally {
       setIsSaving(false);
     }
@@ -66,7 +66,7 @@ const RequisitionDetailPage = () => {
       const updated = await updateRequisition(id, { status: "In Testing" });
       setRequisition(updated);
     } catch {
-      setError("Could not update requisition.");
+      setError("Could not update testing summary.");
     } finally {
       setIsSaving(false);
     }
@@ -74,7 +74,7 @@ const RequisitionDetailPage = () => {
 
   if (isLoading) return <p className="detail-empty">Loading...</p>;
   if (error) return <div className="form-error-banner">{error}</div>;
-  if (!requisition) return <p className="detail-empty">Requisition not found.</p>;
+  if (!requisition) return <p className="detail-empty">Testing summary not found.</p>;
 
   const hasPriorReports = (dedup?.priorReports.length ?? 0) > 0;
   const submittedReport = requisition.reports?.[0];
@@ -105,13 +105,13 @@ const RequisitionDetailPage = () => {
             </Link>
           )}
           <Link href="/dashboard" className="back-link">
-            &larr; Back to requisitions
+            &larr; Back to testing summaries
           </Link>
         </div>
       </div>
 
       <section className="detail-card">
-        <h2>Requisition Details</h2>
+        <h2>Testing Summary Details</h2>
         <div className="detail-grid">
           <div>
             <span className="label">Category</span>
@@ -225,7 +225,7 @@ const RequisitionDetailPage = () => {
           <h2>Test Report</h2>
           <p className="dedup-note">
             Once physical testing is complete, submit the test report below.
-            This will close the requisition.
+            This will close the testing summary.
           </p>
           <button onClick={() => router.push(`/requisitions/${requisition.id}/report`)}>
             Fill Test Report
@@ -237,7 +237,7 @@ const RequisitionDetailPage = () => {
         <section className="detail-card">
           <h2>Test Report</h2>
           <p className="dedup-note">
-            This requisition is closed.
+            This testing summary is closed.
             {submittedReport && (
               <>
                 {" "}

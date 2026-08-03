@@ -140,7 +140,7 @@ const LoginPage = () => {
           </h1>
 
           <p>
-            Requisition intake, dedup checks against prior test reports, and
+            Testing summary intake, dedup checks against prior test reports, and
             test report submission for the R&amp;D / production testing team.
           </p>
         </div>

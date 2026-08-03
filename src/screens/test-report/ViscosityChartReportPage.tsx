@@ -15,7 +15,7 @@ const ViscosityChartReportPage = () => {
 
   useEffect(() => {
     if (!id) return;
-    getRequisition(id).then(setRequisition).catch(() => setError("Could not load requisition."));
+    getRequisition(id).then(setRequisition).catch(() => setError("Could not load testing summary."));
   }, [id]);
 
   if (error) return <div className="form-error-banner">{error}</div>;
@@ -26,8 +26,8 @@ const ViscosityChartReportPage = () => {
       lockedModel={requisition.model}
       requisitionId={id}
       heading={`Test Report — ${requisition.model} (Viscosity Correction Chart)`}
-      subheading={`Submitting this report will close requisition ${requisition.id.slice(0, 8)}.`}
-      submitLabel="Submit Report & Close Requisition"
+      subheading={`Submitting this report will close testing summary ${requisition.id.slice(0, 8)}.`}
+      submitLabel="Submit Report & Close Testing Summary"
       onSubmitted={() => router.push(`/requisitions/${id}`)}
       onCancel={() => router.push(`/requisitions/${id}`)}
     />

@@ -42,7 +42,7 @@ const DashboardPage = () => {
         if (!cancelled) setRequisitions(rows);
       })
       .catch(() => {
-        if (!cancelled) setError("Could not load requisitions.");
+        if (!cancelled) setError("Could not load testing summaries.");
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -56,7 +56,7 @@ const DashboardPage = () => {
   return (
     <div className="dashboard-page">
       <div className="dashboard-header">
-        <h1>Testing Requisitions</h1>
+        <h1>Testing Summary</h1>
         {canCreateRequisition && (
           <Link href="/requisitions/new" className="new-requisition-btn">
             + New Requisition
@@ -81,7 +81,7 @@ const DashboardPage = () => {
       {isLoading ? (
         <p className="dashboard-empty">Loading...</p>
       ) : requisitions.length === 0 ? (
-        <p className="dashboard-empty">No requisitions in this status.</p>
+        <p className="dashboard-empty">No testing summaries in this status.</p>
       ) : (
         <table className="requisition-table">
           <thead>

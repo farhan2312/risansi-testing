@@ -190,7 +190,7 @@ const ReportArchivePage = () => {
                               <th>Suction</th>
                               <th>Test Date</th>
                               <th>Points</th>
-                              <th>Requisition-Linked</th>
+                              <th>Testing Summary-Linked</th>
                             </tr>
                           </thead>
                           <tbody>

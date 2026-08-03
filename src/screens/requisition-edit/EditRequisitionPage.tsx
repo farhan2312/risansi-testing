@@ -67,7 +67,7 @@ const EditRequisitionPage = () => {
           req_capacity: r.req_capacity ?? undefined,
         });
       })
-      .catch(() => setSubmitError("Could not load requisition."))
+      .catch(() => setSubmitError("Could not load testing summary."))
       .finally(() => setIsLoading(false));
   }, [id, reset]);
 
@@ -77,7 +77,7 @@ const EditRequisitionPage = () => {
       await updateRequisition(id, schema.parse(values));
       router.push(`/requisitions/${id}`);
     } catch {
-      setSubmitError("Could not update requisition. Please try again.");
+      setSubmitError("Could not update testing summary. Please try again.");
     }
   };
 
@@ -85,8 +85,8 @@ const EditRequisitionPage = () => {
 
   return (
     <div className="requisition-form-page">
-      <h1>Edit Requisition</h1>
-      <p className="subtitle">Correct the intake details for this requisition.</p>
+      <h1>Edit Testing Summary</h1>
+      <p className="subtitle">Correct the intake details for this testing summary.</p>
 
       {submitError && <div className="form-error-banner">{submitError}</div>}
 

@@ -219,7 +219,7 @@ const ReportDetailPage = () => {
               <td className="highlight">{fmt(report.vnotch_baseline)}</td>
             </tr>
             <tr>
-              <th>Linked Requisition</th>
+              <th>Linked Testing Summary</th>
               <td colSpan={5}>
                 {report.requisition_id ? (
                   <Link href={`/requisitions/${report.requisition_id}`}>
