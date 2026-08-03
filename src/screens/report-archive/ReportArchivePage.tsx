@@ -45,7 +45,7 @@ const groupByPump = (reports: ArchiveReportSummary[]): PumpGroup[] => {
     .map((reports) => {
       const dates = reports.map((r) => r.test_date ?? r.created_at.slice(0, 10));
       return {
-        model: modelDisplayLabel(reports),
+        model: modelDisplayLabel(reports).replace(/-/g, ""),
         reportCount: reports.length,
         totalPoints: reports.reduce((sum, r) => sum + r.pointCount, 0),
         latestTestDate: dates.sort().at(-1) ?? "-",

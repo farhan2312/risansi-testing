@@ -1,6 +1,6 @@
 import type { ChangeEvent } from "react";
 
-/** Forces an input's value to uppercase as the user types, in place. */
-export const uppercaseOnChange = (e: ChangeEvent<HTMLInputElement>) => {
-  e.target.value = e.target.value.toUpperCase();
+/** Normalizes a pump model input as the user types: uppercase, no hyphens. */
+export const normalizeModelOnChange = (e: ChangeEvent<HTMLInputElement>) => {
+  e.target.value = e.target.value.toUpperCase().replace(/-/g, "");
 };

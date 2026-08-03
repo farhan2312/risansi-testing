@@ -5,7 +5,7 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import "./TestReportForm.css";
 import { submitReport, updateReport } from "@/services/testingService";
 import { computePoint } from "@/lib/testReportCalc";
-import { uppercaseOnChange } from "@/lib/formUtils";
+import { normalizeModelOnChange } from "@/lib/formUtils";
 import { clearReportDraft, loadReportDraft, saveReportDraft, type SharedReportDraft } from "@/lib/reportDraft";
 import {
   CAPACITY_UNITS,
@@ -391,7 +391,7 @@ const TestReportForm = ({
                   <input
                     {...modelReg}
                     onChange={(e) => {
-                      uppercaseOnChange(e);
+                      normalizeModelOnChange(e);
                       modelReg.onChange(e);
                     }}
                     placeholder="e.g. H-30"

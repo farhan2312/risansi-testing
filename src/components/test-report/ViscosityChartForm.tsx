@@ -5,7 +5,7 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import "./TestReportForm.css";
 import { getLatestObservationReport, getReport, getRequisition, submitReport, updateReport } from "@/services/testingService";
 import { computeViscosityChartPoint } from "@/lib/testReportCalc";
-import { uppercaseOnChange } from "@/lib/formUtils";
+import { normalizeModelOnChange } from "@/lib/formUtils";
 import {
   clearReportDraft,
   draftFromReport,
@@ -519,7 +519,7 @@ const ViscosityChartForm = ({
                   <input
                     {...modelReg}
                     onChange={(e) => {
-                      uppercaseOnChange(e);
+                      normalizeModelOnChange(e);
                       modelReg.onChange(e);
                     }}
                     onBlur={(e) => {

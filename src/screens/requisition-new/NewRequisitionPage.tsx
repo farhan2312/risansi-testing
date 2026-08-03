@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import "./NewRequisitionPage.css";
-import { uppercaseOnChange } from "@/lib/formUtils";
+import { normalizeModelOnChange } from "@/lib/formUtils";
 import { createRequisition } from "@/services/testingService";
 import { ecQuotationLabel, REQUISITION_CATEGORIES, RESPONSIBLE_PERSONS, SOURCE_TEAMS } from "@/types/testing";
 
@@ -78,7 +78,7 @@ const NewRequisitionPage = () => {
                   id="model"
                   {...modelReg}
                   onChange={(e) => {
-                    uppercaseOnChange(e);
+                    normalizeModelOnChange(e);
                     modelReg.onChange(e);
                   }}
                   placeholder="e.g. H-30"
