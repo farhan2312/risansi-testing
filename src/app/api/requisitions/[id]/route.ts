@@ -20,8 +20,11 @@ const PATCH_FIELD_MAP: Record<string, string> = {
   power_hp: "powerHp",
   power_kw: "powerKw",
   head_kgcm2: "headKgcm2",
+  head_unit: "headUnit",
   rpm: "rpm",
+  motor_rpm: "motorRpm",
   req_capacity: "reqCapacity",
+  req_capacity_unit: "reqCapacityUnit",
   observation: "observation",
   ra_value: "raValue",
   ve_rated_head: "veRatedHead",
@@ -59,8 +62,11 @@ const SOURCE_EDITABLE_FIELDS = new Set([
   "power_hp",
   "power_kw",
   "head_kgcm2",
+  "head_unit",
   "rpm",
+  "motor_rpm",
   "req_capacity",
+  "req_capacity_unit",
 ]);
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {

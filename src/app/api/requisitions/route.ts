@@ -20,8 +20,11 @@ const CAMEL_BY_SNAKE = {
   power_hp: "powerHp",
   power_kw: "powerKw",
   head_kgcm2: "headKgcm2",
+  head_unit: "headUnit",
   rpm: "rpm",
+  motor_rpm: "motorRpm",
   req_capacity: "reqCapacity",
+  req_capacity_unit: "reqCapacityUnit",
 };
 
 export async function GET(req: Request) {

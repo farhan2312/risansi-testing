@@ -52,8 +52,11 @@ export const testRequisitions = pgTable("test_requisitions", {
   powerHp: numeric("power_hp", { precision: 10, scale: 2 }),
   powerKw: numeric("power_kw", { precision: 10, scale: 4 }),
   headKgcm2: numeric("head_kgcm2", { precision: 10, scale: 2 }),
+  headUnit: varchar("head_unit", { length: 20 }),
   rpm: numeric("rpm", { precision: 10, scale: 2 }),
+  motorRpm: numeric("motor_rpm", { precision: 10, scale: 2 }),
   reqCapacity: numeric("req_capacity", { precision: 10, scale: 4 }),
+  reqCapacityUnit: varchar("req_capacity_unit", { length: 20 }),
 
   observation: text("observation"),
   raValue: numeric("ra_value", { precision: 10, scale: 4 }),

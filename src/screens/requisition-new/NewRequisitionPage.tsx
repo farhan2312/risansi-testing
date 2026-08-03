@@ -7,8 +7,16 @@ import { z } from "zod";
 import { useRouter } from "next/navigation";
 import "./NewRequisitionPage.css";
 import { normalizeModelOnChange } from "@/lib/formUtils";
+import { capacityToM3hr, headToMwc } from "@/lib/unitConversion";
 import { createRequisition, listPumpModels } from "@/services/testingService";
-import { ecQuotationLabel, REQUISITION_CATEGORIES, RESPONSIBLE_PERSONS, SOURCE_TEAMS } from "@/types/testing";
+import {
+  CAPACITY_UNITS,
+  ecQuotationLabel,
+  HEAD_UNITS,
+  REQUISITION_CATEGORIES,
+  RESPONSIBLE_PERSONS,
+  SOURCE_TEAMS,
+} from "@/types/testing";
 
 const ADD_NEW_MODEL = "__add_new_model__";
 
@@ -28,8 +36,11 @@ const schema = z.object({
   power_hp: optionalNumber(z.coerce.number()),
   power_kw: optionalNumber(z.coerce.number()),
   head_kgcm2: optionalNumber(z.coerce.number()),
+  head_unit: z.string().optional(),
   rpm: optionalNumber(z.coerce.number()),
+  motor_rpm: optionalNumber(z.coerce.number()),
   req_capacity: optionalNumber(z.coerce.number()),
+  req_capacity_unit: z.string().optional(),
 });
 
 type FormValues = z.input<typeof schema>;
@@ -56,6 +67,14 @@ const NewRequisitionPage = () => {
   });
   const category = watch("category");
   const modelReg = register("model");
+  const headValue = watch("head_kgcm2");
+  const headUnit = watch("head_unit");
+  const capacityValue = watch("req_capacity");
+  const capacityUnit = watch("req_capacity_unit");
+  const headConverted =
+    headValue !== undefined && headValue !== "" ? headToMwc(Number(headValue), headUnit) : null;
+  const capacityConverted =
+    capacityValue !== undefined && capacityValue !== "" ? capacityToM3hr(Number(capacityValue), capacityUnit) : null;
 
   useEffect(() => {
     listPumpModels()
@@ -208,8 +227,21 @@ const NewRequisitionPage = () => {
           </div>
 
           <div className="field">
-            <label htmlFor="head_kgcm2">Head (KG/CM2)</label>
+            <label htmlFor="head_kgcm2">Head</label>
             <input id="head_kgcm2" type="number" step="any" {...register("head_kgcm2")} />
+            {headConverted !== null && <span className="unit-hint">= {headConverted} MWC</span>}
+          </div>
+
+          <div className="field">
+            <label htmlFor="head_unit">Head Unit</label>
+            <select id="head_unit" {...register("head_unit")}>
+              <option value="">Select</option>
+              {HEAD_UNITS.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="field">
@@ -218,8 +250,26 @@ const NewRequisitionPage = () => {
           </div>
 
           <div className="field">
+            <label htmlFor="motor_rpm">Motor RPM</label>
+            <input id="motor_rpm" type="number" step="any" {...register("motor_rpm")} />
+          </div>
+
+          <div className="field">
             <label htmlFor="req_capacity">Req. Capacity</label>
             <input id="req_capacity" type="number" step="any" {...register("req_capacity")} />
+            {capacityConverted !== null && <span className="unit-hint">= {capacityConverted} M3/HR</span>}
+          </div>
+
+          <div className="field">
+            <label htmlFor="req_capacity_unit">Capacity Unit</label>
+            <select id="req_capacity_unit" {...register("req_capacity_unit")}>
+              <option value="">Select</option>
+              {CAPACITY_UNITS.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

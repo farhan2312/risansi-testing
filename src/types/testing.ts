@@ -52,8 +52,11 @@ export interface TestRequisition {
   power_hp: number | null;
   power_kw: number | null;
   head_kgcm2: number | null;
+  head_unit: string | null;
   rpm: number | null;
+  motor_rpm: number | null;
   req_capacity: number | null;
+  req_capacity_unit: string | null;
 
   observation: string | null;
   ra_value: number | null;
@@ -99,8 +102,11 @@ export interface NewRequisitionInput {
   power_hp?: number;
   power_kw?: number;
   head_kgcm2?: number;
+  head_unit?: string;
   rpm?: number;
+  motor_rpm?: number;
   req_capacity?: number;
+  req_capacity_unit?: string;
 }
 
 export interface PumpTestReportPoint {
