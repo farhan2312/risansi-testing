@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import "./NewRequisitionPage.css";
-import { normalizeModelOnChange } from "@/lib/formUtils";
 import { createRequisition } from "@/services/testingService";
 import {
   COMMON_PUMP_MODELS,
@@ -49,6 +48,7 @@ const NewRequisitionPage = () => {
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      model: COMMON_PUMP_MODELS[0],
       category: REQUISITION_CATEGORIES[0],
       source_team: SOURCE_TEAMS[0],
       responsible_person: RESPONSIBLE_PERSONS[0],
@@ -77,27 +77,13 @@ const NewRequisitionPage = () => {
         <div className="form-grid">
           <div className="field">
             <label htmlFor="model">Model *</label>
-            {(() => {
-              const modelReg = register("model");
-              return (
-                <input
-                  id="model"
-                  {...modelReg}
-                  onChange={(e) => {
-                    normalizeModelOnChange(e);
-                    modelReg.onChange(e);
-                  }}
-                  placeholder="e.g. H-30"
-                  list="common-pump-models"
-                  autoComplete="off"
-                />
-              );
-            })()}
-            <datalist id="common-pump-models">
+            <select id="model" {...register("model")}>
               {COMMON_PUMP_MODELS.map((m) => (
-                <option key={m} value={m} />
+                <option key={m} value={m}>
+                  {m}
+                </option>
               ))}
-            </datalist>
+            </select>
             {errors.model && <span className="field-error">{errors.model.message}</span>}
           </div>
 
