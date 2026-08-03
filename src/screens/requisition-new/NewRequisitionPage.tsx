@@ -8,7 +8,13 @@ import { useRouter } from "next/navigation";
 import "./NewRequisitionPage.css";
 import { normalizeModelOnChange } from "@/lib/formUtils";
 import { createRequisition } from "@/services/testingService";
-import { ecQuotationLabel, REQUISITION_CATEGORIES, RESPONSIBLE_PERSONS, SOURCE_TEAMS } from "@/types/testing";
+import {
+  COMMON_PUMP_MODELS,
+  ecQuotationLabel,
+  REQUISITION_CATEGORIES,
+  RESPONSIBLE_PERSONS,
+  SOURCE_TEAMS,
+} from "@/types/testing";
 
 const optionalNumber = <T extends z.ZodTypeAny>(inner: T) =>
   z.preprocess((v) => (v === "" || v === undefined ? undefined : v), inner.optional());
@@ -82,9 +88,16 @@ const NewRequisitionPage = () => {
                     modelReg.onChange(e);
                   }}
                   placeholder="e.g. H-30"
+                  list="common-pump-models"
+                  autoComplete="off"
                 />
               );
             })()}
+            <datalist id="common-pump-models">
+              {COMMON_PUMP_MODELS.map((m) => (
+                <option key={m} value={m} />
+              ))}
+            </datalist>
             {errors.model && <span className="field-error">{errors.model.message}</span>}
           </div>
 
