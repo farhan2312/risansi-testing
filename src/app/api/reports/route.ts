@@ -3,7 +3,7 @@ import { desc, eq, ilike, inArray, sql } from "drizzle-orm";
 import { error, json, pointToDict, reportToDict } from "@/lib/api";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
+import { pumpModels, pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
 import { POINT_FIELD_MAP, REPORT_FIELD_MAP } from "@/lib/reportFieldMaps";
 
 export const dynamic = "force-dynamic";
@@ -107,6 +107,10 @@ export async function POST(req: Request) {
       .update(testRequisitions)
       .set({ status: "Closed", closedAt: new Date(), updatedAt: new Date() })
       .where(eq(testRequisitions.id, requisitionId));
+
+    // A model typed via the requisition form's "+ Add New Model" option only
+    // becomes a shared dropdown suggestion once its testing actually closes.
+    await db.insert(pumpModels).values({ model: String(model) }).onConflictDoNothing();
   }
 
   return json(

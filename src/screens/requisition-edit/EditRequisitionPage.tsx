@@ -6,14 +6,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useParams, useRouter } from "next/navigation";
 import "../requisition-new/NewRequisitionPage.css";
-import { getRequisition, updateRequisition } from "@/services/testingService";
-import {
-  COMMON_PUMP_MODELS,
-  ecQuotationLabel,
-  REQUISITION_CATEGORIES,
-  RESPONSIBLE_PERSONS,
-  SOURCE_TEAMS,
-} from "@/types/testing";
+import { normalizeModelOnChange } from "@/lib/formUtils";
+import { getRequisition, listPumpModels, updateRequisition } from "@/services/testingService";
+import { ecQuotationLabel, REQUISITION_CATEGORIES, RESPONSIBLE_PERSONS, SOURCE_TEAMS } from "@/types/testing";
+
+const ADD_NEW_MODEL = "__add_new_model__";
 
 const optionalNumber = <T extends z.ZodTypeAny>(inner: T) =>
   z.preprocess((v) => (v === "" || v === undefined || v === null ? undefined : v), inner.optional());
@@ -42,19 +39,24 @@ const EditRequisitionPage = () => {
   const router = useRouter();
   const [submitError, setSubmitError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [pumpModels, setPumpModels] = useState<string[]>([]);
+  const [isCustomModel, setIsCustomModel] = useState(false);
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
   const category = watch("category");
+  const modelReg = register("model");
 
   useEffect(() => {
     if (!id) return;
-    getRequisition(id)
-      .then((r) => {
+    Promise.all([getRequisition(id), listPumpModels()])
+      .then(([r, models]) => {
+        setPumpModels(models);
         reset({
           model: r.model,
           category: r.category ?? REQUISITION_CATEGORIES[0],
@@ -99,13 +101,50 @@ const EditRequisitionPage = () => {
         <div className="form-grid">
           <div className="field">
             <label htmlFor="model">Model *</label>
-            <select id="model" {...register("model")}>
-              {COMMON_PUMP_MODELS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+            {isCustomModel ? (
+              <input
+                id="model"
+                {...modelReg}
+                onChange={(e) => {
+                  normalizeModelOnChange(e);
+                  modelReg.onChange(e);
+                }}
+                placeholder="Enter new model"
+                autoFocus
+              />
+            ) : (
+              <select
+                id="model"
+                {...modelReg}
+                onChange={(e) => {
+                  if (e.target.value === ADD_NEW_MODEL) {
+                    setIsCustomModel(true);
+                    setValue("model", "");
+                  } else {
+                    modelReg.onChange(e);
+                  }
+                }}
+              >
+                {pumpModels.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+                <option value={ADD_NEW_MODEL}>+ Add New Model...</option>
+              </select>
+            )}
+            {isCustomModel && (
+              <button
+                type="button"
+                className="model-mode-toggle"
+                onClick={() => {
+                  setIsCustomModel(false);
+                  setValue("model", pumpModels[0] ?? "");
+                }}
+              >
+                Choose from list instead
+              </button>
+            )}
             {errors.model && <span className="field-error">{errors.model.message}</span>}
           </div>
 

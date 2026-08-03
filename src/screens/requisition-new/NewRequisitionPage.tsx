@@ -1,19 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import "./NewRequisitionPage.css";
-import { createRequisition } from "@/services/testingService";
-import {
-  COMMON_PUMP_MODELS,
-  ecQuotationLabel,
-  REQUISITION_CATEGORIES,
-  RESPONSIBLE_PERSONS,
-  SOURCE_TEAMS,
-} from "@/types/testing";
+import { normalizeModelOnChange } from "@/lib/formUtils";
+import { createRequisition, listPumpModels } from "@/services/testingService";
+import { ecQuotationLabel, REQUISITION_CATEGORIES, RESPONSIBLE_PERSONS, SOURCE_TEAMS } from "@/types/testing";
+
+const ADD_NEW_MODEL = "__add_new_model__";
 
 const optionalNumber = <T extends z.ZodTypeAny>(inner: T) =>
   z.preprocess((v) => (v === "" || v === undefined ? undefined : v), inner.optional());
@@ -40,21 +37,34 @@ type FormValues = z.input<typeof schema>;
 const NewRequisitionPage = () => {
   const router = useRouter();
   const [submitError, setSubmitError] = useState("");
+  const [pumpModels, setPumpModels] = useState<string[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
+  const [isCustomModel, setIsCustomModel] = useState(false);
   const {
     register,
     handleSubmit,
+    setValue,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      model: COMMON_PUMP_MODELS[0],
       category: REQUISITION_CATEGORIES[0],
       source_team: SOURCE_TEAMS[0],
       responsible_person: RESPONSIBLE_PERSONS[0],
     },
   });
   const category = watch("category");
+  const modelReg = register("model");
+
+  useEffect(() => {
+    listPumpModels()
+      .then((models) => {
+        setPumpModels(models);
+        setValue("model", models[0] ?? "");
+      })
+      .finally(() => setIsLoadingModels(false));
+  }, [setValue]);
 
   const onSubmit = async (values: FormValues) => {
     setSubmitError("");
@@ -65,6 +75,8 @@ const NewRequisitionPage = () => {
       setSubmitError("Could not create testing summary. Please try again.");
     }
   };
+
+  if (isLoadingModels) return <p className="detail-empty">Loading...</p>;
 
   return (
     <div className="requisition-form-page">
@@ -77,13 +89,50 @@ const NewRequisitionPage = () => {
         <div className="form-grid">
           <div className="field">
             <label htmlFor="model">Model *</label>
-            <select id="model" {...register("model")}>
-              {COMMON_PUMP_MODELS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+            {isCustomModel ? (
+              <input
+                id="model"
+                {...modelReg}
+                onChange={(e) => {
+                  normalizeModelOnChange(e);
+                  modelReg.onChange(e);
+                }}
+                placeholder="Enter new model"
+                autoFocus
+              />
+            ) : (
+              <select
+                id="model"
+                {...modelReg}
+                onChange={(e) => {
+                  if (e.target.value === ADD_NEW_MODEL) {
+                    setIsCustomModel(true);
+                    setValue("model", "");
+                  } else {
+                    modelReg.onChange(e);
+                  }
+                }}
+              >
+                {pumpModels.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+                <option value={ADD_NEW_MODEL}>+ Add New Model...</option>
+              </select>
+            )}
+            {isCustomModel && (
+              <button
+                type="button"
+                className="model-mode-toggle"
+                onClick={() => {
+                  setIsCustomModel(false);
+                  setValue("model", pumpModels[0] ?? "");
+                }}
+              >
+                Choose from list instead
+              </button>
+            )}
             {errors.model && <span className="field-error">{errors.model.message}</span>}
           </div>
 

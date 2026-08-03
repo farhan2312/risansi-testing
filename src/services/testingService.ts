@@ -47,6 +47,12 @@ export const dedupCheck = async (model: string): Promise<DedupCheckResult> => {
   return data;
 };
 
+/** Quick-pick model suggestions for the requisition Model dropdown. */
+export const listPumpModels = async (): Promise<string[]> => {
+  const { data } = await apiClient.get<string[]>("/pump-models");
+  return data;
+};
+
 export const submitReport = async (input: NewReportInput): Promise<PumpTestReport> => {
   const { data } = await apiClient.post<PumpTestReport>("/reports", input, authHeader());
   return data;

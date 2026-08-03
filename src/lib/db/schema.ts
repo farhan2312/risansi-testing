@@ -197,3 +197,13 @@ export const pumpTestReportPoints = pgTable("pump_test_report_points", {
   volumetricEfficiencyLiquid: numeric("volumetric_efficiency_liquid", { precision: 10, scale: 6 }),
   mechanicalEfficiencyLiquid: numeric("mechanical_efficiency_liquid", { precision: 10, scale: 6 }),
 });
+
+// Quick-pick model suggestions for the requisition Model dropdown. Seeded
+// with the common models list (see scripts/add-pump-models-table.mjs); grows
+// automatically -- a requisition's model gets added here once its testing
+// closes, if it wasn't already a known value (see reports/route.ts POST).
+export const pumpModels = pgTable("pump_models", {
+  id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  model: varchar("model", { length: 100 }).notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
+});
