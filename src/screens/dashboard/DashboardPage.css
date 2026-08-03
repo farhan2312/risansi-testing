@@ -53,6 +53,41 @@
   font-weight: 600;
 }
 
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.filter-bar input,
+.filter-bar select {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.filter-bar input {
+  min-width: 180px;
+}
+
+.clear-filters-btn {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.clear-filters-btn:hover {
+  background: var(--surface-hover);
+}
+
 .dashboard-error {
   color: var(--neg);
   background: var(--neg-soft);

@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import "./DashboardPage.css";
 import { listRequisitions, updateRequisition } from "@/services/testingService";
 import { getCurrentUser } from "@/services/session";
-import { RESPONSIBLE_PERSONS, type RequisitionStatus, type TestRequisition } from "@/types/testing";
+import {
+  REQUISITION_CATEGORIES,
+  RESPONSIBLE_PERSONS,
+  SOURCE_TEAMS,
+  type RequisitionStatus,
+  type TestRequisition,
+} from "@/types/testing";
+
+const ALL = "All";
 
 const STATUS_TABS: { label: string; value: RequisitionStatus | "All" }[] = [
   { label: "All", value: "All" },
@@ -22,6 +30,44 @@ const DashboardPage = () => {
   const [error, setError] = useState("");
   const canCreateRequisition = getCurrentUser()?.role !== "testing";
   const canReassign = getCurrentUser()?.role === "testing";
+
+  const [modelFilter, setModelFilter] = useState(ALL);
+  const [ecFilter, setEcFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState(ALL);
+  const [sourceTeamFilter, setSourceTeamFilter] = useState(ALL);
+  const [responsiblePersonFilter, setResponsiblePersonFilter] = useState(ALL);
+
+  const modelOptions = useMemo(
+    () => [...new Set(requisitions.map((r) => r.model))].sort((a, b) => a.localeCompare(b)),
+    [requisitions]
+  );
+
+  const hasActiveFilters =
+    modelFilter !== ALL ||
+    ecFilter.trim() !== "" ||
+    categoryFilter !== ALL ||
+    sourceTeamFilter !== ALL ||
+    responsiblePersonFilter !== ALL;
+
+  const clearFilters = () => {
+    setModelFilter(ALL);
+    setEcFilter("");
+    setCategoryFilter(ALL);
+    setSourceTeamFilter(ALL);
+    setResponsiblePersonFilter(ALL);
+  };
+
+  const filteredRequisitions = useMemo(() => {
+    const ec = ecFilter.trim().toLowerCase();
+    return requisitions.filter((r) => {
+      if (modelFilter !== ALL && r.model !== modelFilter) return false;
+      if (ec && !(r.ec_quotation_no ?? "").toLowerCase().includes(ec)) return false;
+      if (categoryFilter !== ALL && r.category !== categoryFilter) return false;
+      if (sourceTeamFilter !== ALL && r.source_team !== sourceTeamFilter) return false;
+      if (responsiblePersonFilter !== ALL && r.responsible_person !== responsiblePersonFilter) return false;
+      return true;
+    });
+  }, [requisitions, modelFilter, ecFilter, categoryFilter, sourceTeamFilter, responsiblePersonFilter]);
 
   const handleReassign = async (id: string, responsiblePerson: string) => {
     try {
@@ -76,12 +122,60 @@ const DashboardPage = () => {
         ))}
       </div>
 
+      <div className="filter-bar">
+        <select value={modelFilter} onChange={(e) => setModelFilter(e.target.value)}>
+          <option value={ALL}>All Models</option>
+          {modelOptions.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+        <input
+          type="text"
+          placeholder="Filter by EC/Quotation No..."
+          value={ecFilter}
+          onChange={(e) => setEcFilter(e.target.value)}
+        />
+        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+          <option value={ALL}>All Categories</option>
+          {REQUISITION_CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <select value={sourceTeamFilter} onChange={(e) => setSourceTeamFilter(e.target.value)}>
+          <option value={ALL}>All Source Teams</option>
+          {SOURCE_TEAMS.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <select value={responsiblePersonFilter} onChange={(e) => setResponsiblePersonFilter(e.target.value)}>
+          <option value={ALL}>All Responsible Persons</option>
+          {RESPONSIBLE_PERSONS.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        {hasActiveFilters && (
+          <button type="button" className="clear-filters-btn" onClick={clearFilters}>
+            Clear Filters
+          </button>
+        )}
+      </div>
+
       {error && <div className="dashboard-error">{error}</div>}
 
       {isLoading ? (
         <p className="dashboard-empty">Loading...</p>
-      ) : requisitions.length === 0 ? (
-        <p className="dashboard-empty">No testing summaries in this status.</p>
+      ) : filteredRequisitions.length === 0 ? (
+        <p className="dashboard-empty">
+          {requisitions.length === 0 ? "No testing summaries in this status." : "No testing summaries match these filters."}
+        </p>
       ) : (
         <table className="requisition-table">
           <thead>
@@ -98,7 +192,7 @@ const DashboardPage = () => {
             </tr>
           </thead>
           <tbody>
-            {requisitions.map((r) => (
+            {filteredRequisitions.map((r) => (
               <tr key={r.id}>
                 <td>
                   <Link href={`/requisitions/${r.id}`}>{r.model}</Link>
