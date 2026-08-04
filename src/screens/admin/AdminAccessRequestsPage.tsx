@@ -37,7 +37,7 @@ const AdminAccessRequestsPage = () => {
 
   return (
     <div className="admin-requests-page">
-      <div className="admin-requests-header">
+      <div className="admin-requests-header sticky-page-header">
         <h1>Access Requests</h1>
         <p>Review and approve new users requesting access to the testing portal.</p>
       </div>

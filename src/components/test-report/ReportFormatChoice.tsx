@@ -22,11 +22,13 @@ const ReportFormatChoice = ({
 }: ReportFormatChoiceProps) => {
   return (
     <div className="format-choice-page">
-      <Link href={backHref} className="back-link">
-        &larr; {backLabel}
-      </Link>
-      <h1>{heading}</h1>
-      <p className="subtitle">{subheading}</p>
+      <div className="sticky-page-header">
+        <Link href={backHref} className="back-link">
+          &larr; {backLabel}
+        </Link>
+        <h1>{heading}</h1>
+        <p className="subtitle">{subheading}</p>
+      </div>
 
       <div className="format-choice-grid">
         <Link href={observationHref} className="format-card">

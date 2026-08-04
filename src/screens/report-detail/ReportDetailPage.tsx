@@ -60,7 +60,7 @@ const ReportDetailPage = () => {
         </div>
       </div>
 
-      <div className="detail-header">
+      <div className="detail-header sticky-page-header">
         <div>
           <h1>
             {report.model}

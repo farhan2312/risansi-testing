@@ -101,7 +101,7 @@ const DashboardPage = () => {
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-header">
+      <div className="dashboard-header sticky-page-header">
         <h1>Testing Summary</h1>
         {canCreateRequisition && (
           <Link href="/requisitions/new" className="new-requisition-btn">

@@ -104,8 +104,10 @@ const NewRequisitionPage = () => {
 
   return (
     <div className="requisition-form-page">
-      <h1>New Requisition</h1>
-      <p className="subtitle">Log a testing request as received from the source team.</p>
+      <div className="sticky-page-header">
+        <h1>New Requisition</h1>
+        <p className="subtitle">Log a testing request as received from the source team.</p>
+      </div>
 
       {submitError && <div className="form-error-banner">{submitError}</div>}
 

@@ -497,8 +497,10 @@ const ViscosityChartForm = ({
 
   return (
     <div className="test-report-page">
-      <h1>{heading}</h1>
-      <p className="subtitle">{subheading}</p>
+      <div className="sticky-page-header">
+        <h1>{heading}</h1>
+        <p className="subtitle">{subheading}</p>
+      </div>
 
       {submitError && <div className="form-error-banner">{submitError}</div>}
       {autofillNotice && <div className="form-info-banner">{autofillNotice}</div>}

@@ -118,7 +118,7 @@ const PumpDashboardPage = () => {
 
   return (
     <div className="pump-dashboard-page">
-      <div className="pump-dashboard-header">
+      <div className="pump-dashboard-header sticky-page-header">
         <h1>{data.model}</h1>
         <Link href="/pumps" className="back-link">
           &larr; Back to pump dashboard

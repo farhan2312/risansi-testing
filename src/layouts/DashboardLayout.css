@@ -115,6 +115,27 @@
   overflow-y: auto;
 }
 
+/* Keeps each page's heading (and its action buttons, where the header row
+ * has any) visible while scrolling long content instead of scrolling away
+ * with it. Applied per-page since header markup/classes vary. A hairline
+ * border + soft shadow give it a clean separation from content scrolling
+ * underneath, rather than an abrupt hard edge. */
+.sticky-page-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg-app);
+  padding-top: 2px;
+  padding-bottom: 14px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-soft);
+  box-shadow: 0 4px 10px -6px rgba(10, 22, 40, 0.12);
+}
+
+[data-theme="dark"] .sticky-page-header {
+  box-shadow: 0 4px 10px -6px rgba(0, 0, 0, 0.35);
+}
+
 /* Sidebar profile card, replacing the old top navbar */
 
 .sidebar-profile {
@@ -292,5 +313,9 @@
   .testing-main {
     padding: 0;
     overflow: visible;
+  }
+
+  .sticky-page-header {
+    position: static;
   }
 }

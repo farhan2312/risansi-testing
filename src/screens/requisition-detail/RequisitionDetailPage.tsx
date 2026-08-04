@@ -87,7 +87,7 @@ const RequisitionDetailPage = () => {
 
   return (
     <div className="requisition-detail-page">
-      <div className="detail-header">
+      <div className="detail-header sticky-page-header">
         <div>
           <h1>{requisition.model}</h1>
           {requisition.status === "Closed" && submittedReport ? (

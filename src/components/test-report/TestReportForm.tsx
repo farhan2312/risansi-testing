@@ -370,8 +370,10 @@ const TestReportForm = ({
 
   return (
     <div className="test-report-page">
-      <h1>{heading}</h1>
-      <p className="subtitle">{subheading}</p>
+      <div className="sticky-page-header">
+        <h1>{heading}</h1>
+        <p className="subtitle">{subheading}</p>
+      </div>
 
       {submitError && <div className="form-error-banner">{submitError}</div>}
 

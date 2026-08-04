@@ -57,7 +57,7 @@ const AdminUsersPage = () => {
 
   return (
     <div className="admin-requests-page">
-      <div className="admin-requests-header">
+      <div className="admin-requests-header sticky-page-header">
         <h1>Manage Users</h1>
         <p>View every user, assign roles, and set a new password on their behalf.</p>
       </div>

@@ -118,7 +118,7 @@ const ReportArchivePage = () => {
 
   return (
     <div className="archive-page">
-      <div className="archive-header">
+      <div className="archive-header sticky-page-header">
         <h1>Report Archive</h1>
         <input
           type="text"
