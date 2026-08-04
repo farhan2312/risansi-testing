@@ -3,37 +3,66 @@
  * Capacity and Head fields — display only, never written back to the
  * stored value (see CAPACITY_UNITS / HEAD_UNITS in types/testing.ts).
  *
- * Mass-based units (MT/HR, KG/MIN, TPH, MLC) assume water (SG = 1), since
- * the requisition form doesn't collect Specific Gravity that early. Matches
- * the app's existing default liquid elsewhere.
+ * Mass-based units (MT/HR, KG/MIN, TPH for capacity; MLC for head) need the
+ * liquid's Specific Gravity to convert correctly -- density = SG x 1000
+ * kg/m3. Defaults to 1 (water) when Specific Gravity hasn't been entered,
+ * matching the app's existing default liquid elsewhere. KG/CM2 -> MWC is a
+ * pure pressure conversion and doesn't depend on SG.
  */
-
-const CAPACITY_TO_M3HR: Record<string, number> = {
-  "M3/HR": 1,
-  "MT/HR": 1, // 1 metric ton water = 1 m3
-  LPH: 0.001,
-  "KG/MIN": 0.06, // kg/min -> kg/hr (x60) -> m3/hr water (/1000)
-  TPH: 1, // tons/hr water = m3/hr
-};
-
-const HEAD_TO_MWC: Record<string, number> = {
-  MWC: 1,
-  MLC: 1, // meters of liquid column, assuming water
-  "KG/CM2": 10, // 1 kgf/cm2 = 10 m water column
-  MTR: 1,
-  TPH: 1, // not a real head unit, but present in HEAD_UNITS -- treated as identity
-};
 
 const round = (n: number) => Math.round(n * 10000) / 10000;
 
-export const capacityToM3hr = (value: number | undefined | null, unit: string | undefined | null): number | null => {
+const capacityFactor = (unit: string, sg: number): number | undefined => {
+  switch (unit) {
+    case "M3/HR":
+      return 1;
+    case "LPH":
+      return 0.001;
+    case "MT/HR": // mass water-equivalent tons/hr -> m3/hr
+    case "TPH":
+      return 1 / sg;
+    case "KG/MIN": // kg/min -> kg/hr (x60) -> m3/hr (/1000/sg)
+      return 0.06 / sg;
+    default:
+      return undefined;
+  }
+};
+
+const headFactor = (unit: string, sg: number): number | undefined => {
+  switch (unit) {
+    case "MWC":
+      return 1;
+    case "MLC": // meters of liquid column -> meters of water column
+      return sg;
+    case "KG/CM2": // 1 kgf/cm2 = 10 m water column, independent of SG
+      return 10;
+    case "MTR":
+      return 1;
+    case "TPH": // not a real head unit, but present in HEAD_UNITS -- treated as identity
+      return 1;
+    default:
+      return undefined;
+  }
+};
+
+export const capacityToM3hr = (
+  value: number | undefined | null,
+  unit: string | undefined | null,
+  specificGravity?: number | undefined | null
+): number | null => {
   if (value === undefined || value === null || Number.isNaN(value) || !unit) return null;
-  const factor = CAPACITY_TO_M3HR[unit];
+  const sg = specificGravity && specificGravity > 0 ? specificGravity : 1;
+  const factor = capacityFactor(unit, sg);
   return factor === undefined ? null : round(value * factor);
 };
 
-export const headToMwc = (value: number | undefined | null, unit: string | undefined | null): number | null => {
+export const headToMwc = (
+  value: number | undefined | null,
+  unit: string | undefined | null,
+  specificGravity?: number | undefined | null
+): number | null => {
   if (value === undefined || value === null || Number.isNaN(value) || !unit) return null;
-  const factor = HEAD_TO_MWC[unit];
+  const sg = specificGravity && specificGravity > 0 ? specificGravity : 1;
+  const factor = headFactor(unit, sg);
   return factor === undefined ? null : round(value * factor);
 };

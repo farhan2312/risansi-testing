@@ -49,6 +49,7 @@ export interface TestRequisition {
   test_qty: number | null;
 
   qth: number | null;
+  specific_gravity: number | null;
   power_hp: number | null;
   power_kw: number | null;
   head_kgcm2: number | null;
@@ -99,6 +100,7 @@ export interface NewRequisitionInput {
   date_of_receipt?: string;
   test_qty?: number;
   qth?: number;
+  specific_gravity?: number;
   power_hp?: number;
   power_kw?: number;
   head_kgcm2?: number;

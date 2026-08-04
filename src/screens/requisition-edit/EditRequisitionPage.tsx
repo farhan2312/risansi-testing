@@ -33,6 +33,7 @@ const schema = z.object({
   date_of_receipt: z.string().optional(),
   test_qty: optionalNumber(z.coerce.number().int().positive()),
   qth: optionalNumber(z.coerce.number()),
+  specific_gravity: optionalNumber(z.coerce.number()),
   power_hp: optionalNumber(z.coerce.number()),
   power_kw: optionalNumber(z.coerce.number()),
   head_kgcm2: optionalNumber(z.coerce.number()),
@@ -66,10 +67,14 @@ const EditRequisitionPage = () => {
   const headUnit = watch("head_unit");
   const capacityValue = watch("req_capacity");
   const capacityUnit = watch("req_capacity_unit");
+  const specificGravity = watch("specific_gravity");
+  const sg = specificGravity !== undefined && specificGravity !== "" ? Number(specificGravity) : undefined;
   const headConverted =
-    headValue !== undefined && headValue !== "" ? headToMwc(Number(headValue), headUnit) : null;
+    headValue !== undefined && headValue !== "" ? headToMwc(Number(headValue), headUnit, sg) : null;
   const capacityConverted =
-    capacityValue !== undefined && capacityValue !== "" ? capacityToM3hr(Number(capacityValue), capacityUnit) : null;
+    capacityValue !== undefined && capacityValue !== ""
+      ? capacityToM3hr(Number(capacityValue), capacityUnit, sg)
+      : null;
 
   useEffect(() => {
     if (!id) return;
@@ -86,6 +91,7 @@ const EditRequisitionPage = () => {
           date_of_receipt: r.date_of_receipt ?? "",
           test_qty: r.test_qty ?? undefined,
           qth: r.qth ?? undefined,
+          specific_gravity: r.specific_gravity ?? undefined,
           power_hp: r.power_hp ?? undefined,
           power_kw: r.power_kw ?? undefined,
           head_kgcm2: r.head_kgcm2 ?? undefined,
@@ -229,6 +235,17 @@ const EditRequisitionPage = () => {
           <div className="field">
             <label htmlFor="qth">QTH</label>
             <input id="qth" type="number" step="any" {...register("qth")} />
+          </div>
+
+          <div className="field">
+            <label htmlFor="specific_gravity">Specific Gravity</label>
+            <input
+              id="specific_gravity"
+              type="number"
+              step="any"
+              placeholder="1 (water)"
+              {...register("specific_gravity")}
+            />
           </div>
 
           <div className="field">

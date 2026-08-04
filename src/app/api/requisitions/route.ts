@@ -17,6 +17,7 @@ const CAMEL_BY_SNAKE = {
   date_of_receipt: "dateOfReceipt",
   test_qty: "testQty",
   qth: "qth",
+  specific_gravity: "specificGravity",
   power_hp: "powerHp",
   power_kw: "powerKw",
   head_kgcm2: "headKgcm2",

@@ -47,6 +47,7 @@ export function requisitionToDict(r: RequisitionRow) {
     date_of_receipt: r.dateOfReceipt,
     test_qty: r.testQty,
     qth: r.qth,
+    specific_gravity: r.specificGravity,
     power_hp: r.powerHp,
     power_kw: r.powerKw,
     head_kgcm2: r.headKgcm2,

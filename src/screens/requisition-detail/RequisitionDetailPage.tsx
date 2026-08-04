@@ -83,7 +83,7 @@ const RequisitionDetailPage = () => {
     requisition.reports?.some((r) => (r.report_format ?? "observation") === "observation") ?? false;
   const hasViscosityChart = requisition.reports?.some((r) => r.report_format === "viscosity-chart") ?? false;
   const canEditRequisition = currentUser?.role === "source" && requisition.created_by === currentUser.id;
-  const headConvertedMwc = headToMwc(requisition.head_kgcm2, requisition.head_unit);
+  const headConvertedMwc = headToMwc(requisition.head_kgcm2, requisition.head_unit, requisition.specific_gravity);
 
   return (
     <div className="requisition-detail-page">
@@ -142,6 +142,10 @@ const RequisitionDetailPage = () => {
           <div>
             <span className="label">Test Qty</span>
             <span>{requisition.test_qty ?? "-"}</span>
+          </div>
+          <div>
+            <span className="label">Specific Gravity</span>
+            <span>{requisition.specific_gravity ?? "-"}</span>
           </div>
           <div>
             <span className="label">Power (HP / KW)</span>

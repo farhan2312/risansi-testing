@@ -49,6 +49,7 @@ export const testRequisitions = pgTable("test_requisitions", {
   testQty: integer("test_qty"),
 
   qth: numeric("qth", { precision: 10, scale: 4 }),
+  specificGravity: numeric("specific_gravity", { precision: 6, scale: 3 }),
   powerHp: numeric("power_hp", { precision: 10, scale: 2 }),
   powerKw: numeric("power_kw", { precision: 10, scale: 4 }),
   headKgcm2: numeric("head_kgcm2", { precision: 10, scale: 2 }),
