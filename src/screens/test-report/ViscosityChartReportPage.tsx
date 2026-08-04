@@ -27,7 +27,7 @@ const ViscosityChartReportPage = () => {
       requisitionId={id}
       heading={`Test Report — ${requisition.model} (Viscosity Correction Chart)`}
       subheading={`Submitting this report will close testing summary ${requisition.id.slice(0, 8)}.`}
-      submitLabel="Submit Report & Close Testing Summary"
+      submitLabel="Submit Report & Close Requisition"
       onSubmitted={() => router.push(`/requisitions/${id}`)}
       onCancel={() => router.push(`/requisitions/${id}`)}
     />

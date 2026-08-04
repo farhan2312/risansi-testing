@@ -278,7 +278,7 @@ const NewRequisitionPage = () => {
             Cancel
           </button>
           <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Submitting..." : "Submit Testing Summary"}
+            {isSubmitting ? "Submitting..." : "Submit Requisition"}
           </button>
         </div>
       </form>
