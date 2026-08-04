@@ -1,0 +1,27 @@
+.pump-index-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pump-index-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pump-index-header h1 {
+  font-size: 20px;
+  color: var(--text-h);
+  margin: 0;
+}
+
+.pump-index-search {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+  width: 260px;
+}

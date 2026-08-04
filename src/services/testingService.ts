@@ -5,6 +5,7 @@ import type {
   DedupCheckResult,
   NewReportInput,
   NewRequisitionInput,
+  PumpDashboardData,
   PumpTestReport,
   RequisitionStatus,
   TestRequisition,
@@ -50,6 +51,12 @@ export const dedupCheck = async (model: string): Promise<DedupCheckResult> => {
 /** Quick-pick model suggestions for the requisition Model dropdown. */
 export const listPumpModels = async (): Promise<string[]> => {
   const { data } = await apiClient.get<string[]>("/pump-models");
+  return data;
+};
+
+/** Every requisition and report for one physical pump, matched by model. */
+export const getPumpDashboard = async (model: string): Promise<PumpDashboardData> => {
+  const { data } = await apiClient.get<PumpDashboardData>(`/pumps/${encodeURIComponent(model)}`, authHeader());
   return data;
 };
 

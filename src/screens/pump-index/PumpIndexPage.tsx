@@ -1,0 +1,132 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import "../dashboard/DashboardPage.css";
+import "./PumpIndexPage.css";
+import { modelDisplayLabel, normalizeModelKey } from "@/lib/modelKey";
+import { listReports, listRequisitions } from "@/services/testingService";
+import type { ArchiveReportSummary, TestRequisition } from "@/types/testing";
+
+interface PumpIndexRow {
+  model: string;
+  reportCount: number;
+  requisitionCount: number;
+  latestDate: string;
+}
+
+const PumpIndexPage = () => {
+  const [reports, setReports] = useState<ArchiveReportSummary[]>([]);
+  const [requisitions, setRequisitions] = useState<TestRequisition[]>([]);
+  const [search, setSearch] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setError("");
+
+    Promise.all([listReports(), listRequisitions()])
+      .then(([r, req]) => {
+        if (cancelled) return;
+        setReports(r);
+        setRequisitions(req);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load pumps.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const pumps = useMemo(() => {
+    const groups = new Map<string, { reports: ArchiveReportSummary[]; requisitions: TestRequisition[] }>();
+    for (const r of reports) {
+      const key = normalizeModelKey(r.model);
+      const g = groups.get(key) ?? { reports: [], requisitions: [] };
+      g.reports.push(r);
+      groups.set(key, g);
+    }
+    for (const r of requisitions) {
+      const key = normalizeModelKey(r.model);
+      const g = groups.get(key) ?? { reports: [], requisitions: [] };
+      g.requisitions.push(r);
+      groups.set(key, g);
+    }
+
+    const rows: PumpIndexRow[] = [...groups.values()].map((g) => {
+      const dates = [
+        ...g.reports.map((r) => r.test_date ?? r.created_at.slice(0, 10)),
+        ...g.requisitions.map((r) => r.created_at.slice(0, 10)),
+      ];
+      return {
+        model: modelDisplayLabel([...g.reports, ...g.requisitions]),
+        reportCount: g.reports.length,
+        requisitionCount: g.requisitions.length,
+        latestDate: dates.sort().at(-1) ?? "-",
+      };
+    });
+
+    return rows.sort((a, b) => a.model.localeCompare(b.model));
+  }, [reports, requisitions]);
+
+  const filteredPumps = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return pumps;
+    return pumps.filter((p) => p.model.toLowerCase().includes(q));
+  }, [pumps, search]);
+
+  return (
+    <div className="pump-index-page">
+      <div className="pump-index-header">
+        <h1>Pump Dashboard</h1>
+        <input
+          type="text"
+          placeholder="Search by model..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pump-index-search"
+        />
+      </div>
+
+      {error && <div className="dashboard-error">{error}</div>}
+
+      {isLoading ? (
+        <p className="dashboard-empty">Loading...</p>
+      ) : filteredPumps.length === 0 ? (
+        <p className="dashboard-empty">No pumps found.</p>
+      ) : (
+        <table className="requisition-table">
+          <thead>
+            <tr>
+              <th>Pump Model</th>
+              <th>Requisitions</th>
+              <th>Test Reports</th>
+              <th>Latest Activity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredPumps.map((p) => (
+              <tr key={p.model}>
+                <td>
+                  <Link href={`/pumps/${encodeURIComponent(p.model)}`}>{p.model}</Link>
+                </td>
+                <td>{p.requisitionCount}</td>
+                <td>{p.reportCount}</td>
+                <td>{p.latestDate}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+};
+
+export default PumpIndexPage;

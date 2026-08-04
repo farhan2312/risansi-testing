@@ -258,3 +258,9 @@ export interface DedupCheckResult {
   priorReports: PumpTestReport[];
   alreadyTested: boolean;
 }
+
+export interface PumpDashboardData {
+  model: string;
+  requisitions: TestRequisition[];
+  reports: PumpTestReport[];
+}

@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import "./ReportArchivePage.css";
+import { normalizeModelKey, modelDisplayLabel } from "@/lib/modelKey";
 import { listReports } from "@/services/testingService";
 import type { ArchiveReportSummary } from "@/types/testing";
 
@@ -18,20 +19,6 @@ interface PumpGroup {
   reports: ArchiveReportSummary[];
 }
 
-// Same physical model gets typed with inconsistent spacing/punctuation
-// ("2H-100" vs "2h -100") as well as casing -- strip everything but
-// letters/digits so those all land in one archive group.
-const normalizeModelKey = (model: string) => model.toUpperCase().replace(/[^A-Z0-9]/g, "");
-
-// Display label for a merged group: whichever raw formatting was used most
-// often among its reports (ties broken alphabetically), so the archive shows
-// a real formatting someone actually typed rather than an invented one.
-const modelDisplayLabel = (reports: ArchiveReportSummary[]): string => {
-  const counts = new Map<string, number>();
-  for (const r of reports) counts.set(r.model, (counts.get(r.model) ?? 0) + 1);
-  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
-};
-
 const groupByPump = (reports: ArchiveReportSummary[]): PumpGroup[] => {
   const groups = new Map<string, ArchiveReportSummary[]>();
   for (const r of reports) {
@@ -45,7 +32,7 @@ const groupByPump = (reports: ArchiveReportSummary[]): PumpGroup[] => {
     .map((reports) => {
       const dates = reports.map((r) => r.test_date ?? r.created_at.slice(0, 10));
       return {
-        model: modelDisplayLabel(reports).replace(/-/g, ""),
+        model: modelDisplayLabel(reports),
         reportCount: reports.length,
         totalPoints: reports.reduce((sum, r) => sum + r.pointCount, 0),
         latestTestDate: dates.sort().at(-1) ?? "-",
@@ -167,7 +154,11 @@ const ReportArchivePage = () => {
                 <Fragment key={g.model}>
                   <tr className="pump-row" onClick={() => toggleExpanded(g.model)}>
                     <td className="expand-toggle">{isOpen ? "−" : "+"}</td>
-                    <td className="pump-model-cell">{g.model}</td>
+                    <td className="pump-model-cell">
+                      <Link href={`/pumps/${encodeURIComponent(g.model)}`} onClick={(e) => e.stopPropagation()}>
+                        {g.model}
+                      </Link>
+                    </td>
                     <td>{g.reportCount}</td>
                     <td>
                       <span className={`format-badge ${g.hasObservation ? "present" : "missing"}`}>Obs</span>

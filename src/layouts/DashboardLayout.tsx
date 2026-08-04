@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Testing Summary" },
   { href: "/requisitions/new", label: "New Requisition", hideFor: ["testing"] },
   { href: "/reports", label: "Report Archive" },
+  { href: "/pumps", label: "Pump Dashboard" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
