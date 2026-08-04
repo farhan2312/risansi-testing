@@ -19,6 +19,7 @@ export const REPORT_FIELD_MAP: Record<string, string> = {
   rated_rpm: "ratedRpm",
   q_theoretical_100rev: "qTheoretical100rev",
   calculated_head: "calculatedHead",
+  rated_power_kw: "ratedPowerKw",
   test_type: "testType",
   npsha_status: "npshaStatus",
   capacity_unit: "capacityUnit",

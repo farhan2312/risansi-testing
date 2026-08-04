@@ -13,6 +13,7 @@ import {
   saveReportDraft,
   type SharedReportDraft,
 } from "@/lib/reportDraft";
+import { computeRequirementStatus } from "@/lib/requirementCheck";
 import {
   CAPACITY_UNITS,
   HEAD_UNITS,
@@ -55,6 +56,7 @@ interface ReportFormValues {
   rated_rpm: string;
   q_theoretical_100rev: string;
   calculated_head: string;
+  rated_power_kw: string;
   reference_voltage: string;
   reference_current: string;
   vnotch_baseline: string;
@@ -194,6 +196,7 @@ const TestReportForm = ({
       rated_rpm: str(r?.rated_rpm) || draft.rated_rpm || "",
       q_theoretical_100rev: str(r?.q_theoretical_100rev) || draft.q_theoretical_100rev || "",
       calculated_head: str(r?.calculated_head) || draft.calculated_head || "",
+      rated_power_kw: str(r?.rated_power_kw) || draft.rated_power_kw || "",
       reference_voltage: str(r?.reference_voltage) || draft.reference_voltage || "",
       reference_current: str(r?.reference_current) || draft.reference_current || "",
       vnotch_baseline: str(r?.vnotch_baseline) || draft.vnotch_baseline || "",
@@ -251,6 +254,7 @@ const TestReportForm = ({
           filledAny = true;
         }
         setIfEmpty("rated_rpm", d.rated_rpm);
+        setIfEmpty("rated_power_kw", d.rated_power_kw);
         if (filledAny) {
           setAutofillNotice("Prefilled from the linked requisition — edit anything as needed.");
         }
@@ -266,6 +270,7 @@ const TestReportForm = ({
       "gearbox_ratio", "motor", "motor_rpm", "test_type", "npsha_status", "liquid",
       "rated_capacity", "capacity_unit", "rated_head", "head_unit", "specific_gravity",
       "viscosity_cps", "k_for_given_cps", "rated_rpm", "q_theoretical_100rev", "calculated_head",
+      "rated_power_kw",
       "reference_voltage", "reference_current", "vnotch_baseline", "tested_by", "test_date",
       "vibration_sound_db", "vibration_x_mm_sec", "vibration_y_mm_sec", "vibration_z_mm_sec",
       "pump_started_at", "pump_stopped_at", "ambient_temp_c", "max_bearing_temp_c",
@@ -277,7 +282,7 @@ const TestReportForm = ({
     const [model, po_no, ec_no, pump_serial_no, gearbox_no, gearbox_ratio,
       motor, motor_rpm, test_type, npsha_status, liquid, rated_capacity, capacity_unit, rated_head,
       head_unit, specific_gravity, viscosity_cps, k_for_given_cps, rated_rpm, q_theoretical_100rev,
-      calculated_head, reference_voltage, reference_current, vnotch_baseline, tested_by, test_date,
+      calculated_head, rated_power_kw, reference_voltage, reference_current, vnotch_baseline, tested_by, test_date,
       vibration_sound_db, vibration_x_mm_sec, vibration_y_mm_sec, vibration_z_mm_sec,
       pump_started_at, pump_stopped_at, ambient_temp_c, max_bearing_temp_c,
       witness, inspector, recorder] = sharedFieldsWatch;
@@ -285,7 +290,7 @@ const TestReportForm = ({
       model: lockedModel ?? model, po_no, ec_no, pump_serial_no, gearbox_no,
       gearbox_ratio, motor, motor_rpm, test_type, npsha_status, liquid, rated_capacity,
       capacity_unit, rated_head, head_unit, specific_gravity, viscosity_cps, k_for_given_cps,
-      rated_rpm, q_theoretical_100rev, calculated_head, reference_voltage, reference_current,
+      rated_rpm, q_theoretical_100rev, calculated_head, rated_power_kw, reference_voltage, reference_current,
       vnotch_baseline, tested_by, test_date, vibration_sound_db, vibration_x_mm_sec,
       vibration_y_mm_sec, vibration_z_mm_sec, pump_started_at, pump_stopped_at, ambient_temp_c,
       max_bearing_temp_c, witness, inspector, recorder,
@@ -306,6 +311,9 @@ const TestReportForm = ({
   const ambientTempVal = useWatch({ control, name: "ambient_temp_c" });
   const maxBearingTempVal = useWatch({ control, name: "max_bearing_temp_c" });
   const totalRise = computeTotalRise(ambientTempVal ?? "", maxBearingTempVal ?? "");
+  const ratedHeadVal = useWatch({ control, name: "rated_head" });
+  const ratedCapacityVal = useWatch({ control, name: "rated_capacity" });
+  const ratedPowerKwVal = useWatch({ control, name: "rated_power_kw" });
 
   const header = {
     testType,
@@ -329,6 +337,21 @@ const TestReportForm = ({
       },
       header
     )
+  );
+
+  // Does testing actually reach the rated requirements? Still a valid,
+  // submittable report either way -- this is a flag, not a validation error.
+  const requirementStatus = computeRequirementStatus(
+    {
+      rated_head: num(ratedHeadVal ?? ""),
+      rated_capacity: num(ratedCapacityVal ?? ""),
+      rated_power_kw: num(ratedPowerKwVal ?? ""),
+    },
+    (watchedPoints ?? []).map((p, i) => ({
+      head_kgcm2: num(p?.head_kgcm2 ?? ""),
+      capacity_calculated_m3hr: computedRows[i]?.capacityCalculatedM3hr ?? null,
+      power_calculated_kw: computedRows[i]?.powerCalculatedKw ?? null,
+    }))
   );
 
   const onSubmit = async (values: ReportFormValues) => {
@@ -392,6 +415,7 @@ const TestReportForm = ({
         rated_rpm: numOrUndef(values.rated_rpm),
         q_theoretical_100rev: numOrUndef(values.q_theoretical_100rev),
         calculated_head: numOrUndef(values.calculated_head),
+        rated_power_kw: numOrUndef(values.rated_power_kw),
         reference_voltage: numOrUndef(values.reference_voltage),
         reference_current: numOrUndef(values.reference_current),
         vnotch_baseline: numOrUndef(values.vnotch_baseline),
@@ -557,6 +581,10 @@ const TestReportForm = ({
             <label>Calculated Head (MWC)</label>
             <input type="number" step="any" {...register("calculated_head")} />
           </div>
+          <div className="field">
+            <label>Rated Power (KW)</label>
+            <input type="number" step="any" {...register("rated_power_kw")} />
+          </div>
 
           <div className="field">
             <label>Reference Voltage (Vin)</label>
@@ -591,15 +619,47 @@ const TestReportForm = ({
             <thead>
               <tr>
                 <th>RPM</th>
-                <th>Head (KG/CM2)</th>
+                <th className={requirementStatus.head === false ? "requirement-col-not-met" : ""}>
+                  Head (KG/CM2)
+                  {requirementStatus.head === false && (
+                    <span className="requirement-flag" title="Testing did not reach the rated head">
+                      ⚠
+                    </span>
+                  )}
+                </th>
                 {testType === "V-notch" && <th>Height Taken for Filling (mm)</th>}
                 {testType === "Barrel" && <th>Time to Fill 5L (sec)</th>}
-                {testType === "Flow Meter" && <th>Capacity (M3/Hr)</th>}
+                {testType === "Flow Meter" && (
+                  <th className={requirementStatus.capacity === false ? "requirement-col-not-met" : ""}>
+                    Capacity (M3/Hr)
+                    {requirementStatus.capacity === false && (
+                      <span className="requirement-flag" title="Testing did not reach the rated capacity">
+                        ⚠
+                      </span>
+                    )}
+                  </th>
+                )}
                 <th>Volts</th>
                 <th>Amps</th>
                 <th>Cos Phi</th>
-                {testType !== "Flow Meter" && <th className="computed-col">Capacity (M3/Hr)</th>}
-                <th className="computed-col">Power (KW)</th>
+                {testType !== "Flow Meter" && (
+                  <th className={`computed-col ${requirementStatus.capacity === false ? "requirement-col-not-met" : ""}`}>
+                    Capacity (M3/Hr)
+                    {requirementStatus.capacity === false && (
+                      <span className="requirement-flag" title="Testing did not reach the rated capacity">
+                        ⚠
+                      </span>
+                    )}
+                  </th>
+                )}
+                <th className={`computed-col ${requirementStatus.power === false ? "requirement-col-not-met" : ""}`}>
+                  Power (KW)
+                  {requirementStatus.power === false && (
+                    <span className="requirement-flag" title="Testing did not reach the rated power">
+                      ⚠
+                    </span>
+                  )}
+                </th>
                 <th className="computed-col">VE %</th>
                 <th className="computed-col">ME %</th>
                 <th></th>
@@ -611,7 +671,9 @@ const TestReportForm = ({
                 return (
                   <tr key={field.id}>
                     <td><input type="number" step="any" {...register(`points.${index}.rpm`)} /></td>
-                    <td><input type="number" step="any" {...register(`points.${index}.head_kgcm2`)} /></td>
+                    <td className={requirementStatus.head === false ? "requirement-cell-not-met" : ""}>
+                      <input type="number" step="any" {...register(`points.${index}.head_kgcm2`)} />
+                    </td>
                     {testType === "V-notch" && (
                       <td><input type="number" step="any" {...register(`points.${index}.height_taken_for_filling`)} /></td>
                     )}
@@ -619,15 +681,21 @@ const TestReportForm = ({
                       <td><input type="number" step="any" {...register(`points.${index}.time_taken_to_fill_bucket_sec`)} /></td>
                     )}
                     {testType === "Flow Meter" && (
-                      <td><input type="number" step="any" {...register(`points.${index}.capacity_direct`)} /></td>
+                      <td className={requirementStatus.capacity === false ? "requirement-cell-not-met" : ""}>
+                        <input type="number" step="any" {...register(`points.${index}.capacity_direct`)} />
+                      </td>
                     )}
                     <td><input type="number" step="any" {...register(`points.${index}.volts`)} /></td>
                     <td><input type="number" step="any" {...register(`points.${index}.amps`)} /></td>
                     <td><input type="number" step="any" {...register(`points.${index}.cos_phi`)} /></td>
                     {testType !== "Flow Meter" && (
-                      <td className="computed-cell">{fmt(computed?.capacityCalculatedM3hr ?? null)}</td>
+                      <td className={`computed-cell ${requirementStatus.capacity === false ? "requirement-cell-not-met" : ""}`}>
+                        {fmt(computed?.capacityCalculatedM3hr ?? null)}
+                      </td>
                     )}
-                    <td className="computed-cell">{fmt(computed?.powerCalculatedKw ?? null)}</td>
+                    <td className={`computed-cell ${requirementStatus.power === false ? "requirement-cell-not-met" : ""}`}>
+                      {fmt(computed?.powerCalculatedKw ?? null)}
+                    </td>
                     <td className="computed-cell">{fmt(computed?.volumetricEfficiency ?? null)}</td>
                     <td className="computed-cell">{fmt(computed?.mechanicalEfficiency ?? null)}</td>
                     <td>

@@ -160,6 +160,7 @@ export interface PumpTestReport {
   rated_rpm: number | null;
   q_theoretical_100rev: number | null;
   calculated_head: number | null;
+  rated_power_kw: number | null;
   // Digital-format additions
   test_type: TestType | null;
   npsha_status: string | null;
@@ -217,6 +218,7 @@ export interface NewReportInput {
   rated_rpm?: number;
   q_theoretical_100rev?: number;
   calculated_head?: number;
+  rated_power_kw?: number;
   test_type?: string;
   npsha_status?: string;
   capacity_unit?: string;

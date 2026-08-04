@@ -103,6 +103,7 @@ export function reportToDict(r: ReportRow) {
     rated_rpm: r.ratedRpm,
     q_theoretical_100rev: r.qTheoretical100rev,
     calculated_head: r.calculatedHead,
+    rated_power_kw: r.ratedPowerKw,
     test_type: r.testType,
     npsha_status: r.npshaStatus,
     capacity_unit: r.capacityUnit,

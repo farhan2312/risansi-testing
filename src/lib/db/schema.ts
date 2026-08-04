@@ -115,6 +115,10 @@ export const pumpTestReports = pgTable("pump_test_reports", {
   ratedRpm: numeric("rated_rpm", { precision: 10, scale: 2 }),
   qTheoretical100rev: numeric("q_theoretical_100rev", { precision: 10, scale: 4 }),
   calculatedHead: numeric("calculated_head", { precision: 10, scale: 2 }),
+  // Requirement-check target for Power, alongside ratedCapacity/ratedHead/
+  // ratedRpm above -- autofilled from the requisition's Power (HP/KW) so a
+  // report can tell on its own whether testing actually reached it.
+  ratedPowerKw: numeric("rated_power_kw", { precision: 10, scale: 4 }),
 
   // New fields for the digital "OBSERVATION SHEET" format (NEW PUMP TESTING
   // FORMATE FOR DIGITAL): capacity measurement method, NPSHa reading, units,

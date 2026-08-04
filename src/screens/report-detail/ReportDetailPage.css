@@ -190,6 +190,27 @@
   background: var(--warn-soft);
 }
 
+/* Flags a field/row/column where testing never reached the rated value
+ * (still a valid, submittable report -- this is informational). */
+.requirement-not-met-banner {
+  background: var(--neg-soft);
+  color: var(--neg);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.requirement-flag {
+  margin-left: 4px;
+  cursor: help;
+}
+
+td.requirement-cell-not-met {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
 .detail-empty {
   color: var(--text-muted);
   font-size: 14px;

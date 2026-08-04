@@ -153,6 +153,22 @@
   white-space: nowrap;
 }
 
+/* Flags a column where testing never reached the rated value for that
+ * field (still a valid, submittable report -- this is informational). */
+.requirement-col-not-met {
+  color: var(--neg) !important;
+}
+
+.requirement-flag {
+  margin-left: 4px;
+  cursor: help;
+}
+
+td.requirement-cell-not-met {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
 .computed-field {
   border-radius: var(--radius);
   padding: 8px 10px;

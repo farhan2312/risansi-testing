@@ -8,6 +8,7 @@
  * when the browser tab closes. Keyed per requisition so unrelated reports
  * don't bleed into each other.
  */
+import { ratedPowerKwFromRequisition } from "./requirementCheck";
 
 export interface SharedReportDraft {
   model?: string;
@@ -31,6 +32,7 @@ export interface SharedReportDraft {
   rated_rpm?: string;
   q_theoretical_100rev?: string;
   calculated_head?: string;
+  rated_power_kw?: string;
   reference_voltage?: string;
   reference_current?: string;
   vnotch_baseline?: string;
@@ -102,6 +104,7 @@ export function draftFromReport(report: {
   rated_rpm: number | string | null;
   q_theoretical_100rev: number | string | null;
   calculated_head?: number | string | null;
+  rated_power_kw?: number | string | null;
   reference_voltage?: number | string | null;
   reference_current?: number | string | null;
   vnotch_baseline?: number | string | null;
@@ -142,6 +145,7 @@ export function draftFromReport(report: {
     rated_rpm: s(report.rated_rpm),
     q_theoretical_100rev: s(report.q_theoretical_100rev),
     calculated_head: s(report.calculated_head),
+    rated_power_kw: s(report.rated_power_kw),
     reference_voltage: s(report.reference_voltage),
     reference_current: s(report.reference_current),
     vnotch_baseline: s(report.vnotch_baseline),
@@ -175,6 +179,8 @@ export function draftFromRequisition(requisition: {
   req_capacity_unit?: string | null;
   rpm?: number | string | null;
   specific_gravity?: number | string | null;
+  power_hp?: number | string | null;
+  power_kw?: number | string | null;
 }): SharedReportDraft {
   const s = (v: unknown): string | undefined => (v === null || v === undefined ? undefined : String(v));
   return {
@@ -186,5 +192,6 @@ export function draftFromRequisition(requisition: {
     capacity_unit: s(requisition.req_capacity_unit),
     rated_rpm: s(requisition.rpm),
     specific_gravity: s(requisition.specific_gravity),
+    rated_power_kw: s(ratedPowerKwFromRequisition(requisition)),
   };
 }
