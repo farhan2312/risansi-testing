@@ -14,7 +14,6 @@ const PENDING_REQUESTS_POLL_MS = 30000;
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Testing Summary" },
   { href: "/requisitions/new", label: "New Requisition", hideFor: ["testing"] },
-  { href: "/reports/new", label: "Test Report", hideFor: ["source"] },
   { href: "/reports", label: "Report Archive" },
 ];
 

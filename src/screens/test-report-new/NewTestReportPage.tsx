@@ -1,20 +1,19 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import TestReportForm from "@/components/test-report/TestReportForm";
 
+// Reports can only be filled from a requisition's "Fill Test Report" flow
+// (see requisitions/[id]/report) -- this standalone, not-tied-to-a-requisition
+// entry point is no longer allowed, so redirect away rather than render it.
 const NewTestReportPage = () => {
   const router = useRouter();
 
-  return (
-    <TestReportForm
-      heading="New Test Report — Observation Sheet"
-      subheading="Fill this in once physical testing is complete. Not tied to a requisition — use the requisition flow instead if this test was assigned from one."
-      submitLabel="Submit Test Report"
-      onSubmitted={(report) => router.push(`/reports/${report.id}`)}
-      onCancel={() => router.push("/reports/new")}
-    />
-  );
+  useEffect(() => {
+    router.replace("/dashboard");
+  }, [router]);
+
+  return null;
 };
 
 export default NewTestReportPage;

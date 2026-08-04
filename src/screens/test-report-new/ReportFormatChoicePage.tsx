@@ -1,18 +1,19 @@
 "use client";
 
-import ReportFormatChoice from "@/components/test-report/ReportFormatChoice";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
+// Reports can only be filled from a requisition's "Fill Test Report" flow
+// (see requisitions/[id]/report) -- this standalone, not-tied-to-a-requisition
+// entry point is no longer allowed, so redirect away rather than render it.
 const ReportFormatChoicePage = () => {
-  return (
-    <ReportFormatChoice
-      heading="New Test Report"
-      subheading="Choose which physical form this test was recorded on."
-      observationHref="/reports/new/observation"
-      viscosityChartHref="/reports/new/viscosity-chart"
-      backHref="/reports"
-      backLabel="Back to archive"
-    />
-  );
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/dashboard");
+  }, [router]);
+
+  return null;
 };
 
 export default ReportFormatChoicePage;
