@@ -9,6 +9,7 @@ import { normalizeModelOnChange } from "@/lib/formUtils";
 import {
   clearReportDraft,
   draftFromReport,
+  draftFromRequisition,
   loadReportDraft,
   saveReportDraft,
   type SharedReportDraft,
@@ -158,6 +159,13 @@ const ViscosityChartForm = ({
   const [autofillNotice, setAutofillNotice] = useState("");
   const scopeId = requisitionId ?? "standalone";
   const lookedUpModel = useRef<string>("");
+  // capacity_unit / head_unit start with a hardcoded generic default
+  // ("M3/HR" / "MWC") rather than empty, so "is this field already filled"
+  // can't tell a real edit apart from that default. Track separately which
+  // of the two has already been claimed by a higher-priority autofill call
+  // (Observation Sheet before requisition) so the lower-priority one only
+  // fills what's still unclaimed, instead of unconditionally overwriting it.
+  const unitsAutofilled = useRef({ capacity_unit: false, head_unit: false });
 
   const initialDraft = useRef<SharedReportDraft | null>(null);
   if (initialDraft.current === null) {
@@ -225,10 +233,10 @@ const ViscosityChartForm = ({
 
   const { fields, append, remove, replace } = useFieldArray({ control, name: "points" });
 
-  // Prefill from the same pump's Observation Sheet — fields the tester has
-  // already typed are left alone, only currently-empty ones are filled.
-  const applyAutofill = (source: Parameters<typeof draftFromReport>[0], reportNo?: string | null) => {
-    const d = draftFromReport(source);
+  // Fills currently-empty fields from a shared draft (report- or
+  // requisition-sourced) — never overwrites something the tester already
+  // typed. Returns whether anything was actually filled.
+  const applyDraftFields = (d: SharedReportDraft): boolean => {
     let filledAny = false;
     const setIfEmpty = (name: keyof ChartFormValues, value?: string) => {
       if (!value || getValues(name)) return;
@@ -245,11 +253,23 @@ const ViscosityChartForm = ({
     setIfEmpty("test_type", d.test_type);
     setIfEmpty("npsha_status", d.npsha_status);
     setIfEmpty("liquid", d.liquid);
-    if (d.capacity_unit && VISCOSITY_CAPACITY_UNITS.includes(d.capacity_unit as never)) {
-      setIfEmpty("capacity_unit", d.capacity_unit);
+    if (
+      d.capacity_unit &&
+      VISCOSITY_CAPACITY_UNITS.includes(d.capacity_unit as never) &&
+      !unitsAutofilled.current.capacity_unit
+    ) {
+      setValue("capacity_unit", d.capacity_unit as never);
+      unitsAutofilled.current.capacity_unit = true;
+      filledAny = true;
     }
-    if (d.head_unit && VISCOSITY_HEAD_UNITS.includes(d.head_unit as never)) {
-      setIfEmpty("head_unit", d.head_unit);
+    if (
+      d.head_unit &&
+      VISCOSITY_HEAD_UNITS.includes(d.head_unit as never) &&
+      !unitsAutofilled.current.head_unit
+    ) {
+      setValue("head_unit", d.head_unit as never);
+      unitsAutofilled.current.head_unit = true;
+      filledAny = true;
     }
     setIfEmpty("rated_capacity", d.rated_capacity);
     setIfEmpty("rated_head", d.rated_head);
@@ -275,13 +295,18 @@ const ViscosityChartForm = ({
     setIfEmpty("witness", d.witness);
     setIfEmpty("inspector", d.inspector);
     setIfEmpty("recorder", d.recorder);
+    return filledAny;
+  };
 
-    // Test points are the actual measured data — copy them over exactly as
-    // recorded on the Observation Sheet (same rule as the header fields
-    // above: only if nothing's been entered here yet, so we never clobber
-    // work in progress). The viscosity-corrected columns (VE/ME for liquid,
-    // slip, etc.) still recompute live from Specific Gravity / K / Viscosity
-    // via computeViscosityChartPoint — only the raw inputs are copied.
+  // Prefill from the same pump's Observation Sheet — its test points are the
+  // actual measured data, copied over exactly as recorded (same rule as the
+  // header fields: only if nothing's been entered here yet, so we never
+  // clobber work in progress). The viscosity-corrected columns (VE/ME for
+  // liquid, slip, etc.) still recompute live from Specific Gravity / K /
+  // Viscosity via computeViscosityChartPoint — only the raw inputs are copied.
+  const applyAutofillFromReport = (source: Parameters<typeof draftFromReport>[0]): boolean => {
+    let filledAny = applyDraftFields(draftFromReport(source));
+
     const currentPoints = getValues("points");
     const pointsArePristine =
       currentPoints.length === 1 && Object.values(currentPoints[0]).every((v) => !v);
@@ -290,24 +315,29 @@ const ViscosityChartForm = ({
       replace(pointsFromExistingReport(sourceReport));
       filledAny = true;
     }
-
-    if (filledAny) {
-      setAutofillNotice(
-        `Prefilled from the Observation Sheet${reportNo ? ` (${reportNo})` : ""} already submitted for this pump, including its test points — edit anything as needed.`
-      );
-    }
+    return filledAny;
   };
 
   // Requisition-linked: this exact job's Observation Sheet report (if any)
-  // is the authoritative source, known as soon as the requisition loads.
+  // is the most authoritative source (real measured data), known as soon as
+  // the requisition loads — applied first. Whatever's still empty afterward
+  // falls back to the requisition's own intake data (what was requested,
+  // not yet measured).
   useEffect(() => {
     if (existingReport || !requisitionId) return;
     getRequisition(requisitionId)
       .then((req) => {
+        let notice = "";
         const obs = req.reports?.find((rep) => (rep.report_format ?? "observation") === "observation");
-        if (obs) {
-          applyAutofill(obs, obs.report_no);
+        if (obs && applyAutofillFromReport(obs)) {
+          notice = `Prefilled from the Observation Sheet${obs.report_no ? ` (${obs.report_no})` : ""} already submitted for this pump, including its test points — edit anything as needed.`;
         }
+        if (applyDraftFields(draftFromRequisition(req))) {
+          notice = notice
+            ? `${notice} Remaining fields prefilled from the linked requisition.`
+            : "Prefilled from the linked requisition — edit anything as needed.";
+        }
+        if (notice) setAutofillNotice(notice);
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -322,11 +352,17 @@ const ViscosityChartForm = ({
     getLatestObservationReport(modelVal)
       .then((obs) => {
         if (!obs) return;
+        const notify = (reportNo?: string | null, filled?: boolean) => {
+          if (!filled) return;
+          setAutofillNotice(
+            `Prefilled from the Observation Sheet${reportNo ? ` (${reportNo})` : ""} already submitted for this pump, including its test points — edit anything as needed.`
+          );
+        };
         // getLatestObservationReport only returns a summary (no points) --
         // fetch the full report so its test points can be copied over too.
         getReport(obs.id)
-          .then((full) => applyAutofill(full, full.report_no))
-          .catch(() => applyAutofill(obs, obs.report_no));
+          .then((full) => notify(full.report_no, applyAutofillFromReport(full)))
+          .catch(() => notify(obs.report_no, applyAutofillFromReport(obs)));
       })
       .catch(() => {});
   };

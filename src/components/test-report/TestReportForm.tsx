@@ -3,10 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import "./TestReportForm.css";
-import { submitReport, updateReport } from "@/services/testingService";
+import { getRequisition, submitReport, updateReport } from "@/services/testingService";
 import { computePoint } from "@/lib/testReportCalc";
 import { normalizeModelOnChange } from "@/lib/formUtils";
-import { clearReportDraft, loadReportDraft, saveReportDraft, type SharedReportDraft } from "@/lib/reportDraft";
+import {
+  clearReportDraft,
+  draftFromRequisition,
+  loadReportDraft,
+  saveReportDraft,
+  type SharedReportDraft,
+} from "@/lib/reportDraft";
 import {
   CAPACITY_UNITS,
   HEAD_UNITS,
@@ -148,6 +154,7 @@ const TestReportForm = ({
   onCancel,
 }: TestReportFormProps) => {
   const [submitError, setSubmitError] = useState("");
+  const [autofillNotice, setAutofillNotice] = useState("");
   const scopeId = requisitionId ?? "standalone";
 
   const initialDraft = useRef<SharedReportDraft | null>(null);
@@ -157,7 +164,14 @@ const TestReportForm = ({
   const draft = initialDraft.current;
   const r = existingReport;
 
-  const { register, control, handleSubmit, formState: { isSubmitting, errors } } = useForm<ReportFormValues>({
+  const {
+    register,
+    control,
+    handleSubmit,
+    getValues,
+    setValue,
+    formState: { isSubmitting, errors },
+  } = useForm<ReportFormValues>({
     defaultValues: {
       model: lockedModel ?? r?.model ?? draft.model ?? "",
       po_no: str(r?.po_no) || draft.po_no || "",
@@ -202,6 +216,48 @@ const TestReportForm = ({
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "points" });
+
+  // Requisition-linked: prefill from the requisition's own intake data
+  // (rated head/capacity/RPM, motor RPM, specific gravity, EC no.) the
+  // moment it loads -- fields the tester has already typed (e.g. from a
+  // draft carried over) are left alone, only currently-empty ones are filled.
+  useEffect(() => {
+    if (existingReport || !requisitionId) return;
+    getRequisition(requisitionId)
+      .then((req) => {
+        const d = draftFromRequisition(req);
+        let filledAny = false;
+        const setIfEmpty = (name: keyof ReportFormValues, value?: string) => {
+          if (!value || getValues(name)) return;
+          setValue(name, value as never);
+          filledAny = true;
+        };
+        setIfEmpty("ec_no", d.ec_no);
+        setIfEmpty("motor_rpm", d.motor_rpm);
+        setIfEmpty("rated_capacity", d.rated_capacity);
+        setIfEmpty("rated_head", d.rated_head);
+        setIfEmpty("specific_gravity", d.specific_gravity);
+        // capacity_unit / head_unit start with a hardcoded generic default
+        // ("M3/HR" / "KG/CM2") rather than empty, so the "already filled"
+        // check above can't tell a real edit apart from that default --
+        // this is the only autofill source for a fresh report, so it's safe
+        // to just set them directly.
+        if (d.capacity_unit && CAPACITY_UNITS.includes(d.capacity_unit as never)) {
+          setValue("capacity_unit", d.capacity_unit as never);
+          filledAny = true;
+        }
+        if (d.head_unit && HEAD_UNITS.includes(d.head_unit as never)) {
+          setValue("head_unit", d.head_unit as never);
+          filledAny = true;
+        }
+        setIfEmpty("rated_rpm", d.rated_rpm);
+        if (filledAny) {
+          setAutofillNotice("Prefilled from the linked requisition — edit anything as needed.");
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requisitionId, existingReport]);
 
   const sharedFieldsWatch = useWatch({
     control,
@@ -376,6 +432,7 @@ const TestReportForm = ({
       </div>
 
       {submitError && <div className="form-error-banner">{submitError}</div>}
+      {autofillNotice && <div className="form-info-banner">{autofillNotice}</div>}
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="form-grid">

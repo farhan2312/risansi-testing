@@ -160,3 +160,31 @@ export function draftFromReport(report: {
     recorder: s(report.recorder),
   };
 }
+
+/** Same shared fields, sourced from the linked requisition's own intake data
+ * -- prefills a report the moment it's opened, even before any prior report
+ * exists for this pump. Lower priority than an actual prior report (real
+ * measured data beats what was merely requested at intake): callers should
+ * apply this after any report-sourced draft, so it only fills the gaps. */
+export function draftFromRequisition(requisition: {
+  ec_quotation_no?: string | null;
+  motor_rpm?: number | string | null;
+  head_kgcm2?: number | string | null;
+  head_unit?: string | null;
+  req_capacity?: number | string | null;
+  req_capacity_unit?: string | null;
+  rpm?: number | string | null;
+  specific_gravity?: number | string | null;
+}): SharedReportDraft {
+  const s = (v: unknown): string | undefined => (v === null || v === undefined ? undefined : String(v));
+  return {
+    ec_no: s(requisition.ec_quotation_no),
+    motor_rpm: s(requisition.motor_rpm),
+    rated_head: s(requisition.head_kgcm2),
+    head_unit: s(requisition.head_unit),
+    rated_capacity: s(requisition.req_capacity),
+    capacity_unit: s(requisition.req_capacity_unit),
+    rated_rpm: s(requisition.rpm),
+    specific_gravity: s(requisition.specific_gravity),
+  };
+}
