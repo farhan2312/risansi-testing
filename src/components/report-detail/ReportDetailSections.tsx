@@ -77,6 +77,7 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
 
       <section className="detail-card">
         <h2>Given Data</h2>
+        <div className="sheet-table-wrapper">
         <table className="sheet-table header-sheet-table">
           <tbody>
             <tr>
@@ -185,6 +186,7 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
             )}
           </tbody>
         </table>
+        </div>
       </section>
 
       <section className="detail-card">
@@ -233,6 +235,7 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
       {hasVibrationSummary && (
         <section className="detail-card">
           <h2>Vibration Test &amp; Run Summary</h2>
+          <div className="sheet-table-wrapper">
           <table className="sheet-table header-sheet-table">
             <tbody>
               <tr>
@@ -267,11 +270,13 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
               </tr>
             </tbody>
           </table>
+          </div>
         </section>
       )}
 
       <section className="detail-card">
         <h2>Witness, Inspection &amp; Remarks</h2>
+        <div className="sheet-table-wrapper">
         <table className="sheet-table header-sheet-table sign-off-table">
           <thead>
             <tr>
@@ -298,6 +303,7 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
             </tr>
           </tbody>
         </table>
+        </div>
         <div className={report.remarks ? "remarks-box" : "remarks-box remarks-box-blank"}>
           {report.remarks ? (
             <p className="remarks-text">{report.remarks}</p>

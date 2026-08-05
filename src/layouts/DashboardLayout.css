@@ -113,6 +113,13 @@
   flex: 1;
   padding: 24px;
   overflow-y: auto;
+  /* Explicit, not left to default: pages with a wide table (report forms,
+   * report detail) already scroll that table horizontally in its own
+   * wrapper (overflow-x: auto). Without this, setting only overflow-y here
+   * implicitly computes overflow-x to "auto" too (a CSS spec quirk), so the
+   * whole panel -- heading and all -- gained its own horizontal scrollbar
+   * and shifted sideways along with the table underneath it. */
+  overflow-x: hidden;
 }
 
 /* Keeps each page's heading (and its action buttons, where the header row
