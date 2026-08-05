@@ -225,9 +225,21 @@ const DashboardPage = () => {
                 <td>{r.submitted_by ?? "-"}</td>
                 <td>
                   {r.status === "Closed" && r.report_id ? (
-                    <Link href={`/reports/${r.report_id}`} className="status-pill status-view-report">
-                      View Report
-                    </Link>
+                    (() => {
+                      const unmetFields = r.report_requirement_unmet_fields ?? [];
+                      const unmetTitle = unmetFields.length
+                        ? `Did not meet rated ${unmetFields.join(", ")}`
+                        : undefined;
+                      return (
+                        <Link
+                          href={`/reports/${r.report_id}`}
+                          className={`status-pill ${unmetTitle ? "status-view-report-unmet" : "status-view-report"}`}
+                          title={unmetTitle}
+                        >
+                          View Report{unmetTitle && " ⚠"}
+                        </Link>
+                      );
+                    })()
                   ) : (
                     <span className={`status-pill status-${r.status.replace(/\s+/g, "-").toLowerCase()}`}>
                       {r.status}

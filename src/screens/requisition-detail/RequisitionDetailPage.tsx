@@ -5,10 +5,19 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import "./RequisitionDetailPage.css";
 import { headToKgcm2 } from "@/lib/unitConversion";
+import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 import { dedupCheck, getRequisition, updateRequisition } from "@/services/testingService";
 import { getCurrentUser } from "@/services/session";
 import { ecQuotationLabel } from "@/types/testing";
-import type { DedupCheckResult, TestRequisition } from "@/types/testing";
+import type { DedupCheckResult, PumpTestReport, TestRequisition } from "@/types/testing";
+
+/** Short "did this report meet its rated targets" label for a list row --
+ * empty string when there's nothing to flag (still valid either way, this
+ * is informational only). */
+const reportUnmetTitle = (r: PumpTestReport): string => {
+  const labels = unmetRequirementLabels(computeRequirementStatus(r, r.points));
+  return labels.length ? `Did not meet rated ${labels.join(", ")}` : "";
+};
 
 const RequisitionDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -198,16 +207,22 @@ const RequisitionDetailPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {dedup!.priorReports.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.test_date ?? r.created_at.slice(0, 10)}</td>
-                    <td>{r.gearbox_no ?? "-"}</td>
-                    <td>{r.motor ?? "-"}</td>
-                    <td>{r.rated_head ?? "-"}</td>
-                    <td>{r.rated_rpm ?? "-"}</td>
-                    <td>{r.points.length}</td>
-                  </tr>
-                ))}
+                {dedup!.priorReports.map((r) => {
+                  const unmetTitle = reportUnmetTitle(r);
+                  return (
+                    <tr key={r.id} className={unmetTitle ? "requirement-row-not-met" : ""} title={unmetTitle || undefined}>
+                      <td>
+                        {r.test_date ?? r.created_at.slice(0, 10)}
+                        {unmetTitle && <span className="requirement-flag">⚠</span>}
+                      </td>
+                      <td>{r.gearbox_no ?? "-"}</td>
+                      <td>{r.motor ?? "-"}</td>
+                      <td>{r.rated_head ?? "-"}</td>
+                      <td>{r.rated_rpm ?? "-"}</td>
+                      <td>{r.points.length}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </>
@@ -280,16 +295,19 @@ const RequisitionDetailPage = () => {
             </>
           )}
 
-          {requisition.reports?.map((r) => (
+          {requisition.reports?.map((r) => {
+            const unmetTitle = reportUnmetTitle(r);
+            return (
             <table key={r.id} className="prior-reports-table">
               <tbody>
-                <tr>
+                <tr className={unmetTitle ? "requirement-row-not-met" : ""} title={unmetTitle || undefined}>
                   <td className="label">
                     <Link href={`/reports/${r.id}`}>
                       {(r.report_format ?? "observation") === "viscosity-chart"
                         ? "Viscosity Correction Chart"
                         : "Observation Sheet"}
                     </Link>
+                    {unmetTitle && <span className="requirement-flag">⚠</span>}
                   </td>
                   <td colSpan={3}>{r.report_no ?? "-"}</td>
                 </tr>
@@ -311,7 +329,8 @@ const RequisitionDetailPage = () => {
                 </tr>
               </tbody>
             </table>
-          ))}
+            );
+          })}
         </section>
       )}
     </div>

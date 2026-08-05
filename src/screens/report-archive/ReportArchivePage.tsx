@@ -185,20 +185,27 @@ const ReportArchivePage = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {g.reports.map((r) => (
-                              <tr key={r.id}>
-                                <td>
-                                  <Link href={`/reports/${r.id}`}>{r.report_no ?? r.motor ?? "View report"}</Link>
-                                </td>
-                                <td>{r.motor ?? "-"}</td>
-                                <td>{r.rated_rpm ?? "-"}</td>
-                                <td>{r.rated_head ?? "-"}</td>
-                                <td>{r.suction_type ?? "-"}</td>
-                                <td>{r.test_date ?? r.created_at.slice(0, 10)}</td>
-                                <td>{r.pointCount}</td>
-                                <td>{r.requisition_id ? "Yes" : "Historical"}</td>
-                              </tr>
-                            ))}
+                            {g.reports.map((r) => {
+                              const unmetFields = r.requirement_unmet_fields ?? [];
+                              const unmetTitle = unmetFields.length
+                                ? `Did not meet rated ${unmetFields.join(", ")}`
+                                : "";
+                              return (
+                                <tr key={r.id} className={unmetTitle ? "requirement-row-not-met" : ""} title={unmetTitle || undefined}>
+                                  <td>
+                                    <Link href={`/reports/${r.id}`}>{r.report_no ?? r.motor ?? "View report"}</Link>
+                                    {unmetTitle && <span className="requirement-flag">⚠</span>}
+                                  </td>
+                                  <td>{r.motor ?? "-"}</td>
+                                  <td>{r.rated_rpm ?? "-"}</td>
+                                  <td>{r.rated_head ?? "-"}</td>
+                                  <td>{r.suction_type ?? "-"}</td>
+                                  <td>{r.test_date ?? r.created_at.slice(0, 10)}</td>
+                                  <td>{r.pointCount}</td>
+                                  <td>{r.requisition_id ? "Yes" : "Historical"}</td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </td>

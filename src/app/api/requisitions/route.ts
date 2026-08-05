@@ -1,9 +1,10 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { error, json, requisitionToDict } from "@/lib/api";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
+import { pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
+import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 
 export const dynamic = "force-dynamic";
 
@@ -53,14 +54,65 @@ export async function GET(req: Request) {
   const requisitionIds = rows.map((r) => r.id);
   const reports = requisitionIds.length
     ? await db
-        .select({ id: pumpTestReports.id, requisitionId: pumpTestReports.requisitionId })
+        .select({
+          id: pumpTestReports.id,
+          requisitionId: pumpTestReports.requisitionId,
+          ratedHead: pumpTestReports.ratedHead,
+          ratedCapacity: pumpTestReports.ratedCapacity,
+          ratedPowerKw: pumpTestReports.ratedPowerKw,
+        })
         .from(pumpTestReports)
         .where(inArray(pumpTestReports.requisitionId, requisitionIds))
     : [];
   const reportIdByRequisition = new Map(reports.map((r) => [r.requisitionId, r.id]));
 
+  // Did the linked report reach its rated head/capacity/power? Only the max
+  // across its points matters for that check, so aggregate in SQL rather
+  // than shipping every point down just to compute this in the list view.
+  const reportIds = reports.map((r) => r.id);
+  const maxes = reportIds.length
+    ? await db
+        .select({
+          reportId: pumpTestReportPoints.reportId,
+          maxHead: sql<string | null>`max(${pumpTestReportPoints.headKgcm2})`,
+          maxCapacity: sql<string | null>`max(${pumpTestReportPoints.capacityCalculatedM3hr})`,
+          maxPower: sql<string | null>`max(${pumpTestReportPoints.powerCalculatedKw})`,
+        })
+        .from(pumpTestReportPoints)
+        .where(inArray(pumpTestReportPoints.reportId, reportIds))
+        .groupBy(pumpTestReportPoints.reportId)
+    : [];
+  const maxByReport = new Map(maxes.map((m) => [m.reportId, m]));
+
+  const unmetByRequisition = new Map(
+    reports.map((r) => {
+      const max = maxByReport.get(r.id);
+      const status = computeRequirementStatus(
+        {
+          rated_head: r.ratedHead === null ? null : Number(r.ratedHead),
+          rated_capacity: r.ratedCapacity === null ? null : Number(r.ratedCapacity),
+          rated_power_kw: r.ratedPowerKw === null ? null : Number(r.ratedPowerKw),
+        },
+        max
+          ? [
+              {
+                head_kgcm2: max.maxHead === null ? null : Number(max.maxHead),
+                capacity_calculated_m3hr: max.maxCapacity === null ? null : Number(max.maxCapacity),
+                power_calculated_kw: max.maxPower === null ? null : Number(max.maxPower),
+              },
+            ]
+          : []
+      );
+      return [r.requisitionId, unmetRequirementLabels(status)];
+    })
+  );
+
   return json(
-    rows.map((r) => ({ ...requisitionToDict(r), report_id: reportIdByRequisition.get(r.id) ?? null }))
+    rows.map((r) => ({
+      ...requisitionToDict(r),
+      report_id: reportIdByRequisition.get(r.id) ?? null,
+      report_requirement_unmet_fields: unmetByRequisition.get(r.id) ?? [],
+    }))
   );
 }
 

@@ -104,6 +104,18 @@
   background: var(--bg-sunk);
 }
 
+/* Flags a report row that didn't reach its rated head/capacity/power --
+ * still a valid, submittable report (informational only). */
+.requirement-row-not-met td {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
+.requirement-flag {
+  margin-left: 4px;
+  cursor: help;
+}
+
 .retest-actions {
   display: flex;
   gap: 10px;

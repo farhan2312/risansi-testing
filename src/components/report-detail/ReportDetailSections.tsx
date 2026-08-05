@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { computeRequirementStatus } from "@/lib/requirementCheck";
+import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 import type { PumpTestReport, PumpTestReportPoint } from "@/types/testing";
 
 const fmt = (v: number | string | null | undefined) => (v === null || v === undefined || v === "" ? "-" : v);
@@ -61,11 +61,7 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
   // Did testing actually reach the rated requirements? Still a valid report
   // either way -- this is a flag, not a validation error.
   const requirementStatus = computeRequirementStatus(report, report.points);
-  const unmetLabels = [
-    requirementStatus.head === false && "Head",
-    requirementStatus.capacity === false && "Capacity",
-    requirementStatus.power === false && "Power",
-  ].filter((v): v is string => Boolean(v));
+  const unmetLabels = unmetRequirementLabels(requirementStatus);
 
   return (
     <>

@@ -151,6 +151,18 @@
   text-decoration: underline;
 }
 
+/* Flags a report row that didn't reach its rated head/capacity/power --
+ * still a valid, submittable report (informational only). */
+.nested-report-table tr.requirement-row-not-met td {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
+.nested-report-table .requirement-flag {
+  margin-left: 4px;
+  cursor: help;
+}
+
 .archive-pagination {
   display: flex;
   align-items: center;

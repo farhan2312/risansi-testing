@@ -47,6 +47,16 @@ export const computeRequirementStatus = (
   };
 };
 
+/** Human-readable labels for whichever fields came back "not met" -- shared
+ * by every place a report shows this flag (detail page, archive/list rows,
+ * pump dashboard, requisition's own report cards). */
+export const unmetRequirementLabels = (status: RequirementStatus): string[] =>
+  [
+    status.head === false && "Head",
+    status.capacity === false && "Capacity",
+    status.power === false && "Power",
+  ].filter((v): v is string => Boolean(v));
+
 /** Rated power in kW from a requisition's Power (HP) / Power (KW) fields --
  * KW is used directly if present, otherwise HP is converted (1 HP = 0.746 kW). */
 export const ratedPowerKwFromRequisition = (requisition: {

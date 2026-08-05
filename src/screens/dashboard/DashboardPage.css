@@ -175,6 +175,22 @@
   text-decoration: none !important;
 }
 
+/* Same "View Report" pill, but the report didn't reach its rated
+ * head/capacity/power -- still a valid, submittable report, just flagged
+ * red instead of green (informational only). */
+.status-view-report-unmet {
+  background: var(--neg-soft);
+  color: var(--neg) !important;
+  cursor: pointer;
+  font-weight: 600 !important;
+}
+
+.status-view-report-unmet:hover {
+  background: var(--neg);
+  color: #fff !important;
+  text-decoration: none !important;
+}
+
 .res-reassign-select {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);

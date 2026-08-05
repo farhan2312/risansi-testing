@@ -7,6 +7,7 @@ import "../dashboard/DashboardPage.css";
 import "../report-detail/ReportDetailPage.css";
 import "./PumpDashboardPage.css";
 import { POINT_ROWS } from "@/components/report-detail/ReportDetailSections";
+import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 import { getPumpDashboard } from "@/services/testingService";
 import type { PumpDashboardData, PumpTestReport } from "@/types/testing";
 
@@ -104,6 +105,15 @@ const PumpDashboardPage = () => {
     sortedReports.some((r) => r[row.field] !== null && r[row.field] !== undefined && r[row.field] !== "")
   );
 
+  // Did each report actually reach its rated head/capacity/power? Still a
+  // valid report either way (informational only) -- flags its whole column.
+  const unmetTitleByReportId = new Map(
+    sortedReports.map((r) => {
+      const labels = unmetRequirementLabels(computeRequirementStatus(r, r.points));
+      return [r.id, labels.length ? `Did not meet rated ${labels.join(", ")}` : ""];
+    })
+  );
+
   // Every individual test point across every report is its own column, in
   // the same chronological order -- points recorded on the same date (same
   // report) simply repeat that date.
@@ -198,20 +208,29 @@ const PumpDashboardPage = () => {
               <thead>
                 <tr>
                   <th className="row-label-col">Parameter</th>
-                  {sortedReports.map((r) => (
-                    <th key={r.id}>{reportDate(r)}</th>
-                  ))}
+                  {sortedReports.map((r) => {
+                    const unmetTitle = unmetTitleByReportId.get(r.id);
+                    return (
+                      <th key={r.id} className={unmetTitle ? "requirement-col-not-met" : ""} title={unmetTitle || undefined}>
+                        {reportDate(r)}
+                        {unmetTitle && <span className="requirement-flag">⚠</span>}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
                 {activeHeaderRows.map((row) => (
                   <tr key={row.label}>
                     <td className="row-label-col">{row.label}</td>
-                    {sortedReports.map((r) => (
-                      <td key={r.id} className="highlight">
-                        {fmt(r[row.field] as string | number | null)}
-                      </td>
-                    ))}
+                    {sortedReports.map((r) => {
+                      const unmetTitle = unmetTitleByReportId.get(r.id);
+                      return (
+                        <td key={r.id} className={unmetTitle ? "requirement-cell-not-met" : "highlight"} title={unmetTitle || undefined}>
+                          {fmt(r[row.field] as string | number | null)}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>

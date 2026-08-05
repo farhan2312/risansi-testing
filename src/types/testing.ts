@@ -92,6 +92,9 @@ export interface TestRequisition {
 
   reports?: PumpTestReport[];
   report_id?: string | null;
+  /** Which rated fields (Head/Capacity/Power) the linked report's test
+   * points never reached -- empty when met or there's no report yet. */
+  report_requirement_unmet_fields?: string[];
 }
 
 export interface NewRequisitionInput {
@@ -257,6 +260,9 @@ export interface NewReportInput {
 
 export interface ArchiveReportSummary extends Omit<PumpTestReport, "points"> {
   pointCount: number;
+  /** Which rated fields (Head/Capacity/Power) the report's own test points
+   * never reached -- empty when met or when there's nothing to compare. */
+  requirement_unmet_fields: string[];
 }
 
 export interface DedupCheckResult {
