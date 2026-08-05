@@ -36,6 +36,10 @@ const DashboardPage = () => {
   const [categoryFilter, setCategoryFilter] = useState(ALL);
   const [sourceTeamFilter, setSourceTeamFilter] = useState(ALL);
   const [responsiblePersonFilter, setResponsiblePersonFilter] = useState(ALL);
+  // Only meaningful once a single Category is selected -- a second-level
+  // filter for how many of that category's filled reports met their rated
+  // requirements vs didn't ("Red").
+  const [reportResultFilter, setReportResultFilter] = useState<"All" | "Green" | "Red">("All");
 
   const modelOptions = useMemo(
     () => [...new Set(requisitions.map((r) => r.model))].sort((a, b) => a.localeCompare(b)),
@@ -47,7 +51,8 @@ const DashboardPage = () => {
     ecFilter.trim() !== "" ||
     categoryFilter !== ALL ||
     sourceTeamFilter !== ALL ||
-    responsiblePersonFilter !== ALL;
+    responsiblePersonFilter !== ALL ||
+    reportResultFilter !== "All";
 
   const clearFilters = () => {
     setModelFilter(ALL);
@@ -55,9 +60,17 @@ const DashboardPage = () => {
     setCategoryFilter(ALL);
     setSourceTeamFilter(ALL);
     setResponsiblePersonFilter(ALL);
+    setReportResultFilter("All");
   };
 
-  const filteredRequisitions = useMemo(() => {
+  const handleCategoryChange = (value: string) => {
+    setCategoryFilter(value);
+    setReportResultFilter("All");
+  };
+
+  // Every other filter applied, before the Green/Red report-result filter --
+  // this is the scope the "reports filled" breakdown counts against.
+  const categoryScopedRequisitions = useMemo(() => {
     const ec = ecFilter.trim().toLowerCase();
     return requisitions.filter((r) => {
       if (modelFilter !== ALL && r.model !== modelFilter) return false;
@@ -68,6 +81,28 @@ const DashboardPage = () => {
       return true;
     });
   }, [requisitions, modelFilter, ecFilter, categoryFilter, sourceTeamFilter, responsiblePersonFilter]);
+
+  // Of that scope, how many actually have a filled-in report, split by
+  // whether it met its rated head/capacity/power ("Green") or not ("Red").
+  const reportResultCounts = useMemo(() => {
+    let green = 0;
+    let red = 0;
+    for (const r of categoryScopedRequisitions) {
+      if (r.status !== "Closed" || !r.report_id) continue;
+      if ((r.report_requirement_unmet_fields ?? []).length > 0) red += 1;
+      else green += 1;
+    }
+    return { green, red, total: green + red };
+  }, [categoryScopedRequisitions]);
+
+  const filteredRequisitions = useMemo(() => {
+    if (reportResultFilter === "All") return categoryScopedRequisitions;
+    return categoryScopedRequisitions.filter((r) => {
+      if (r.status !== "Closed" || !r.report_id) return false;
+      const unmet = (r.report_requirement_unmet_fields ?? []).length > 0;
+      return reportResultFilter === "Red" ? unmet : !unmet;
+    });
+  }, [categoryScopedRequisitions, reportResultFilter]);
 
   const handleReassign = async (id: string, responsiblePerson: string) => {
     try {
@@ -137,7 +172,7 @@ const DashboardPage = () => {
           value={ecFilter}
           onChange={(e) => setEcFilter(e.target.value)}
         />
-        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+        <select value={categoryFilter} onChange={(e) => handleCategoryChange(e.target.value)}>
           <option value={ALL}>All Categories</option>
           {REQUISITION_CATEGORIES.map((c) => (
             <option key={c} value={c}>
@@ -167,6 +202,35 @@ const DashboardPage = () => {
           </button>
         )}
       </div>
+
+      {categoryFilter !== ALL && (
+        <div className="report-result-filter">
+          <span className="report-result-label">
+            Reports filled for &quot;{categoryFilter}&quot;: {reportResultCounts.total}
+          </span>
+          <button
+            type="button"
+            className={`report-result-pill ${reportResultFilter === "All" ? "active" : ""}`}
+            onClick={() => setReportResultFilter("All")}
+          >
+            All ({reportResultCounts.total})
+          </button>
+          <button
+            type="button"
+            className={`report-result-pill green ${reportResultFilter === "Green" ? "active" : ""}`}
+            onClick={() => setReportResultFilter("Green")}
+          >
+            Met ({reportResultCounts.green})
+          </button>
+          <button
+            type="button"
+            className={`report-result-pill red ${reportResultFilter === "Red" ? "active" : ""}`}
+            onClick={() => setReportResultFilter("Red")}
+          >
+            Not Met ({reportResultCounts.red})
+          </button>
+        </div>
+      )}
 
       {error && <div className="dashboard-error">{error}</div>}
 

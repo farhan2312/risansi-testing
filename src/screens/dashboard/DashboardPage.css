@@ -88,6 +88,51 @@
   background: var(--surface-hover);
 }
 
+/* Second-level filter, shown once a single Category is picked: how many of
+ * that category's filled reports met their rated requirements ("Green")
+ * vs didn't ("Red") -- clicking a pill filters the table down to just
+ * that subset. */
+.report-result-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-result-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.report-result-pill {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-muted);
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.report-result-pill:hover {
+  background: var(--surface-hover);
+}
+
+.report-result-pill.active {
+  border-color: transparent;
+  color: #fff;
+  background: var(--text-muted);
+}
+
+.report-result-pill.green.active {
+  background: var(--pos);
+}
+
+.report-result-pill.red.active {
+  background: var(--neg);
+}
+
 .dashboard-error {
   color: var(--neg);
   background: var(--neg-soft);
