@@ -6,6 +6,7 @@ export type RequisitionStatus = "Pending" | "In Testing" | "Retest Needed" | "Cl
 export const REQUISITION_CATEGORIES = [
   "Against Pump Testing Project",
   "Against New Die Pin",
+  "Against Die Pin Rework",
   "Against Quotation Test",
   "Against R&D Trials",
   "Against EC Based",
