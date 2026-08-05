@@ -5,7 +5,7 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import "./TestReportForm.css";
 import { getRequisition, submitReport, updateReport } from "@/services/testingService";
 import { computePoint } from "@/lib/testReportCalc";
-import { normalizeModelOnChange } from "@/lib/formUtils";
+import { normalizeModelOnChange, normalizeMotorRpm } from "@/lib/formUtils";
 import {
   clearReportDraft,
   draftFromRequisition,
@@ -17,6 +17,7 @@ import { computeRequirementStatus } from "@/lib/requirementCheck";
 import {
   CAPACITY_UNITS,
   HEAD_UNITS,
+  MOTOR_RPM_OPTIONS,
   NPSHA_STATUSES,
   TEST_TYPES,
   type PumpTestReport,
@@ -182,7 +183,7 @@ const TestReportForm = ({
       gearbox_no: str(r?.gearbox_no) || draft.gearbox_no || "",
       gearbox_ratio: str(r?.gearbox_ratio) || draft.gearbox_ratio || "",
       motor: str(r?.motor) || draft.motor || "",
-      motor_rpm: str(r?.motor_rpm) || draft.motor_rpm || "",
+      motor_rpm: normalizeMotorRpm(r?.motor_rpm) || normalizeMotorRpm(draft.motor_rpm) || "",
       liquid: r?.liquid ?? draft.liquid ?? "WATER",
       test_type: (r?.test_type as TestType) ?? (draft.test_type as TestType) ?? "V-notch",
       npsha_status: r?.npsha_status ?? draft.npsha_status ?? "POSITIVE",
@@ -236,7 +237,7 @@ const TestReportForm = ({
           filledAny = true;
         };
         setIfEmpty("ec_no", d.ec_no);
-        setIfEmpty("motor_rpm", d.motor_rpm);
+        setIfEmpty("motor_rpm", normalizeMotorRpm(d.motor_rpm));
         setIfEmpty("rated_capacity", d.rated_capacity);
         setIfEmpty("rated_head", d.rated_head);
         setIfEmpty("specific_gravity", d.specific_gravity);
@@ -539,7 +540,14 @@ const TestReportForm = ({
           </div>
           <div className="field">
             <label>Motor RPM</label>
-            <input type="number" step="any" {...register("motor_rpm")} />
+            <select {...register("motor_rpm")}>
+              <option value="">Select</option>
+              {MOTOR_RPM_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="field">
             <label>Liquid</label>

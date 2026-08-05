@@ -6,13 +6,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useParams, useRouter } from "next/navigation";
 import "../requisition-new/NewRequisitionPage.css";
-import { normalizeModelOnChange } from "@/lib/formUtils";
+import { normalizeModelOnChange, normalizeMotorRpm } from "@/lib/formUtils";
 import { capacityToM3hr, headToMwc } from "@/lib/unitConversion";
 import { getRequisition, listPumpModels, updateRequisition } from "@/services/testingService";
 import {
   CAPACITY_UNITS,
   ecQuotationLabel,
   HEAD_UNITS,
+  MOTOR_RPM_OPTIONS,
   REQUISITION_CATEGORIES,
   RESPONSIBLE_PERSONS,
   SOURCE_TEAMS,
@@ -97,7 +98,7 @@ const EditRequisitionPage = () => {
           head_kgcm2: r.head_kgcm2 ?? undefined,
           head_unit: r.head_unit ?? "",
           rpm: r.rpm ?? undefined,
-          motor_rpm: r.motor_rpm ?? undefined,
+          motor_rpm: normalizeMotorRpm(r.motor_rpm) || undefined,
           req_capacity: r.req_capacity ?? undefined,
           req_capacity_unit: r.req_capacity_unit ?? "",
         });
@@ -285,7 +286,14 @@ const EditRequisitionPage = () => {
 
           <div className="field">
             <label htmlFor="motor_rpm">Motor RPM</label>
-            <input id="motor_rpm" type="number" step="any" {...register("motor_rpm")} />
+            <select id="motor_rpm" {...register("motor_rpm")}>
+              <option value="">Select</option>
+              {MOTOR_RPM_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="field">

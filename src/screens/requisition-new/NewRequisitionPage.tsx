@@ -13,6 +13,7 @@ import {
   CAPACITY_UNITS,
   ecQuotationLabel,
   HEAD_UNITS,
+  MOTOR_RPM_OPTIONS,
   REQUISITION_CATEGORIES,
   RESPONSIBLE_PERSONS,
   SOURCE_TEAMS,
@@ -269,7 +270,14 @@ const NewRequisitionPage = () => {
 
           <div className="field">
             <label htmlFor="motor_rpm">Motor RPM</label>
-            <input id="motor_rpm" type="number" step="any" {...register("motor_rpm")} />
+            <select id="motor_rpm" {...register("motor_rpm")}>
+              <option value="">Select</option>
+              {MOTOR_RPM_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="field">

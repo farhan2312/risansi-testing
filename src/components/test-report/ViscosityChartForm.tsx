@@ -5,7 +5,7 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import "./TestReportForm.css";
 import { getLatestObservationReport, getReport, getRequisition, submitReport, updateReport } from "@/services/testingService";
 import { computeViscosityChartPoint } from "@/lib/testReportCalc";
-import { normalizeModelOnChange } from "@/lib/formUtils";
+import { normalizeModelOnChange, normalizeMotorRpm } from "@/lib/formUtils";
 import {
   clearReportDraft,
   draftFromReport,
@@ -16,6 +16,7 @@ import {
 } from "@/lib/reportDraft";
 import { computeRequirementStatus } from "@/lib/requirementCheck";
 import {
+  MOTOR_RPM_OPTIONS,
   NPSHA_STATUSES,
   TEST_TYPES,
   VISCOSITY_CAPACITY_UNITS,
@@ -198,7 +199,7 @@ const ViscosityChartForm = ({
       gearbox_no: str(r?.gearbox_no) || draft.gearbox_no || "",
       gearbox_ratio: str(r?.gearbox_ratio) || draft.gearbox_ratio || "",
       motor: str(r?.motor) || draft.motor || "",
-      motor_rpm: str(r?.motor_rpm) || draft.motor_rpm || "",
+      motor_rpm: normalizeMotorRpm(r?.motor_rpm) || normalizeMotorRpm(draft.motor_rpm) || "",
       liquid: r?.liquid ?? draft.liquid ?? "WATER",
       test_type: (r?.test_type as TestType) ?? (draft.test_type as TestType) ?? "V-notch",
       npsha_status: r?.npsha_status ?? draft.npsha_status ?? "POSITIVE",
@@ -252,7 +253,7 @@ const ViscosityChartForm = ({
     setIfEmpty("gearbox_no", d.gearbox_no);
     setIfEmpty("gearbox_ratio", d.gearbox_ratio);
     setIfEmpty("motor", d.motor);
-    setIfEmpty("motor_rpm", d.motor_rpm);
+    setIfEmpty("motor_rpm", normalizeMotorRpm(d.motor_rpm));
     setIfEmpty("test_type", d.test_type);
     setIfEmpty("npsha_status", d.npsha_status);
     setIfEmpty("liquid", d.liquid);
@@ -633,7 +634,14 @@ const ViscosityChartForm = ({
           </div>
           <div className="field">
             <label>Motor RPM</label>
-            <input type="number" step="any" {...register("motor_rpm")} />
+            <select {...register("motor_rpm")}>
+              <option value="">Select</option>
+              {MOTOR_RPM_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="field">

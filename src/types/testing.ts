@@ -22,6 +22,10 @@ export const SOURCE_TEAMS = ["Research", "Proposal", "Testing"] as const;
 
 export const RESPONSIBLE_PERSONS = ["Sachin", "Vikas"] as const;
 
+// The two standard motor synchronous speeds used across every requisition
+// and report form -- Motor RPM is a fixed-choice field, not free text.
+export const MOTOR_RPM_OPTIONS = ["1440", "960"] as const;
+
 export const TEST_TYPES = ["V-notch", "Barrel", "Flow Meter"] as const;
 export type TestType = (typeof TEST_TYPES)[number];
 
