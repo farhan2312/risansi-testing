@@ -420,6 +420,16 @@ const ViscosityChartForm = ({
     }
   }, [testType, setValue, existingReport]);
 
+  // Each test point's own "Initial Reading" (the V-notch weir reading before
+  // the pump starts) is the value that actually drives this format's
+  // capacity formula -- lock it to 320 the same way, for every point
+  // (including ones added later via "+ Add Test Point").
+  useEffect(() => {
+    if (existingReport || testType !== "V-notch") return;
+    fields.forEach((_, i) => setValue(`points.${i}.initial_reading`, "320"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testType, existingReport, setValue, fields.length]);
+
   const qThVal = useWatch({ control, name: "q_theoretical_100rev" });
   const ratedRpmVal = useWatch({ control, name: "rated_rpm" });
   const kVal = useWatch({ control, name: "k_for_given_cps" });
@@ -761,7 +771,7 @@ const ViscosityChartForm = ({
                 {testType === "V-notch" && (
                   <>
                     <th>Height Over V-Notch (mm)</th>
-                    <th>Initial Reading (mm)</th>
+                    <th>Initial Reading (mm){!existingReport && " (fixed at 320)"}</th>
                   </>
                 )}
                 {testType === "Barrel" && <th>Time to Fill 5L (sec)</th>}
@@ -814,7 +824,14 @@ const ViscosityChartForm = ({
                     {testType === "V-notch" && (
                       <>
                         <td><input type="number" step="any" {...register(`points.${index}.height_over_vnotch`)} /></td>
-                        <td><input type="number" step="any" {...register(`points.${index}.initial_reading`)} /></td>
+                        <td>
+                          <input
+                            type="number"
+                            step="any"
+                            readOnly={!existingReport && testType === "V-notch"}
+                            {...register(`points.${index}.initial_reading`)}
+                          />
+                        </td>
                       </>
                     )}
                     {testType === "Barrel" && (

@@ -48,7 +48,7 @@ export const computeRequirementStatus = (
 };
 
 /** Rated power in kW from a requisition's Power (HP) / Power (KW) fields --
- * KW is used directly if present, otherwise HP is converted (1 HP = 0.7457 kW). */
+ * KW is used directly if present, otherwise HP is converted (1 HP = 0.746 kW). */
 export const ratedPowerKwFromRequisition = (requisition: {
   power_kw?: number | string | null;
   power_hp?: number | string | null;
@@ -57,7 +57,7 @@ export const ratedPowerKwFromRequisition = (requisition: {
     return Number(requisition.power_kw);
   }
   if (requisition.power_hp !== null && requisition.power_hp !== undefined && requisition.power_hp !== "") {
-    return Math.round(Number(requisition.power_hp) * 0.7457 * 10000) / 10000;
+    return Math.round(Number(requisition.power_hp) * 0.746 * 10000) / 10000;
   }
   return undefined;
 };
