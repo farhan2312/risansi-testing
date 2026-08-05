@@ -408,6 +408,17 @@ const ViscosityChartForm = ({
   }, [sharedFieldsWatch]);
 
   const testType = useWatch({ control, name: "test_type" });
+
+  // V-Notch Baseline (Hin) is a fixed physical constant of the test rig's
+  // V-notch weir, not a per-test reading -- lock it to 320 whenever the
+  // Capacity Measurement Method is V-notch. Skip on existing reports so
+  // legacy-imported values (which may differ) aren't silently overwritten.
+  useEffect(() => {
+    if (!existingReport && testType === "V-notch") {
+      setValue("vnotch_baseline", "320");
+    }
+  }, [testType, setValue, existingReport]);
+
   const qThVal = useWatch({ control, name: "q_theoretical_100rev" });
   const ratedRpmVal = useWatch({ control, name: "rated_rpm" });
   const kVal = useWatch({ control, name: "k_for_given_cps" });
@@ -707,8 +718,10 @@ const ViscosityChartForm = ({
             <input type="number" step="any" {...register("reference_current")} />
           </div>
           <div className="field">
-            <label>V-Notch Baseline (Hin)</label>
-            <input type="number" step="any" {...register("vnotch_baseline")} />
+            <label>
+              V-Notch Baseline (Hin) {!existingReport && testType === "V-notch" && <span className="required-hint">fixed at 320</span>}
+            </label>
+            <input type="number" step="any" readOnly={!existingReport && testType === "V-notch"} {...register("vnotch_baseline")} />
           </div>
 
           <div className="field">
