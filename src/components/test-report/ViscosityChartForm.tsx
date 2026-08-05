@@ -6,6 +6,7 @@ import "./TestReportForm.css";
 import { getLatestObservationReport, getReport, getRequisition, submitReport, updateReport } from "@/services/testingService";
 import { computeViscosityChartPoint } from "@/lib/testReportCalc";
 import { normalizeModelOnChange, normalizeMotorRpm } from "@/lib/formUtils";
+import { normalizeHeadForSubmit } from "@/lib/unitConversion";
 import {
   clearReportDraft,
   draftFromReport,
@@ -521,6 +522,15 @@ const ViscosityChartForm = ({
         };
       });
 
+      // Rated Head always means KG/CM2 -- it's compared directly against
+      // test points' measured head_kgcm2 for the requirement-met check, so
+      // whatever unit it was entered/prefilled in gets normalized here.
+      const normalizedHead = normalizeHeadForSubmit(
+        numOrUndef(values.rated_head) ?? null,
+        values.head_unit || null,
+        numOrUndef(values.specific_gravity) ?? null
+      );
+
       const payload = {
         model,
         report_format: "viscosity-chart" as const,
@@ -534,10 +544,10 @@ const ViscosityChartForm = ({
         test_type: values.test_type,
         npsha_status: values.npsha_status,
         capacity_unit: values.capacity_unit,
-        head_unit: values.head_unit,
+        head_unit: normalizedHead.unit ?? undefined,
         liquid: values.liquid || undefined,
         rated_capacity: numOrUndef(values.rated_capacity),
-        rated_head: numOrUndef(values.rated_head),
+        rated_head: normalizedHead.head ?? undefined,
         specific_gravity: numOrUndef(values.specific_gravity),
         viscosity_cps: numOrUndef(values.viscosity_cps),
         k_for_given_cps: numOrUndef(values.k_for_given_cps),

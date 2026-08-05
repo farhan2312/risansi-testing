@@ -66,3 +66,35 @@ export const headToMwc = (
   const factor = headFactor(unit, sg);
   return factor === undefined ? null : round(value * factor);
 };
+
+/**
+ * Head converted to KG/CM2 — the unit every stored "head" value is
+ * normalized to on submit (test_requisitions.head_kgcm2 is literally named
+ * for it, and pump_test_reports.rated_head is compared directly against
+ * test points' head_kgcm2 for the requirement-met check, so both need to be
+ * true KG/CM2, not whatever unit was picked at entry). 1 kgf/cm2 = 10 MWC.
+ */
+export const headToKgcm2 = (
+  value: number | undefined | null,
+  unit: string | undefined | null,
+  specificGravity?: number | undefined | null
+): number | null => {
+  const mwc = headToMwc(value, unit, specificGravity);
+  return mwc === null ? null : round(mwc / 10);
+};
+
+/**
+ * Normalizes a form's Head value + unit for submission: converts to KG/CM2
+ * and resets the unit label to match, so the stored pair always agrees.
+ * Falls back to the raw entry (unit label as originally picked) when there's
+ * no value or no unit to convert from -- e.g. Head Unit left on "Select".
+ */
+export const normalizeHeadForSubmit = (
+  value: number | undefined | null,
+  unit: string | undefined | null,
+  specificGravity?: number | undefined | null
+): { head: number | undefined | null; unit: string | undefined | null } => {
+  const converted = headToKgcm2(value, unit, specificGravity);
+  if (converted === null) return { head: value, unit };
+  return { head: converted, unit: "KG/CM2" };
+};

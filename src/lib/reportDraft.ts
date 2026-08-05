@@ -9,6 +9,7 @@
  * don't bleed into each other.
  */
 import { ratedPowerKwFromRequisition } from "./requirementCheck";
+import { normalizeHeadForSubmit } from "./unitConversion";
 
 export interface SharedReportDraft {
   model?: string;
@@ -183,11 +184,23 @@ export function draftFromRequisition(requisition: {
   power_kw?: number | string | null;
 }): SharedReportDraft {
   const s = (v: unknown): string | undefined => (v === null || v === undefined ? undefined : String(v));
+  const n = (v: unknown): number | null => (v === null || v === undefined || v === "" ? null : Number(v));
+
+  // The requisition's Head is stored as whatever unit was picked at intake
+  // (see head_unit) -- a report's Rated Head always means KG/CM2 (it's
+  // compared directly against test points' measured head_kgcm2 for the
+  // requirement-met check), so convert here rather than passing it through.
+  const normalizedHead = normalizeHeadForSubmit(
+    n(requisition.head_kgcm2),
+    requisition.head_unit ?? null,
+    n(requisition.specific_gravity)
+  );
+
   return {
     ec_no: s(requisition.ec_quotation_no),
     motor_rpm: s(requisition.motor_rpm),
-    rated_head: s(requisition.head_kgcm2),
-    head_unit: s(requisition.head_unit),
+    rated_head: s(normalizedHead.head),
+    head_unit: s(normalizedHead.unit),
     rated_capacity: s(requisition.req_capacity),
     capacity_unit: s(requisition.req_capacity_unit),
     rated_rpm: s(requisition.rpm),

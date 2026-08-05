@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import "./RequisitionDetailPage.css";
-import { headToMwc } from "@/lib/unitConversion";
+import { headToKgcm2 } from "@/lib/unitConversion";
 import { dedupCheck, getRequisition, updateRequisition } from "@/services/testingService";
 import { getCurrentUser } from "@/services/session";
 import { ecQuotationLabel } from "@/types/testing";
@@ -83,7 +83,7 @@ const RequisitionDetailPage = () => {
     requisition.reports?.some((r) => (r.report_format ?? "observation") === "observation") ?? false;
   const hasViscosityChart = requisition.reports?.some((r) => r.report_format === "viscosity-chart") ?? false;
   const canEditRequisition = currentUser?.role === "source" && requisition.created_by === currentUser.id;
-  const headConvertedMwc = headToMwc(requisition.head_kgcm2, requisition.head_unit, requisition.specific_gravity);
+  const headConvertedKgcm2 = headToKgcm2(requisition.head_kgcm2, requisition.head_unit, requisition.specific_gravity);
 
   return (
     <div className="requisition-detail-page">
@@ -157,7 +157,7 @@ const RequisitionDetailPage = () => {
             <span className="label">Head</span>
             <span>
               {requisition.head_kgcm2 ?? "-"} {requisition.head_unit ?? ""}
-              {headConvertedMwc !== null && ` (= ${headConvertedMwc} MWC)`}
+              {headConvertedKgcm2 !== null && ` (= ${headConvertedKgcm2} KG/CM2)`}
             </span>
           </div>
           <div>

@@ -7,7 +7,7 @@ import { z } from "zod";
 import { useRouter } from "next/navigation";
 import "./NewRequisitionPage.css";
 import { normalizeModelOnChange } from "@/lib/formUtils";
-import { capacityToM3hr, headToMwc } from "@/lib/unitConversion";
+import { capacityToM3hr, headToKgcm2 } from "@/lib/unitConversion";
 import { createRequisition, listPumpModels } from "@/services/testingService";
 import {
   CAPACITY_UNITS,
@@ -76,7 +76,7 @@ const NewRequisitionPage = () => {
   const specificGravity = watch("specific_gravity");
   const sg = specificGravity !== undefined && specificGravity !== "" ? Number(specificGravity) : undefined;
   const headConverted =
-    headValue !== undefined && headValue !== "" ? headToMwc(Number(headValue), headUnit, sg) : null;
+    headValue !== undefined && headValue !== "" ? headToKgcm2(Number(headValue), headUnit, sg) : null;
   const capacityConverted =
     capacityValue !== undefined && capacityValue !== ""
       ? capacityToM3hr(Number(capacityValue), capacityUnit, sg)
@@ -248,7 +248,7 @@ const NewRequisitionPage = () => {
           <div className="field">
             <label htmlFor="head_kgcm2">Head</label>
             <input id="head_kgcm2" type="number" step="any" {...register("head_kgcm2")} />
-            {headConverted !== null && <span className="unit-hint">= {headConverted} MWC</span>}
+            {headConverted !== null && <span className="unit-hint">= {headConverted} KG/CM2</span>}
           </div>
 
           <div className="field">
