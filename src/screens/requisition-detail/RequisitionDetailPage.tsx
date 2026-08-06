@@ -181,6 +181,22 @@ const RequisitionDetailPage = () => {
             <span className="label">Submitted By</span>
             <span>{requisition.submitted_by ?? "-"}</span>
           </div>
+          {requisition.category === "Against R&D Trials" && (
+            <>
+              <div>
+                <span className="label">Media Type</span>
+                <span>{requisition.media_type ?? "-"}</span>
+              </div>
+              <div>
+                <span className="label">Target Date</span>
+                <span>{requisition.target_date ?? "-"}</span>
+              </div>
+              <div>
+                <span className="label">Open Remarks</span>
+                <span>{requisition.general_remarks ?? "-"}</span>
+              </div>
+            </>
+          )}
         </div>
       </section>
 

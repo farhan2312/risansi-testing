@@ -26,6 +26,8 @@ const PATCH_FIELD_MAP: Record<string, string> = {
   motor_rpm: "motorRpm",
   req_capacity: "reqCapacity",
   req_capacity_unit: "reqCapacityUnit",
+  media_type: "mediaType",
+  target_date: "targetDate",
   observation: "observation",
   ra_value: "raValue",
   ve_rated_head: "veRatedHead",
@@ -69,6 +71,9 @@ const SOURCE_EDITABLE_FIELDS = new Set([
   "motor_rpm",
   "req_capacity",
   "req_capacity_unit",
+  "media_type",
+  "target_date",
+  "general_remarks",
 ]);
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {

@@ -64,6 +64,11 @@ export interface TestRequisition {
   req_capacity: number | null;
   req_capacity_unit: string | null;
 
+  // Only shown/filled on the requisition form when Category is "Against
+  // R&D Trials" -- general_remarks (below) doubles as "Open Remarks" there.
+  media_type: string | null;
+  target_date: string | null;
+
   observation: string | null;
   ra_value: number | null;
   ve_rated_head: number | null;
@@ -117,6 +122,9 @@ export interface NewRequisitionInput {
   motor_rpm?: number;
   req_capacity?: number;
   req_capacity_unit?: string;
+  media_type?: string;
+  target_date?: string;
+  general_remarks?: string;
 }
 
 export interface PumpTestReportPoint {

@@ -27,6 +27,9 @@ const CAMEL_BY_SNAKE = {
   motor_rpm: "motorRpm",
   req_capacity: "reqCapacity",
   req_capacity_unit: "reqCapacityUnit",
+  media_type: "mediaType",
+  target_date: "targetDate",
+  general_remarks: "generalRemarks",
 };
 
 export async function GET(req: Request) {

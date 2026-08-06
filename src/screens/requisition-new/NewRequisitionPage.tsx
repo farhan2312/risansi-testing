@@ -43,6 +43,10 @@ const schema = z.object({
   motor_rpm: optionalNumber(z.coerce.number()),
   req_capacity: optionalNumber(z.coerce.number()),
   req_capacity_unit: z.string().optional(),
+  // Only shown/filled when category is "Against R&D Trials".
+  media_type: z.string().optional(),
+  target_date: z.string().optional(),
+  general_remarks: z.string().optional(),
 });
 
 type FormValues = z.input<typeof schema>;
@@ -298,6 +302,24 @@ const NewRequisitionPage = () => {
             </select>
           </div>
         </div>
+
+        {category === "Against R&D Trials" && (
+          <div className="rd-trial-section form-grid">
+            <h2 className="field-full">R&amp;D Trial Details</h2>
+            <div className="field">
+              <label htmlFor="media_type">Media Type</label>
+              <input id="media_type" {...register("media_type")} placeholder="e.g. Water, Oil, Slurry..." />
+            </div>
+            <div className="field">
+              <label htmlFor="target_date">Target Date</label>
+              <input id="target_date" type="date" {...register("target_date")} />
+            </div>
+            <div className="field field-full">
+              <label htmlFor="general_remarks">Open Remarks</label>
+              <textarea id="general_remarks" rows={3} {...register("general_remarks")} />
+            </div>
+          </div>
+        )}
 
         <div className="form-actions">
           <button type="button" className="secondary" onClick={() => router.push("/dashboard")}>

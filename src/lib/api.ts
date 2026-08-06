@@ -56,6 +56,8 @@ export function requisitionToDict(r: RequisitionRow) {
     motor_rpm: r.motorRpm,
     req_capacity: r.reqCapacity,
     req_capacity_unit: r.reqCapacityUnit,
+    media_type: r.mediaType,
+    target_date: r.targetDate,
     observation: r.observation,
     ra_value: r.raValue,
     ve_rated_head: r.veRatedHead,

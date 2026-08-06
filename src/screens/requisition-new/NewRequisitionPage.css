@@ -66,6 +66,21 @@
   font-size: 12px;
 }
 
+.field-full {
+  grid-column: 1 / -1;
+}
+
+/* Only shown once Category is "Against R&D Trials". */
+.rd-trial-section {
+  margin-top: 16px;
+}
+
+.rd-trial-section h2 {
+  font-size: 14px;
+  color: var(--text-h);
+  margin: 0 0 10px;
+}
+
 .unit-hint {
   color: var(--text-muted);
   font-size: 12px;

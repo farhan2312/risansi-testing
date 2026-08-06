@@ -59,6 +59,11 @@ export const testRequisitions = pgTable("test_requisitions", {
   reqCapacity: numeric("req_capacity", { precision: 10, scale: 4 }),
   reqCapacityUnit: varchar("req_capacity_unit", { length: 20 }),
 
+  // Only shown/filled on the requisition form when Category is "Against
+  // R&D Trials" -- general_remarks (below) doubles as "Open Remarks" there.
+  mediaType: varchar("media_type", { length: 100 }),
+  targetDate: date("target_date"),
+
   observation: text("observation"),
   raValue: numeric("ra_value", { precision: 10, scale: 4 }),
   veRatedHead: numeric("ve_rated_head", { precision: 6, scale: 2 }),
