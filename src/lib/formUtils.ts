@@ -21,3 +21,25 @@ export const normalizeMotorRpm = (v: string | number | null | undefined): string
   const s = String(n);
   return (MOTOR_RPM_OPTIONS as readonly string[]).includes(s) ? s : "";
 };
+
+const addDays = (dateStr: string, days: number): string => {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
+/** A requisition's Target Date: the source team's explicit value if they set
+ * one (only shown/filled for "Against R&D Trials" on the requisition form),
+ * otherwise 7 days after Date of Receipt (falling back to the submission
+ * date if that's also blank) -- computed live rather than stored so it
+ * stays in sync if Date of Receipt gets edited later. */
+export const targetDateFor = (r: {
+  target_date?: string | null;
+  date_of_receipt?: string | null;
+  created_at?: string | null;
+}): { date: string; isAuto: boolean } | null => {
+  if (r.target_date) return { date: r.target_date, isAuto: false };
+  const base = r.date_of_receipt ?? r.created_at?.slice(0, 10);
+  if (!base) return null;
+  return { date: addDays(base, 7), isAuto: true };
+};

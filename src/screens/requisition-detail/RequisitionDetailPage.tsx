@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import "./RequisitionDetailPage.css";
 import { headToKgcm2 } from "@/lib/unitConversion";
+import { targetDateFor } from "@/lib/formUtils";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 import { dedupCheck, getRequisition, updateRequisition } from "@/services/testingService";
 import { getCurrentUser } from "@/services/session";
@@ -149,6 +150,21 @@ const RequisitionDetailPage = () => {
             <span>{requisition.date_of_receipt ?? "-"}</span>
           </div>
           <div>
+            <span className="label">Target Date</span>
+            <span>
+              {(() => {
+                const target = targetDateFor(requisition);
+                if (!target) return "-";
+                return (
+                  <>
+                    {target.date}
+                    {target.isAuto && <span className="target-date-auto-hint"> (auto)</span>}
+                  </>
+                );
+              })()}
+            </span>
+          </div>
+          <div>
             <span className="label">Test Qty</span>
             <span>{requisition.test_qty ?? "-"}</span>
           </div>
@@ -186,10 +202,6 @@ const RequisitionDetailPage = () => {
               <div>
                 <span className="label">Media Type</span>
                 <span>{requisition.media_type ?? "-"}</span>
-              </div>
-              <div>
-                <span className="label">Target Date</span>
-                <span>{requisition.target_date ?? "-"}</span>
               </div>
               <div>
                 <span className="label">Open Remarks</span>

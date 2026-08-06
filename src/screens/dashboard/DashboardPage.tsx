@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import "./DashboardPage.css";
+import { targetDateFor } from "@/lib/formUtils";
 import { listRequisitions, updateRequisition } from "@/services/testingService";
 import { getCurrentUser } from "@/services/session";
 import {
@@ -22,24 +23,6 @@ const STATUS_TABS: { label: string; value: RequisitionStatus | "All" }[] = [
   { label: "Retest Needed", value: "Retest Needed" },
   { label: "Closed", value: "Closed" },
 ];
-
-const addDays = (dateStr: string, days: number): string => {
-  const d = new Date(`${dateStr}T00:00:00`);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-};
-
-/** The source team's explicit Target Date if they set one (only shown/filled
- * for "Against R&D Trials" on the requisition form) -- otherwise 7 days
- * after Date of Receipt (falling back to the submission date if that's also
- * blank), computed live rather than stored so it stays in sync if Date of
- * Receipt gets edited later. */
-const targetDateFor = (r: TestRequisition): { date: string; isAuto: boolean } | null => {
-  if (r.target_date) return { date: r.target_date, isAuto: false };
-  const base = r.date_of_receipt ?? r.created_at?.slice(0, 10);
-  if (!base) return null;
-  return { date: addDays(base, 7), isAuto: true };
-};
 
 const DashboardPage = () => {
   const [requisitions, setRequisitions] = useState<TestRequisition[]>([]);
