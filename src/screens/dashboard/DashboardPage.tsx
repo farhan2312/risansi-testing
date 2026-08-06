@@ -23,6 +23,24 @@ const STATUS_TABS: { label: string; value: RequisitionStatus | "All" }[] = [
   { label: "Closed", value: "Closed" },
 ];
 
+const addDays = (dateStr: string, days: number): string => {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
+/** The source team's explicit Target Date if they set one (only shown/filled
+ * for "Against R&D Trials" on the requisition form) -- otherwise 7 days
+ * after Date of Receipt (falling back to the submission date if that's also
+ * blank), computed live rather than stored so it stays in sync if Date of
+ * Receipt gets edited later. */
+const targetDateFor = (r: TestRequisition): { date: string; isAuto: boolean } | null => {
+  if (r.target_date) return { date: r.target_date, isAuto: false };
+  const base = r.date_of_receipt ?? r.created_at?.slice(0, 10);
+  if (!base) return null;
+  return { date: addDays(base, 7), isAuto: true };
+};
+
 const DashboardPage = () => {
   const [requisitions, setRequisitions] = useState<TestRequisition[]>([]);
   const [activeStatus, setActiveStatus] = useState<RequisitionStatus | "All">("All");
@@ -250,6 +268,7 @@ const DashboardPage = () => {
               <th>RES.</th>
               <th>Source Team</th>
               <th>Date of Receipt</th>
+              <th>Target Date</th>
               <th>Retest Needed</th>
               <th>Submitted By</th>
               <th>Status</th>
@@ -285,6 +304,18 @@ const DashboardPage = () => {
                 </td>
                 <td>{r.source_team ?? "-"}</td>
                 <td>{r.date_of_receipt ?? "-"}</td>
+                <td>
+                  {(() => {
+                    const target = targetDateFor(r);
+                    if (!target) return "-";
+                    return (
+                      <>
+                        {target.date}
+                        {target.isAuto && <span className="target-date-auto-hint"> (auto)</span>}
+                      </>
+                    );
+                  })()}
+                </td>
                 <td>{r.retest_needed === null ? "-" : r.retest_needed ? "Yes" : "No"}</td>
                 <td>{r.submitted_by ?? "-"}</td>
                 <td>
