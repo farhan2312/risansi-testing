@@ -31,7 +31,7 @@ const schema = z.object({
   offer_date: z.string().optional(),
   responsible_person: z.string().min(1, "Responsible person (RES.) is required"),
   source_team: z.string().min(1, "Source team is required"),
-  date_of_receipt: z.string().optional(),
+  date_of_requisition: z.string().optional(),
   test_qty: optionalNumber(z.coerce.number().int().positive()),
   qth: optionalNumber(z.coerce.number()),
   specific_gravity: optionalNumber(z.coerce.number()),
@@ -214,8 +214,8 @@ const NewRequisitionPage = () => {
           </div>
 
           <div className="field">
-            <label htmlFor="date_of_receipt">Date of Requisition</label>
-            <input id="date_of_receipt" type="date" {...register("date_of_receipt")} />
+            <label htmlFor="date_of_requisition">Date of Requisition</label>
+            <input id="date_of_requisition" type="date" {...register("date_of_requisition")} />
           </div>
 
           <div className="field">

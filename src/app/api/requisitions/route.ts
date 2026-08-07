@@ -15,7 +15,7 @@ const CAMEL_BY_SNAKE = {
   offer_date: "offerDate",
   responsible_person: "responsiblePerson",
   source_team: "sourceTeam",
-  date_of_receipt: "dateOfReceipt",
+  date_of_requisition: "dateOfRequisition",
   test_qty: "testQty",
   qth: "qth",
   specific_gravity: "specificGravity",

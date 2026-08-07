@@ -45,7 +45,7 @@ export const testRequisitions = pgTable("test_requisitions", {
   offerDate: date("offer_date"),
   responsiblePerson: varchar("responsible_person", { length: 100 }),
   sourceTeam: varchar("source_team", { length: 50 }),
-  dateOfReceipt: date("date_of_receipt"),
+  dateOfRequisition: date("date_of_requisition"),
   testQty: integer("test_qty"),
 
   qth: numeric("qth", { precision: 10, scale: 4 }),

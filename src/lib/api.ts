@@ -44,7 +44,7 @@ export function requisitionToDict(r: RequisitionRow) {
     offer_date: r.offerDate,
     responsible_person: r.responsiblePerson,
     source_team: r.sourceTeam,
-    date_of_receipt: r.dateOfReceipt,
+    date_of_requisition: r.dateOfRequisition,
     test_qty: r.testQty,
     qth: r.qth,
     specific_gravity: r.specificGravity,

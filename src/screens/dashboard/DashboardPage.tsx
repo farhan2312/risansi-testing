@@ -286,7 +286,7 @@ const DashboardPage = () => {
                   )}
                 </td>
                 <td>{r.source_team ?? "-"}</td>
-                <td>{r.date_of_receipt ?? "-"}</td>
+                <td>{r.date_of_requisition ?? "-"}</td>
                 <td>
                   {(() => {
                     const target = targetDateFor(r);

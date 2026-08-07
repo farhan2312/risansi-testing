@@ -50,7 +50,7 @@ export interface TestRequisition {
   offer_date: string | null;
   responsible_person: string | null;
   source_team: string | null;
-  date_of_receipt: string | null;
+  date_of_requisition: string | null;
   test_qty: number | null;
 
   qth: number | null;
@@ -110,7 +110,7 @@ export interface NewRequisitionInput {
   offer_date?: string;
   responsible_person: string;
   source_team: string;
-  date_of_receipt?: string;
+  date_of_requisition?: string;
   test_qty?: number;
   qth?: number;
   specific_gravity?: number;

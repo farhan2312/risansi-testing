@@ -184,7 +184,7 @@ const PumpDashboardPage = () => {
                   <td>{r.ec_quotation_no ?? "-"}</td>
                   <td>{r.responsible_person ?? "-"}</td>
                   <td>{r.source_team ?? "-"}</td>
-                  <td>{r.date_of_receipt ?? "-"}</td>
+                  <td>{r.date_of_requisition ?? "-"}</td>
                   <td>{r.submitted_by ?? "-"}</td>
                   <td>
                     <span className={`status-pill status-${r.status.replace(/\s+/g, "-").toLowerCase()}`}>

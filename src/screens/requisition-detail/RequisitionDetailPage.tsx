@@ -147,7 +147,7 @@ const RequisitionDetailPage = () => {
           </div>
           <div>
             <span className="label">Date of Requisition</span>
-            <span>{requisition.date_of_receipt ?? "-"}</span>
+            <span>{requisition.date_of_requisition ?? "-"}</span>
           </div>
           <div>
             <span className="label">Target Date</span>
