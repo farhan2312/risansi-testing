@@ -146,7 +146,7 @@ const RequisitionDetailPage = () => {
             <span>{requisition.source_team ?? "-"}</span>
           </div>
           <div>
-            <span className="label">Date of Receipt</span>
+            <span className="label">Date of Requisition</span>
             <span>{requisition.date_of_receipt ?? "-"}</span>
           </div>
           <div>

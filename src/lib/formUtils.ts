@@ -30,9 +30,10 @@ const addDays = (dateStr: string, days: number): string => {
 
 /** A requisition's Target Date: the source team's explicit value if they set
  * one (only shown/filled for "Against R&D Trials" on the requisition form),
- * otherwise 7 days after Date of Receipt (falling back to the submission
- * date if that's also blank) -- computed live rather than stored so it
- * stays in sync if Date of Receipt gets edited later. */
+ * otherwise 7 days after Date of Requisition (the date_of_receipt column --
+ * label was renamed, column name kept), falling back to the submission date
+ * if that's also blank. Computed live rather than stored so it stays in
+ * sync if Date of Requisition gets edited later. */
 export const targetDateFor = (r: {
   target_date?: string | null;
   date_of_receipt?: string | null;

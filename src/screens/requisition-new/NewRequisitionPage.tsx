@@ -214,7 +214,7 @@ const NewRequisitionPage = () => {
           </div>
 
           <div className="field">
-            <label htmlFor="date_of_receipt">Date of Receipt</label>
+            <label htmlFor="date_of_receipt">Date of Requisition</label>
             <input id="date_of_receipt" type="date" {...register("date_of_receipt")} />
           </div>
 

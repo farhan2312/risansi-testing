@@ -134,7 +134,7 @@
 }
 
 /* Marks a Target Date that wasn't set by the source team -- auto-computed
- * as Date of Receipt + 7 days instead. */
+ * as Date of Requisition + 7 days instead. */
 .target-date-auto-hint {
   color: var(--text-muted);
   font-size: 12px;

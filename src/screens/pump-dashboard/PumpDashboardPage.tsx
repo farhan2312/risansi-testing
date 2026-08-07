@@ -170,7 +170,7 @@ const PumpDashboardPage = () => {
                 <th>EC/Quotation No.</th>
                 <th>RES.</th>
                 <th>Source Team</th>
-                <th>Date of Receipt</th>
+                <th>Date of Requisition</th>
                 <th>Submitted By</th>
                 <th>Status</th>
               </tr>
