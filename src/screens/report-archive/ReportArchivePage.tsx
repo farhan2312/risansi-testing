@@ -6,6 +6,7 @@ import "./ReportArchivePage.css";
 import { normalizeModelKey, modelDisplayLabel } from "@/lib/modelKey";
 import { listReports } from "@/services/testingService";
 import type { ArchiveReportSummary } from "@/types/testing";
+import { formatDate } from "@/lib/formUtils";
 
 const PAGE_SIZE = 20;
 
@@ -165,7 +166,7 @@ const ReportArchivePage = () => {
                       <span className={`format-badge ${g.hasViscosityChart ? "present" : "missing"}`}>VC</span>
                     </td>
                     <td>{g.totalPoints}</td>
-                    <td>{g.latestTestDate}</td>
+                    <td>{formatDate(g.latestTestDate)}</td>
                   </tr>
                   {isOpen && (
                     <tr className="pump-detail-row">
@@ -200,7 +201,7 @@ const ReportArchivePage = () => {
                                   <td>{r.rated_rpm ?? "-"}</td>
                                   <td>{r.rated_head ?? "-"}</td>
                                   <td>{r.suction_type ?? "-"}</td>
-                                  <td>{r.test_date ?? r.created_at.slice(0, 10)}</td>
+                                  <td>{formatDate(r.test_date ?? r.created_at)}</td>
                                   <td>{r.pointCount}</td>
                                   <td>{r.requisition_id ? "Yes" : "Historical"}</td>
                                 </tr>

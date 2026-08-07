@@ -22,6 +22,23 @@ export const normalizeMotorRpm = (v: string | number | null | undefined): string
   return (MOTOR_RPM_OPTIONS as readonly string[]).includes(s) ? s : "";
 };
 
+/**
+ * Renders a stored date as dd/mm/yy for display. Accepts a plain date
+ * ("2026-08-10") or a timestamp ("2026-08-10T07:16:04.694Z") and returns "-"
+ * for a missing one.
+ *
+ * Deliberately string-slicing rather than going through `new Date()`: the DB
+ * hands back a plain calendar date, and parsing it into a Date would drag the
+ * viewer's timezone in and can shift the day by one. Everything stored,
+ * sorted and computed with stays ISO -- this is display only.
+ */
+export const formatDate = (value: string | null | undefined): string => {
+  if (!value) return "-";
+  const [y, m, d] = value.slice(0, 10).split("-");
+  if (!y || !m || !d) return value;
+  return `${d}/${m}/${y.slice(2)}`;
+};
+
 const addDays = (dateStr: string, days: number): string => {
   const d = new Date(`${dateStr}T00:00:00`);
   d.setDate(d.getDate() + days);

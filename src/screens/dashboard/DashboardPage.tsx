@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import "./DashboardPage.css";
-import { targetDateFor } from "@/lib/formUtils";
+import { formatDate, targetDateFor } from "@/lib/formUtils";
 import { listRequisitions, updateRequisition } from "@/services/testingService";
 import { getCurrentUser } from "@/services/session";
 import {
@@ -286,14 +286,14 @@ const DashboardPage = () => {
                   )}
                 </td>
                 <td>{r.source_team ?? "-"}</td>
-                <td>{r.date_of_requisition ?? "-"}</td>
+                <td>{formatDate(r.date_of_requisition)}</td>
                 <td>
                   {(() => {
                     const target = targetDateFor(r);
                     if (!target) return "-";
                     return (
                       <>
-                        {target.date}
+                        {formatDate(target.date)}
                         {target.isAuto && <span className="target-date-auto-hint"> (auto)</span>}
                       </>
                     );

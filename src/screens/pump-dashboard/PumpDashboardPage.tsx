@@ -10,6 +10,7 @@ import { POINT_ROWS } from "@/components/report-detail/ReportDetailSections";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 import { getPumpDashboard } from "@/services/testingService";
 import type { PumpDashboardData, PumpTestReport } from "@/types/testing";
+import { formatDate } from "@/lib/formUtils";
 
 const fmt = (v: number | string | null | undefined) => (v === null || v === undefined || v === "" ? "-" : v);
 
@@ -153,7 +154,7 @@ const PumpDashboardPage = () => {
           <span className="stat-label">Viscosity Chart</span>
         </div>
         <div className="pump-summary-stat">
-          <span className="stat-value">{latestTestDate}</span>
+          <span className="stat-value">{formatDate(latestTestDate)}</span>
           <span className="stat-label">Latest Test Date</span>
         </div>
       </div>
@@ -184,7 +185,7 @@ const PumpDashboardPage = () => {
                   <td>{r.ec_quotation_no ?? "-"}</td>
                   <td>{r.responsible_person ?? "-"}</td>
                   <td>{r.source_team ?? "-"}</td>
-                  <td>{r.date_of_requisition ?? "-"}</td>
+                  <td>{formatDate(r.date_of_requisition)}</td>
                   <td>{r.submitted_by ?? "-"}</td>
                   <td>
                     <span className={`status-pill status-${r.status.replace(/\s+/g, "-").toLowerCase()}`}>
@@ -212,7 +213,7 @@ const PumpDashboardPage = () => {
                     const unmetTitle = unmetTitleByReportId.get(r.id);
                     return (
                       <th key={r.id} className={unmetTitle ? "requirement-col-not-met" : ""} title={unmetTitle || undefined}>
-                        {reportDate(r)}
+                        {formatDate(reportDate(r))}
                         {unmetTitle && <span className="requirement-flag">⚠</span>}
                       </th>
                     );
@@ -250,7 +251,7 @@ const PumpDashboardPage = () => {
                     <th className="row-label-col">Parameter</th>
                     <th className="row-unit-col">Unit</th>
                     {sortedPoints.map(({ report, point }, i) => (
-                      <th key={point.id ?? i}>{reportDate(report)}</th>
+                      <th key={point.id ?? i}>{formatDate(reportDate(report))}</th>
                     ))}
                   </tr>
                 </thead>

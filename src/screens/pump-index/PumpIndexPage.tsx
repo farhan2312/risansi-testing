@@ -7,6 +7,7 @@ import "./PumpIndexPage.css";
 import { modelDisplayLabel, normalizeModelKey } from "@/lib/modelKey";
 import { listReports, listRequisitions } from "@/services/testingService";
 import type { ArchiveReportSummary, TestRequisition } from "@/types/testing";
+import { formatDate } from "@/lib/formUtils";
 
 interface PumpIndexRow {
   model: string;
@@ -119,7 +120,7 @@ const PumpIndexPage = () => {
                 </td>
                 <td>{p.requisitionCount}</td>
                 <td>{p.reportCount}</td>
-                <td>{p.latestDate}</td>
+                <td>{formatDate(p.latestDate)}</td>
               </tr>
             ))}
           </tbody>

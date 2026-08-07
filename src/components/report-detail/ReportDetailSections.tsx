@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 import type { PumpTestReport, PumpTestReportPoint } from "@/types/testing";
+import { formatDate } from "@/lib/formUtils";
 
 const fmt = (v: number | string | null | undefined) => (v === null || v === undefined || v === "" ? "-" : v);
 
@@ -100,7 +101,7 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
               <th>Motor RPM</th>
               <td>{fmt(report.motor_rpm)}</td>
               <th>Test Date</th>
-              <td>{report.test_date ?? report.created_at.slice(0, 10)}</td>
+              <td>{formatDate(report.test_date ?? report.created_at)}</td>
             </tr>
             <tr>
               <th>Capacity Method</th>

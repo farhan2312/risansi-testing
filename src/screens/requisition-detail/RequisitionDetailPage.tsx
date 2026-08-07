@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import "./RequisitionDetailPage.css";
 import { headToKgcm2 } from "@/lib/unitConversion";
-import { targetDateFor } from "@/lib/formUtils";
+import { formatDate, targetDateFor } from "@/lib/formUtils";
 import {
   computeRequirementStatus,
   ratedPowerKwFromRequisition,
@@ -144,7 +144,7 @@ const RequisitionDetailPage = () => {
           </div>
           <div>
             <span className="label">Offer Date</span>
-            <span>{requisition.offer_date ?? "-"}</span>
+            <span>{formatDate(requisition.offer_date)}</span>
           </div>
           <div>
             <span className="label">Responsible Person</span>
@@ -156,7 +156,7 @@ const RequisitionDetailPage = () => {
           </div>
           <div>
             <span className="label">Date of Requisition</span>
-            <span>{requisition.date_of_requisition ?? "-"}</span>
+            <span>{formatDate(requisition.date_of_requisition)}</span>
           </div>
           <div>
             <span className="label">Target Date</span>
@@ -166,7 +166,7 @@ const RequisitionDetailPage = () => {
                 if (!target) return "-";
                 return (
                   <>
-                    {target.date}
+                    {formatDate(target.date)}
                     {target.isAuto && <span className="target-date-auto-hint"> (auto)</span>}
                   </>
                 );
@@ -247,7 +247,7 @@ const RequisitionDetailPage = () => {
                   return (
                     <tr key={r.id} className={unmetTitle ? "requirement-row-not-met" : ""} title={unmetTitle || undefined}>
                       <td>
-                        {r.test_date ?? r.created_at.slice(0, 10)}
+                        {formatDate(r.test_date ?? r.created_at)}
                         {unmetTitle && <span className="requirement-flag">⚠</span>}
                       </td>
                       <td>{r.gearbox_no ?? "-"}</td>
