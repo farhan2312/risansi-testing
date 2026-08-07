@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import "./NewRequisitionPage.css";
 import { normalizeModelOnChange } from "@/lib/formUtils";
 import { capacityToM3hr, headToKgcm2 } from "@/lib/unitConversion";
+import { ratedPowerKwFromRequisition } from "@/lib/requirementCheck";
 import { createRequisition, listPumpModels } from "@/services/testingService";
 import {
   CAPACITY_UNITS,
@@ -35,8 +36,8 @@ const schema = z.object({
   test_qty: optionalNumber(z.coerce.number().int().positive()),
   qth: optionalNumber(z.coerce.number()),
   specific_gravity: optionalNumber(z.coerce.number()),
+  // Power is entered in HP only -- KW is derived, never typed in.
   power_hp: optionalNumber(z.coerce.number()),
-  power_kw: optionalNumber(z.coerce.number()),
   head_kgcm2: optionalNumber(z.coerce.number()),
   head_unit: z.string().optional(),
   rpm: optionalNumber(z.coerce.number()),
@@ -85,6 +86,11 @@ const NewRequisitionPage = () => {
     capacityValue !== undefined && capacityValue !== ""
       ? capacityToM3hr(Number(capacityValue), capacityUnit, sg)
       : null;
+  // Power is entered in HP only; KW is always derived (1 HP = 0.746 kW).
+  // watch() types this as unknown because the field goes through zod's
+  // preprocess wrapper; the helper takes the raw string/number either way.
+  const powerHpValue = watch("power_hp") as number | string | null | undefined;
+  const powerConvertedKw = ratedPowerKwFromRequisition({ power_hp: powerHpValue });
 
   useEffect(() => {
     listPumpModels()
@@ -242,11 +248,9 @@ const NewRequisitionPage = () => {
           <div className="field">
             <label htmlFor="power_hp">Power (HP)</label>
             <input id="power_hp" type="number" step="any" {...register("power_hp")} />
-          </div>
-
-          <div className="field">
-            <label htmlFor="power_kw">Power (KW)</label>
-            <input id="power_kw" type="number" step="any" {...register("power_kw")} />
+            {powerConvertedKw !== undefined && (
+              <span className="unit-hint">= {powerConvertedKw} KW</span>
+            )}
           </div>
 
           <div className="field">
