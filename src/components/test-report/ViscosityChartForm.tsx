@@ -412,13 +412,14 @@ const ViscosityChartForm = ({
   const testType = useWatch({ control, name: "test_type" });
 
   // V-Notch Baseline (Hin) is a fixed physical constant of the test rig's
-  // V-notch weir, not a per-test reading -- lock it to 320 whenever the
-  // Capacity Measurement Method is V-notch. Skip on existing reports so
-  // legacy-imported values (which may differ) aren't silently overwritten.
+  // V-notch weir, not a per-test reading, so it's never typed in: 320 when
+  // the Capacity Measurement Method is V-notch, blank when it isn't -- the
+  // baseline is meaningless for Barrel / Flow Meter, and a stale 320 left
+  // behind after switching methods would be misleading. Skip on existing
+  // reports so legacy-imported values aren't silently overwritten.
   useEffect(() => {
-    if (!existingReport && testType === "V-notch") {
-      setValue("vnotch_baseline", "320");
-    }
+    if (existingReport) return;
+    setValue("vnotch_baseline", testType === "V-notch" ? "320" : "");
   }, [testType, setValue, existingReport]);
 
   // Each test point's own "Initial Reading" (the V-notch weir reading before
@@ -749,7 +750,7 @@ const ViscosityChartForm = ({
             <label>
               V-Notch Baseline (Hin) {!existingReport && testType === "V-notch" && <span className="required-hint">fixed at 320</span>}
             </label>
-            <input type="number" step="any" readOnly={!existingReport && testType === "V-notch"} {...register("vnotch_baseline")} />
+            <input type="number" step="any" readOnly={!existingReport} {...register("vnotch_baseline")} />
           </div>
 
           <div className="field">
