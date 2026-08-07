@@ -150,7 +150,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       if (claims.role === "source" && !SOURCE_EDITABLE_FIELDS.has(snakeKey)) {
         continue;
       }
-      values[camelKey] = body[snakeKey];
+      // The edit form sends "" for any field the user left/made blank.
+      // Postgres rejects "" outright for date/numeric columns, so a blank
+      // has to become NULL -- and NULL is what "cleared" should mean here
+      // anyway (the POST route sidesteps this by skipping "" entirely,
+      // which would silently ignore a user clearing a field on edit).
+      values[camelKey] = body[snakeKey] === "" ? null : body[snakeKey];
     }
   }
   values.updatedAt = new Date();
