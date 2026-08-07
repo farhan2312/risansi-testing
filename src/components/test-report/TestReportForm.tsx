@@ -352,7 +352,7 @@ const TestReportForm = ({
     )
   );
 
-  // Does testing actually reach the rated requirements? Still a valid,
+  // Does testing actually satisfy the rated requirements? Still a valid,
   // submittable report either way -- this is a flag, not a validation error.
   const requirementStatus = computeRequirementStatus(
     {
@@ -684,7 +684,7 @@ const TestReportForm = ({
                 <th className={`computed-col ${requirementStatus.power === false ? "requirement-col-not-met" : ""}`}>
                   Power (KW)
                   {requirementStatus.power === false && (
-                    <span className="requirement-flag" title="Testing did not reach the rated power">
+                    <span className="requirement-flag" title="Measured power exceeded the rated power">
                       ⚠
                     </span>
                   )}

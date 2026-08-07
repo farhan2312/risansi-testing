@@ -306,7 +306,7 @@ const DashboardPage = () => {
                     (() => {
                       const unmetFields = r.report_requirement_unmet_fields ?? [];
                       const unmetTitle = unmetFields.length
-                        ? `Did not meet rated ${unmetFields.join(", ")}`
+                        ? `Outside rated ${unmetFields.join(", ")}`
                         : undefined;
                       return (
                         <Link

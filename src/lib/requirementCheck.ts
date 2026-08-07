@@ -1,9 +1,14 @@
 /**
- * Did testing actually reach the pump's rated requirements? A report is
+ * Did testing actually satisfy the pump's rated requirements? A report is
  * still valid/submittable even if it didn't -- this is a flag, not a
- * validation error. "Met" means the highest value recorded across all test
- * points reached at least the rated target; there's no rated target to
- * compare against (met is null) if the field wasn't filled in.
+ * validation error. There's no rated target to compare against (met is
+ * null) if the field wasn't filled in.
+ *
+ * Head and Capacity are "reach at least" targets: the highest value across
+ * all test points has to get to the rated figure. Power runs the other way
+ * -- it's a ceiling, not a target. A pump drawing more kW than its rated
+ * motor is overloaded, so Power fails when the measured maximum goes ABOVE
+ * the rating, not below it.
  */
 
 export interface RequirementInputs {
@@ -34,16 +39,26 @@ export const computeRequirementStatus = (
   report: RequirementInputs,
   points: RequirementPoints[]
 ): RequirementStatus => {
-  const check = (rated: number | null, field: keyof RequirementPoints): boolean | null => {
+  /** Floor targets (Head, Capacity): the max recorded has to reach `rated`. */
+  const checkReaches = (rated: number | null, field: keyof RequirementPoints): boolean | null => {
     if (rated === null || rated === undefined) return null;
     const max = maxOf(points, field);
     if (max === null) return null;
     return max >= rated;
   };
+
+  /** Ceiling target (Power): drawing more than the rating is an overload. */
+  const checkStaysWithin = (rated: number | null, field: keyof RequirementPoints): boolean | null => {
+    if (rated === null || rated === undefined) return null;
+    const max = maxOf(points, field);
+    if (max === null) return null;
+    return max <= rated;
+  };
+
   return {
-    head: check(report.rated_head, "head_kgcm2"),
-    capacity: check(report.rated_capacity, "capacity_calculated_m3hr"),
-    power: check(report.rated_power_kw, "power_calculated_kw"),
+    head: checkReaches(report.rated_head, "head_kgcm2"),
+    capacity: checkReaches(report.rated_capacity, "capacity_calculated_m3hr"),
+    power: checkStaysWithin(report.rated_power_kw, "power_calculated_kw"),
   };
 };
 

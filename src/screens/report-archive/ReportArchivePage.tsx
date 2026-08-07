@@ -188,7 +188,7 @@ const ReportArchivePage = () => {
                             {g.reports.map((r) => {
                               const unmetFields = r.requirement_unmet_fields ?? [];
                               const unmetTitle = unmetFields.length
-                                ? `Did not meet rated ${unmetFields.join(", ")}`
+                                ? `Outside rated ${unmetFields.join(", ")}`
                                 : "";
                               return (
                                 <tr key={r.id} className={unmetTitle ? "requirement-row-not-met" : ""} title={unmetTitle || undefined}>

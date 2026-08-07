@@ -110,7 +110,7 @@ const PumpDashboardPage = () => {
   const unmetTitleByReportId = new Map(
     sortedReports.map((r) => {
       const labels = unmetRequirementLabels(computeRequirementStatus(r, r.points));
-      return [r.id, labels.length ? `Did not meet rated ${labels.join(", ")}` : ""];
+      return [r.id, labels.length ? `Outside rated ${labels.join(", ")}` : ""];
     })
   );
 

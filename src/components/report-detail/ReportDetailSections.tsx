@@ -58,8 +58,9 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
     report.ambient_temp_c, report.max_bearing_temp_c, report.total_rise_c,
   ].some((v) => v !== null && v !== undefined && v !== "");
 
-  // Did testing actually reach the rated requirements? Still a valid report
-  // either way -- this is a flag, not a validation error.
+  // Did testing actually satisfy the rated requirements? Still a valid report
+  // either way -- this is a flag, not a validation error. Head/Capacity fail
+  // by falling short of the rating, Power by going over it.
   const requirementStatus = computeRequirementStatus(report, report.points);
   const unmetLabels = unmetRequirementLabels(requirementStatus);
 
@@ -67,7 +68,8 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
     <>
       {unmetLabels.length > 0 && (
         <div className="requirement-not-met-banner">
-          ⚠ This report did not meet the rated requirement for: {unmetLabels.join(", ")}.
+          ⚠ This report is outside the rated requirement for: {unmetLabels.join(", ")}.
+          {requirementStatus.power === false && " Measured power exceeded the rated power."}
         </div>
       )}
 
@@ -204,12 +206,16 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
                   (row.field === "head_kgcm2" && requirementStatus.head === false) ||
                   (row.field === "capacity_calculated_m3hr" && requirementStatus.capacity === false) ||
                   (row.field === "power_calculated_kw" && requirementStatus.power === false);
+                const rowNotMetTitle =
+                  row.field === "power_calculated_kw"
+                    ? "Measured power exceeded the rated power"
+                    : "Testing did not reach this rated value";
                 return (
                   <tr key={`${row.label}-${row.unit ?? ""}`}>
                     <td className="row-label-col">
                       {row.label}
                       {rowNotMet && (
-                        <span className="requirement-flag" title="Testing did not reach this rated value">
+                        <span className="requirement-flag" title={rowNotMetTitle}>
                           ⚠
                         </span>
                       )}

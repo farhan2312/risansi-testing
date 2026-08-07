@@ -21,7 +21,7 @@ import type { DedupCheckResult, PumpTestReport, TestRequisition } from "@/types/
  * is informational only). */
 const reportUnmetTitle = (r: PumpTestReport): string => {
   const labels = unmetRequirementLabels(computeRequirementStatus(r, r.points));
-  return labels.length ? `Did not meet rated ${labels.join(", ")}` : "";
+  return labels.length ? `Outside rated ${labels.join(", ")}` : "";
 };
 
 const RequisitionDetailPage = () => {
