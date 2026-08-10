@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import "./RequisitionDetailPage.css";
 import { headToKgcm2 } from "@/lib/unitConversion";
-import { formatDate, targetDateFor } from "@/lib/formUtils";
+import { formatDate, installedPowerFromMotor, targetDateFor } from "@/lib/formUtils";
 import {
   computeRequirementStatus,
   ratedPowerKwFromRequisition,
@@ -15,6 +15,14 @@ import { dedupCheck, getRequisition, updateRequisition } from "@/services/testin
 import { getCurrentUser } from "@/services/session";
 import { ecQuotationLabel } from "@/types/testing";
 import type { DedupCheckResult, PumpTestReport, TestRequisition } from "@/types/testing";
+
+/** Installed motor power for a prior-report row: "30 HP (22.38 KW)". Falls
+ * back to the raw motor text when no HP figure can be read out of it. */
+const installedPowerLabel = (motor: string | null | undefined): string => {
+  const power = installedPowerFromMotor(motor);
+  if (power) return `${power.hp} HP (${power.kw} KW)`;
+  return motor ?? "-";
+};
 
 /** Short "did this report meet its rated targets" label for a list row --
  * empty string when there's nothing to flag (still valid either way, this
@@ -236,7 +244,9 @@ const RequisitionDetailPage = () => {
                   <th>Report Date</th>
                   <th>Gearbox No.</th>
                   <th>Motor</th>
+                  <th>Installed Power</th>
                   <th>Rated Head</th>
+                  <th>Rated Capacity</th>
                   <th>Rated RPM</th>
                   <th>Test Points</th>
                 </tr>
@@ -252,7 +262,9 @@ const RequisitionDetailPage = () => {
                       </td>
                       <td>{r.gearbox_no ?? "-"}</td>
                       <td>{r.motor ?? "-"}</td>
+                      <td>{installedPowerLabel(r.motor)}</td>
                       <td>{r.rated_head ?? "-"}</td>
+                      <td>{r.rated_capacity ?? "-"}</td>
                       <td>{r.rated_rpm ?? "-"}</td>
                       <td>{r.points.length}</td>
                     </tr>

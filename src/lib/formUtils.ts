@@ -23,6 +23,28 @@ export const normalizeMotorRpm = (v: string | number | null | undefined): string
 };
 
 /**
+ * Installed motor power, read out of the free-text Motor field ("CGL 30HP"
+ * -> 30 HP / 22.38 KW). Reports don't carry a dedicated installed-power
+ * column -- every one of them records it inside the motor string instead.
+ *
+ * Anchors on the number immediately before "HP" rather than the first number
+ * in the string, so brands that contain digits or dots ("SI.NO. 3HP",
+ * "ABB-3 HP") still resolve, as do decimals ("7.5HP") and the leading-dot
+ * form ("ABB .5HP"). Returns null when there's no parseable figure, so the
+ * caller can fall back to showing the raw text.
+ */
+export const installedPowerFromMotor = (
+  motor: string | null | undefined
+): { hp: number; kw: number } | null => {
+  if (!motor) return null;
+  const match = motor.match(/(\d*\.?\d+)\s*HP/i);
+  if (!match) return null;
+  const hp = Number(match[1]);
+  if (!Number.isFinite(hp) || hp <= 0) return null;
+  return { hp, kw: Math.round(hp * 0.746 * 100) / 100 };
+};
+
+/**
  * Renders a stored date as dd/mm/yy for display. Accepts a plain date
  * ("2026-08-10") or a timestamp ("2026-08-10T07:16:04.694Z") and returns "-"
  * for a missing one.
