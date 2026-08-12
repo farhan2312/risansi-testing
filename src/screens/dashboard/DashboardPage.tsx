@@ -309,13 +309,18 @@ const DashboardPage = () => {
                         ? `Outside rated ${unmetFields.join(", ")}`
                         : undefined;
                       return (
-                        <Link
-                          href={`/reports/${r.report_id}`}
-                          className={`status-pill ${unmetTitle ? "status-view-report-unmet" : "status-view-report"}`}
-                          title={unmetTitle}
-                        >
-                          View Report{unmetTitle && " ⚠"}
-                        </Link>
+                        <span className="status-actions">
+                          <Link
+                            href={`/reports/${r.report_id}`}
+                            className={`status-pill ${unmetTitle ? "status-view-report-unmet" : "status-view-report"}`}
+                            title={unmetTitle}
+                          >
+                            View Report{unmetTitle && " ⚠"}
+                          </Link>
+                          <Link href={`/reports/${r.report_id}/curve`} className="status-pill status-view-curve">
+                            View Curve
+                          </Link>
+                        </span>
                       );
                     })()
                   ) : (

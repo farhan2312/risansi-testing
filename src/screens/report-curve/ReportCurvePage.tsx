@@ -1,0 +1,84 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import "../report-detail/ReportDetailPage.css";
+import { getReport } from "@/services/testingService";
+import { formatDate } from "@/lib/formUtils";
+import PerformanceCurve from "@/components/report-detail/PerformanceCurve";
+import type { PumpTestReport } from "@/types/testing";
+
+const FORMAT_LABELS: Record<string, string> = {
+  observation: "Observation Sheet",
+  "viscosity-chart": "Viscosity Correction Chart",
+};
+
+/** The three performance curves for one test, on their own page so they can
+ * be opened (and printed) per testing rather than only inline on the report. */
+const ReportCurvePage = () => {
+  const { id } = useParams<{ id: string }>();
+  const [report, setReport] = useState<PumpTestReport | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!id) return;
+    getReport(id).then(setReport).catch(() => setError("Could not load report."));
+  }, [id]);
+
+  if (error) return <div className="form-error-banner">{error}</div>;
+  if (!report) return <p className="detail-empty">Loading...</p>;
+
+  return (
+    <div className="report-detail-page">
+      <div className="print-header">
+        <img src="/logo.png" alt="Risansi Industries" />
+        <div>
+          <strong>Risansi Industries Ltd</strong>
+          <span>
+            Performance Curve — {report.model}
+            {report.report_no ? ` — ${report.report_no}` : ""}
+          </span>
+        </div>
+      </div>
+
+      <div className="detail-header sticky-page-header">
+        <div>
+          <h1>
+            {report.model}
+            {report.report_no && <span className="report-no-pill">{report.report_no}</span>}
+          </h1>
+          <span className="format-pill">
+            {FORMAT_LABELS[report.report_format ?? ""] ?? "Observation Sheet"}
+            {" — "}
+            {formatDate(report.test_date ?? report.created_at)}
+          </span>
+        </div>
+        <div className="detail-header-actions">
+          <button type="button" className="export-pdf-btn" onClick={() => window.print()}>
+            Export PDF
+          </button>
+          <Link href={`/reports/${report.id}`} className="back-link">
+            View full report
+          </Link>
+          <Link href="/reports" className="back-link">
+            &larr; Back to archive
+          </Link>
+        </div>
+      </div>
+
+      <section className="detail-card">
+        <h2>Performance Curves</h2>
+        {report.points.length >= 2 ? (
+          <PerformanceCurve points={report.points} />
+        ) : (
+          <p className="detail-empty">
+            This report has fewer than two test points, so there is nothing to plot.
+          </p>
+        )}
+      </section>
+    </div>
+  );
+};
+
+export default ReportCurvePage;

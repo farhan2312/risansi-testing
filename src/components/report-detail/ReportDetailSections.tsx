@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import PerformanceCurve from "./PerformanceCurve";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 import type { PumpTestReport, PumpTestReportPoint } from "@/types/testing";
 import { formatDate } from "@/lib/formUtils";
@@ -234,6 +235,14 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
           </table>
         </div>
       </section>
+
+      {/* Renders itself away when the points can't form a curve. */}
+      {points.length >= 2 && (
+        <section className="detail-card">
+          <h2>Performance Curve</h2>
+          <PerformanceCurve points={points} />
+        </section>
+      )}
 
       {hasVibrationSummary && (
         <section className="detail-card">

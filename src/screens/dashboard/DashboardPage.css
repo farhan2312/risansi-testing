@@ -243,6 +243,27 @@
   text-decoration: none !important;
 }
 
+/* "View Report" and "View Curve" sit side by side in the Status cell. */
+.status-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.status-view-curve {
+  background: var(--info-soft);
+  color: var(--info) !important;
+  cursor: pointer;
+  font-weight: 600 !important;
+  white-space: nowrap;
+}
+
+.status-view-curve:hover {
+  background: var(--info);
+  color: #fff !important;
+  text-decoration: none !important;
+}
+
 .res-reassign-select {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);

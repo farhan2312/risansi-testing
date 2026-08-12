@@ -211,6 +211,112 @@ td.requirement-cell-not-met {
   color: var(--neg);
 }
 
+/* Capacity/Power vs Head performance curve. Inline SVG so it survives the
+ * window.print() PDF export -- see PerformanceCurve.tsx. */
+.performance-curve svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.performance-curve .curve-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.performance-curve .curve-axis {
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+}
+
+.performance-curve .curve-tick {
+  fill: var(--text-muted);
+  font-size: 11px;
+}
+
+.performance-curve .curve-axis-title {
+  fill: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.performance-curve .curve-line {
+  fill: none;
+  stroke-width: 2;
+}
+
+.performance-curve .curve-capacity {
+  stroke: var(--accent);
+}
+
+.performance-curve circle.curve-capacity {
+  fill: var(--accent);
+}
+
+.performance-curve .curve-power {
+  stroke: var(--warn);
+}
+
+.performance-curve circle.curve-power {
+  fill: var(--warn);
+}
+
+.performance-curve .curve-torque {
+  stroke: var(--pos);
+}
+
+.performance-curve circle.curve-torque {
+  fill: var(--pos);
+}
+
+.performance-curves {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.performance-curve h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 4px;
+  text-align: center;
+}
+
+.curve-legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.curve-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.curve-swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.curve-swatch.curve-capacity {
+  background: var(--accent);
+}
+
+.curve-swatch.curve-power {
+  background: var(--warn);
+}
+
+.curve-swatch.curve-torque {
+  background: var(--pos);
+}
+
 .detail-empty {
   color: var(--text-muted);
   font-size: 14px;
@@ -323,5 +429,19 @@ td.requirement-cell-not-met {
   .sheet-table th,
   .sheet-table td {
     padding: 4px 6px;
+  }
+
+  /* Keep the curve inside the A4 text block, and stop the browser dropping
+   * the series colours the way it does with background fills. */
+  .performance-curve svg {
+    max-width: 160mm;
+    margin: 0 auto;
+  }
+
+  .performance-curve .curve-line,
+  .performance-curve circle,
+  .curve-swatch {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

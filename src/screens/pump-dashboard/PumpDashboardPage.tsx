@@ -199,6 +199,58 @@ const PumpDashboardPage = () => {
         )}
       </section>
 
+      <section className="dashboard-section">
+        <h2>Test Reports ({sortedReports.length})</h2>
+        {sortedReports.length === 0 ? (
+          <p className="dashboard-empty">No test reports for this pump.</p>
+        ) : (
+          <table className="requisition-table">
+            <thead>
+              <tr>
+                <th>Report No.</th>
+                <th>Test Date</th>
+                <th>Format</th>
+                <th>Motor</th>
+                <th>Test Points</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...sortedReports].reverse().map((r) => {
+                const unmetTitle = unmetTitleByReportId.get(r.id);
+                return (
+                  <tr key={r.id}>
+                    <td>{r.report_no ?? "-"}</td>
+                    <td>{formatDate(reportDate(r))}</td>
+                    <td>
+                      {(r.report_format ?? "observation") === "viscosity-chart"
+                        ? "Viscosity Correction Chart"
+                        : "Observation Sheet"}
+                    </td>
+                    <td>{r.motor ?? "-"}</td>
+                    <td>{r.points.length}</td>
+                    <td>
+                      <span className="status-actions">
+                        <Link
+                          href={`/reports/${r.id}`}
+                          className={`status-pill ${unmetTitle ? "status-view-report-unmet" : "status-view-report"}`}
+                          title={unmetTitle || undefined}
+                        >
+                          View Report{unmetTitle && " ⚠"}
+                        </Link>
+                        <Link href={`/reports/${r.id}/curve`} className="status-pill status-view-curve">
+                          View Curve
+                        </Link>
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </section>
+
       <div className="report-detail-page">
         <section className="detail-card">
           <h2>Header Parameters Over Time</h2>

@@ -183,6 +183,7 @@ const ReportArchivePage = () => {
                               <th>Test Date</th>
                               <th>Points</th>
                               <th>Testing Summary-Linked</th>
+                              <th></th>
                             </tr>
                           </thead>
                           <tbody>
@@ -204,6 +205,9 @@ const ReportArchivePage = () => {
                                   <td>{formatDate(r.test_date ?? r.created_at)}</td>
                                   <td>{r.pointCount}</td>
                                   <td>{r.requisition_id ? "Yes" : "Historical"}</td>
+                                  <td>
+                                    <Link href={`/reports/${r.id}/curve`}>View Curve</Link>
+                                  </td>
                                 </tr>
                               );
                             })}
