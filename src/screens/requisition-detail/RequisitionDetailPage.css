@@ -104,6 +104,17 @@
   background: var(--bg-sunk);
 }
 
+.prior-reports-table a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.prior-reports-table a:hover {
+  text-decoration: underline;
+}
+
 /* Flags a report row that didn't reach its rated head/capacity/power --
  * still a valid, submittable report (informational only). */
 .requirement-row-not-met td {

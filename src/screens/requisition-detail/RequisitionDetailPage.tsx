@@ -249,6 +249,7 @@ const RequisitionDetailPage = () => {
                   <th>Rated Capacity</th>
                   <th>Rated RPM</th>
                   <th>Test Points</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -267,6 +268,9 @@ const RequisitionDetailPage = () => {
                       <td>{r.rated_capacity ?? "-"}</td>
                       <td>{r.rated_rpm ?? "-"}</td>
                       <td>{r.points.length}</td>
+                      <td>
+                        <Link href={`/reports/${r.id}`}>View Report</Link>
+                      </td>
                     </tr>
                   );
                 })}
