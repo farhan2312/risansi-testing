@@ -135,7 +135,7 @@ const Chart = ({ title, xLabel, xValues, xFromZero, series }: ChartProps) => {
   return (
     <div className="performance-curve">
       <h3>{title}</h3>
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={title}>
+      <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label={title}>
         {(leftAxis ?? rightAxis)!.ticks.map((t, i) => {
           const y = (yLeft ?? yRight)!((leftAxis ?? rightAxis)!.ticks[i]);
           return <line key={`g-${t}`} className="curve-grid" x1={PAD.left} x2={PAD.left + plotW} y1={y} y2={y} />;
