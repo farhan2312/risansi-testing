@@ -4,14 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import "./RequisitionDetailPage.css";
+import "@/components/ui/AttachmentsField.css";
 import { headToKgcm2 } from "@/lib/unitConversion";
-import { formatDate, installedPowerFromMotor, targetDateFor } from "@/lib/formUtils";
+import { formatDate, formatFileSize, installedPowerFromMotor, targetDateFor } from "@/lib/formUtils";
 import {
   computeRequirementStatus,
   ratedPowerKwFromRequisition,
   unmetRequirementLabels,
 } from "@/lib/requirementCheck";
-import { dedupCheck, getRequisition, updateRequisition } from "@/services/testingService";
+import { dedupCheck, getRequisition, openAttachment, updateRequisition } from "@/services/testingService";
 import { getCurrentUser } from "@/services/session";
 import { ecQuotationLabel } from "@/types/testing";
 import type { DedupCheckResult, PumpTestReport, TestRequisition } from "@/types/testing";
@@ -226,6 +227,30 @@ const RequisitionDetailPage = () => {
           )}
         </div>
       </section>
+
+      {(requisition.attachments?.length ?? 0) > 0 && (
+        <section className="detail-card">
+          <h2>Attachments</h2>
+          <ul className="attachment-list">
+            {requisition.attachments!.map((a) => (
+              <li key={a.id}>
+                <button
+                  type="button"
+                  className="attachment-open-btn"
+                  onClick={() => openAttachment(requisition.id, a.id)}
+                >
+                  {a.file_name}
+                </button>
+                <span className="attachment-meta">
+                  {formatFileSize(a.file_size)}
+                  {a.uploaded_by_name && ` · ${a.uploaded_by_name}`}
+                  {` · ${formatDate(a.created_at)}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="detail-card">
         <h2>Prior Test Reports for &quot;{requisition.model}&quot;</h2>

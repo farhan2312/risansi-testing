@@ -7,6 +7,7 @@ import type {
   NewRequisitionInput,
   PumpDashboardData,
   PumpTestReport,
+  RequisitionAttachment,
   RequisitionStatus,
   TestRequisition,
 } from "../types/testing";
@@ -39,6 +40,48 @@ export const updateRequisition = async (
 ): Promise<TestRequisition> => {
   const { data } = await apiClient.patch<TestRequisition>(`/requisitions/${id}`, patch, authHeader());
   return data;
+};
+
+export const listAttachments = async (requisitionId: string): Promise<RequisitionAttachment[]> => {
+  const { data } = await apiClient.get<RequisitionAttachment[]>(
+    `/requisitions/${requisitionId}/attachments`,
+    authHeader()
+  );
+  return data;
+};
+
+export const uploadAttachment = async (
+  requisitionId: string,
+  file: File
+): Promise<RequisitionAttachment> => {
+  const form = new FormData();
+  form.append("file", file);
+  const { data } = await apiClient.post<RequisitionAttachment>(
+    `/requisitions/${requisitionId}/attachments`,
+    form,
+    // Content-Type: undefined overrides apiClient's default "application/json"
+    // so the browser sets multipart/form-data with the correct boundary itself.
+    { headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": undefined } }
+  );
+  return data;
+};
+
+export const deleteAttachment = async (requisitionId: string, attachmentId: string): Promise<void> => {
+  await apiClient.delete(`/requisitions/${requisitionId}/attachments/${attachmentId}`, authHeader());
+};
+
+/** Opens an attachment in a new tab. Fetches it as a blob (with the auth
+ * header) rather than a plain <a href> to the API route, since the JWT lives
+ * in localStorage, not a cookie -- a bare link wouldn't carry it, and the
+ * alternative (a token query param) would put a credential in the URL. */
+export const openAttachment = async (requisitionId: string, attachmentId: string): Promise<void> => {
+  const { data } = await apiClient.get(`/requisitions/${requisitionId}/attachments/${attachmentId}`, {
+    ...authHeader(),
+    responseType: "blob",
+  });
+  const url = URL.createObjectURL(data as Blob);
+  window.open(url, "_blank", "noopener,noreferrer");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };
 
 export const dedupCheck = async (model: string): Promise<DedupCheckResult> => {

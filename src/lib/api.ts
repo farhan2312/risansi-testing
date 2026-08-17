@@ -19,6 +19,7 @@ type RequisitionRow = typeof schema.testRequisitions.$inferSelect;
 type ReportRow = typeof schema.pumpTestReports.$inferSelect;
 type PointRow = typeof schema.pumpTestReportPoints.$inferSelect;
 type UserRow = typeof schema.users.$inferSelect;
+type AttachmentRow = typeof schema.requisitionAttachments.$inferSelect;
 
 /** Mirrors sales-portal-next's _user_to_dict(): raw snake_case columns, minus password_hash. */
 export function userToDict(u: UserRow) {
@@ -168,5 +169,23 @@ export function pointToDict(p: PointRow) {
     volumetric_efficiency: p.volumetricEfficiency,
     volumetric_efficiency_liquid: p.volumetricEfficiencyLiquid,
     mechanical_efficiency_liquid: p.mechanicalEfficiencyLiquid,
+  };
+}
+
+/** Metadata only -- deliberately omits fileData, which only ever travels
+ * through the dedicated download route, never the JSON list/detail APIs.
+ * Takes just the fields it serializes (not the full AttachmentRow) so a
+ * `select({...})` that leaves fileData out of the query entirely -- rather
+ * than fetching and discarding the blob -- still satisfies the type. */
+export function attachmentToDict(a: Omit<AttachmentRow, "fileData">) {
+  return {
+    id: a.id,
+    requisition_id: a.requisitionId,
+    file_name: a.fileName,
+    mime_type: a.mimeType,
+    file_size: a.fileSize,
+    uploaded_by: a.uploadedBy,
+    uploaded_by_name: a.uploadedByName,
+    created_at: a.createdAt,
   };
 }

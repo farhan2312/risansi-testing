@@ -1,9 +1,9 @@
-import { eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 
-import { error, json, pointToDict, reportToDict, requisitionToDict } from "@/lib/api";
+import { attachmentToDict, error, json, pointToDict, reportToDict, requisitionToDict } from "@/lib/api";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { pumpTestReportPoints, pumpTestReports, testRequisitions } from "@/lib/db/schema";
+import { pumpTestReportPoints, pumpTestReports, requisitionAttachments, testRequisitions } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -108,12 +108,30 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     pointsByReport.set(p.reportId, list);
   }
 
+  // Metadata only (no fileData) -- keeps this response light regardless of
+  // how large the attached files are.
+  const attachments = await db
+    .select({
+      id: requisitionAttachments.id,
+      requisitionId: requisitionAttachments.requisitionId,
+      fileName: requisitionAttachments.fileName,
+      mimeType: requisitionAttachments.mimeType,
+      fileSize: requisitionAttachments.fileSize,
+      uploadedBy: requisitionAttachments.uploadedBy,
+      uploadedByName: requisitionAttachments.uploadedByName,
+      createdAt: requisitionAttachments.createdAt,
+    })
+    .from(requisitionAttachments)
+    .where(eq(requisitionAttachments.requisitionId, id))
+    .orderBy(desc(requisitionAttachments.createdAt));
+
   return json({
     ...requisitionToDict(requisition),
     reports: reports.map((r) => ({
       ...reportToDict(r),
       points: (pointsByReport.get(r.id) ?? []).map(pointToDict),
     })),
+    attachments: attachments.map(attachmentToDict),
   });
 }
 

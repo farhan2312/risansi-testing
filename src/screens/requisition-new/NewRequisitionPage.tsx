@@ -9,7 +9,8 @@ import "./NewRequisitionPage.css";
 import { normalizeModelOnChange } from "@/lib/formUtils";
 import { capacityToM3hr, headToKgcm2 } from "@/lib/unitConversion";
 import { ratedPowerKwFromRequisition } from "@/lib/requirementCheck";
-import { createRequisition, listPumpModels } from "@/services/testingService";
+import AttachmentsField from "@/components/ui/AttachmentsField";
+import { createRequisition, listPumpModels, uploadAttachment } from "@/services/testingService";
 import {
   CAPACITY_UNITS,
   ecQuotationLabel,
@@ -55,6 +56,7 @@ type FormValues = z.input<typeof schema>;
 const NewRequisitionPage = () => {
   const router = useRouter();
   const [submitError, setSubmitError] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pumpModels, setPumpModels] = useState<string[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(true);
   const [isCustomModel, setIsCustomModel] = useState(false);
@@ -105,6 +107,12 @@ const NewRequisitionPage = () => {
     setSubmitError("");
     try {
       const requisition = await createRequisition(schema.parse(values));
+      if (pendingFiles.length) {
+        // Best-effort: the requisition itself is already created at this
+        // point, so a flaky upload shouldn't block navigating to it -- any
+        // attachment that fails here can be re-added from Edit.
+        await Promise.allSettled(pendingFiles.map((f) => uploadAttachment(requisition.id, f)));
+      }
       router.push(`/requisitions/${requisition.id}`);
     } catch {
       setSubmitError("Could not create testing summary. Please try again.");
@@ -305,6 +313,8 @@ const NewRequisitionPage = () => {
               ))}
             </select>
           </div>
+
+          <AttachmentsField pendingFiles={pendingFiles} onPendingFilesChange={setPendingFiles} />
         </div>
 
         {category === "Against R&D Trials" && (

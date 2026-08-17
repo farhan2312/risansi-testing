@@ -6,6 +6,11 @@ export const normalizeModelOnChange = (e: ChangeEvent<HTMLInputElement>) => {
   e.target.value = e.target.value.toUpperCase().replace(/-/g, "");
 };
 
+/** "342 KB" / "1.3 MB" -- shared by the attachment picker and its read-only
+ * display on the requisition detail page. */
+export const formatFileSize = (bytes: number): string =>
+  bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
 /**
  * Motor RPM is a fixed-choice <select> (MOTOR_RPM_OPTIONS), but values
  * loaded from the DB come back as decimal-formatted numeric strings (e.g.

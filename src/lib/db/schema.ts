@@ -11,6 +11,7 @@
  */
 import {
   boolean,
+  customType,
   date,
   integer,
   numeric,
@@ -20,6 +21,14 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+
+// drizzle-orm/pg-core has no built-in bytea helper -- Buffer in/out via a
+// minimal customType, per Drizzle's own recommended pattern for raw bytea.
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -218,5 +227,26 @@ export const pumpTestReportPoints = pgTable("pump_test_report_points", {
 export const pumpModels = pgTable("pump_models", {
   id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   model: varchar("model", { length: 100 }).notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
+});
+
+// Files the source team (or central-admin/admin) attaches to a requisition
+// at intake -- PO copies, drawings, spec sheets -- so the testing team can
+// open them without a side-channel email. Stored inline (bytea) rather than
+// in object storage: this app has no file-storage service set up, and
+// Vercel Serverless Functions cap a request body at ~4.5MB regardless, so
+// uploads are capped at 4MB app-side (see attachments/route.ts) and the
+// volume here stays modest enough for Postgres to carry comfortably.
+export const requisitionAttachments = pgTable("requisition_attachments", {
+  id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  requisitionId: uuid("requisition_id").notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  mimeType: varchar("mime_type", { length: 100 }).notNull(),
+  fileSize: integer("file_size").notNull(),
+  fileData: bytea("file_data").notNull(),
+  uploadedBy: uuid("uploaded_by"),
+  // Name snapshot, same convention as test_requisitions.submitted_by -- stays
+  // human-readable even if the uploader's account is later removed.
+  uploadedByName: varchar("uploaded_by_name", { length: 100 }),
   createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
 });

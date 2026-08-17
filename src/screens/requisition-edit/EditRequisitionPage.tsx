@@ -9,7 +9,16 @@ import "../requisition-new/NewRequisitionPage.css";
 import { normalizeModelOnChange, normalizeMotorRpm } from "@/lib/formUtils";
 import { capacityToM3hr, headToKgcm2 } from "@/lib/unitConversion";
 import { ratedPowerKwFromRequisition } from "@/lib/requirementCheck";
-import { getRequisition, listPumpModels, updateRequisition } from "@/services/testingService";
+import AttachmentsField from "@/components/ui/AttachmentsField";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import {
+  deleteAttachment,
+  getRequisition,
+  listPumpModels,
+  openAttachment,
+  updateRequisition,
+  uploadAttachment,
+} from "@/services/testingService";
 import {
   CAPACITY_UNITS,
   ecQuotationLabel,
@@ -18,6 +27,7 @@ import {
   REQUISITION_CATEGORIES,
   RESPONSIBLE_PERSONS,
   SOURCE_TEAMS,
+  type RequisitionAttachment,
 } from "@/types/testing";
 
 const ADD_NEW_MODEL = "__add_new_model__";
@@ -59,6 +69,10 @@ const EditRequisitionPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [pumpModels, setPumpModels] = useState<string[]>([]);
   const [isCustomModel, setIsCustomModel] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<RequisitionAttachment[]>([]);
+  const [attachmentPendingDelete, setAttachmentPendingDelete] = useState<RequisitionAttachment | null>(null);
+  const [isDeletingAttachment, setIsDeletingAttachment] = useState(false);
   const {
     register,
     handleSubmit,
@@ -92,6 +106,7 @@ const EditRequisitionPage = () => {
     Promise.all([getRequisition(id), listPumpModels()])
       .then(([r, models]) => {
         setPumpModels(models);
+        setExistingAttachments(r.attachments ?? []);
         reset({
           model: r.model,
           category: r.category ?? REQUISITION_CATEGORIES[0],
@@ -123,9 +138,28 @@ const EditRequisitionPage = () => {
     setSubmitError("");
     try {
       await updateRequisition(id, schema.parse(values));
+      if (pendingFiles.length) {
+        // Best-effort, same as New Requisition: the edit itself already
+        // saved, so a flaky upload here shouldn't block navigating away.
+        await Promise.allSettled(pendingFiles.map((f) => uploadAttachment(id, f)));
+      }
       router.push(`/requisitions/${id}`);
     } catch {
       setSubmitError("Could not update testing summary. Please try again.");
+    }
+  };
+
+  const confirmDeleteAttachment = async () => {
+    if (!attachmentPendingDelete) return;
+    setIsDeletingAttachment(true);
+    try {
+      await deleteAttachment(id, attachmentPendingDelete.id);
+      setExistingAttachments((prev) => prev.filter((a) => a.id !== attachmentPendingDelete.id));
+      setAttachmentPendingDelete(null);
+    } catch {
+      setSubmitError("Could not remove attachment. Please try again.");
+    } finally {
+      setIsDeletingAttachment(false);
     }
   };
 
@@ -323,6 +357,15 @@ const EditRequisitionPage = () => {
               ))}
             </select>
           </div>
+
+          <AttachmentsField
+            pendingFiles={pendingFiles}
+            onPendingFilesChange={setPendingFiles}
+            existingAttachments={existingAttachments}
+            onView={(a) => openAttachment(id, a.id)}
+            onDeleteExisting={(a) => setAttachmentPendingDelete(a)}
+            deletingId={isDeletingAttachment ? (attachmentPendingDelete?.id ?? null) : null}
+          />
         </div>
 
         {category === "Against R&D Trials" && (
@@ -352,6 +395,18 @@ const EditRequisitionPage = () => {
           </button>
         </div>
       </form>
+
+      {attachmentPendingDelete && (
+        <ConfirmModal
+          title="Remove Attachment"
+          message={`Remove "${attachmentPendingDelete.file_name}"? This can't be undone.`}
+          confirmLabel="Remove"
+          danger
+          isConfirming={isDeletingAttachment}
+          onConfirm={confirmDeleteAttachment}
+          onCancel={() => setAttachmentPendingDelete(null)}
+        />
+      )}
     </div>
   );
 };

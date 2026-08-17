@@ -101,6 +101,20 @@ export interface TestRequisition {
   /** Which rated fields (Head/Capacity/Power) the linked report's test
    * points never reached -- empty when met or there's no report yet. */
   report_requirement_unmet_fields?: string[];
+  attachments?: RequisitionAttachment[];
+}
+
+/** Metadata only -- file_data is never sent down with the list, only via the
+ * dedicated download endpoint (GET .../attachments/[attachmentId]). */
+export interface RequisitionAttachment {
+  id: string;
+  requisition_id: string;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  uploaded_by: string | null;
+  uploaded_by_name: string | null;
+  created_at: string;
 }
 
 export interface NewRequisitionInput {
