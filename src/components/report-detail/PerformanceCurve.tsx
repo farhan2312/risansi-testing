@@ -44,46 +44,54 @@ interface Series {
 }
 
 /**
- * Works-sheet style grid: a "nice" step (1/2/5 x a power of ten) picked so
- * the axis lands on roughly TARGET_DIVISIONS boxes REGARDLESS of how wide
- * the data range is -- one bad reading that spikes the range shouldn't blow
- * the box count up to 20+ and stretch the chart into a scroll-fest. A real
- * graph sheet is a fixed, bounded size; the person drawing it by hand picks
- * a coarser scale for a wider range rather than adding more boxes. Never
- * drops below a step of 1, so tick labels always land on whole numbers.
+ * Works-sheet style grid: every chart gets EXACTLY the same number of boxes
+ * on each axis (X_DIVISIONS x Y_DIVISIONS, always), so all three curves
+ * share one identical layout/size no matter what the underlying report's
+ * readings are -- only the printed tick numbers (the mapping) change per
+ * chart, picked from a "nice" step (1/2/5 x a power of ten) escalated until
+ * exactly that many boxes comfortably spans this chart's own min/max.
  *
- * X and Y target different division counts on purpose: the chart is
- * rendered full-width (see ReportDetailPage.css) with height following the
- * viewBox's own aspect ratio, so a grid with as many Y boxes as X boxes
- * comes out nearly square and then stretches into a tall scroll-fest at
- * full width. Landscape works sheets get their shape because the person
- * drawing them picks a coarser Y scale than X scale -- fewer boxes tall
- * than wide -- so this mirrors that rather than deriving square-overall
- * proportions from whatever divisions the data happens to need.
+ * Whole-number steps are preferred (and are what any normal-range report
+ * gets), but a report with a genuinely narrow range -- e.g. a small pump
+ * whose Head only spans 0-2 -- would otherwise need step 1 to cover barely
+ * 2 of the 10 boxes, leaving most of the chart blank. So the step is allowed
+ * to drop below 1 (0.5, 0.2, ...) rather than force that empty look; the
+ * fixed box count matters more than every label being an integer.
+ *
+ * X and Y use different division counts on purpose -- landscape works
+ * sheets get their shape because the person drawing them picks a coarser Y
+ * scale than X scale (fewer boxes tall than wide), not because the data
+ * happens to need fewer.
  */
-const X_TARGET_DIVISIONS = 10;
-const Y_TARGET_DIVISIONS = 6;
+const X_DIVISIONS = 10;
+const Y_DIVISIONS = 6;
+const NICE_MULTIPLIERS = [1, 2, 5];
 
-const axisTicks = (
-  min: number,
-  max: number,
-  targetDivisions: number
-): { lo: number; hi: number; ticks: number[] } => {
-  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
-    const hi = Number.isFinite(max) && max > 0 ? max : 1;
-    return { lo: 0, hi, ticks: [0, hi] };
+const axisTicks = (min: number, max: number, divisions: number): { lo: number; hi: number; ticks: number[] } => {
+  const safeMin = Number.isFinite(min) ? min : 0;
+  const safeMax = Number.isFinite(max) && max > safeMin ? max : safeMin + 1;
+  const range = safeMax - safeMin;
+
+  let magnitudeExp = Math.floor(Math.log10(range / divisions || 1));
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const magnitude = 10 ** magnitudeExp;
+    for (const m of NICE_MULTIPLIERS) {
+      const step = m * magnitude;
+      const lo = Math.floor(safeMin / step) * step;
+      const hi = lo + divisions * step;
+      if (hi >= safeMax - 1e-9) {
+        const ticks = Array.from({ length: divisions + 1 }, (_, i) => Number((lo + i * step).toFixed(6)));
+        return { lo, hi, ticks };
+      }
+    }
+    magnitudeExp += 1;
   }
-  const range = max - min;
-  const rawStep = range / targetDivisions;
-  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
-  const normalized = rawStep / magnitude;
-  const niceFactor = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
-  const step = Math.max(1, niceFactor * magnitude);
-  const lo = Math.floor(min / step) * step;
-  const hi = Math.ceil(max / step) * step;
-  const ticks: number[] = [];
-  for (let v = lo; v <= hi + step / 2; v += step) ticks.push(Number(v.toFixed(6)));
-  return { lo, hi, ticks };
+  // Unreachable in practice -- NICE_MULTIPLIERS escalating through decades
+  // always catches up to any finite range within a few iterations.
+  const step = Math.max(1, Math.ceil(range / divisions));
+  const lo = Math.floor(safeMin / step) * step;
+  const ticks = Array.from({ length: divisions + 1 }, (_, i) => lo + i * step);
+  return { lo, hi: lo + divisions * step, ticks };
 };
 
 const tickLabel = (v: number): string =>
@@ -105,7 +113,7 @@ const Chart = ({ title, xLabel, xValues, xFromZero, series }: ChartProps) => {
 
   const xMin = xFromZero ? 0 : Math.min(...xValues);
   const xMax = Math.max(...xValues);
-  const xAxis = axisTicks(xMin, xMax, X_TARGET_DIVISIONS);
+  const xAxis = axisTicks(xMin, xMax, X_DIVISIONS);
 
   const leftSeries = live.filter((s) => s.axis === "left");
   const rightSeries = live.filter((s) => s.axis === "right");
@@ -116,8 +124,8 @@ const Chart = ({ title, xLabel, xValues, xFromZero, series }: ChartProps) => {
   };
   const leftRange = rangeOf(leftSeries);
   const rightRange = rangeOf(rightSeries);
-  const leftAxis = leftRange ? axisTicks(leftRange.min, leftRange.max, Y_TARGET_DIVISIONS) : null;
-  const rightAxis = rightRange ? axisTicks(rightRange.min, rightRange.max, Y_TARGET_DIVISIONS) : null;
+  const leftAxis = leftRange ? axisTicks(leftRange.min, leftRange.max, Y_DIVISIONS) : null;
+  const rightAxis = rightRange ? axisTicks(rightRange.min, rightRange.max, Y_DIVISIONS) : null;
 
   // Grid lines are drawn from whichever of left/right has ticks (left wins
   // when both exist), so that same tick count sets the box height -- keeping
