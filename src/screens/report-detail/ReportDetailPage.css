@@ -212,18 +212,13 @@ td.requirement-cell-not-met {
 }
 
 /* Capacity/Power vs Head performance curve. Inline SVG so it survives the
- * window.print() PDF export -- see PerformanceCurve.tsx. Rendered at its own
- * native size (the width/height attributes PerformanceCurve.tsx sets from
- * CELL_SIZE) rather than stretched to fill the card -- a small viewBox
- * blown up to a wide container's full width is what made every line, tick
- * label and grid box look oversized. max-width just keeps it from
- * overflowing a narrow viewport. */
+ * window.print() PDF export -- see PerformanceCurve.tsx. Stretches to fill
+ * the card width (preserveAspectRatio keeps the square grid boxes square,
+ * just bigger) rather than rendering at its small native pixel size. */
 .performance-curve svg {
   display: block;
-  width: auto;
-  max-width: 100%;
+  width: 100%;
   height: auto;
-  margin: 0 auto;
 }
 
 .performance-curve .curve-grid {
@@ -279,15 +274,8 @@ td.requirement-cell-not-met {
 
 .performance-curves {
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 18px;
-}
-
-.performance-curve {
-  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 22px;
 }
 
 .performance-curve h3 {

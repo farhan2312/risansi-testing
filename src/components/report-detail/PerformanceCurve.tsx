@@ -51,16 +51,30 @@ interface Series {
  * graph sheet is a fixed, bounded size; the person drawing it by hand picks
  * a coarser scale for a wider range rather than adding more boxes. Never
  * drops below a step of 1, so tick labels always land on whole numbers.
+ *
+ * X and Y target different division counts on purpose: the chart is
+ * rendered full-width (see ReportDetailPage.css) with height following the
+ * viewBox's own aspect ratio, so a grid with as many Y boxes as X boxes
+ * comes out nearly square and then stretches into a tall scroll-fest at
+ * full width. Landscape works sheets get their shape because the person
+ * drawing them picks a coarser Y scale than X scale -- fewer boxes tall
+ * than wide -- so this mirrors that rather than deriving square-overall
+ * proportions from whatever divisions the data happens to need.
  */
-const TARGET_DIVISIONS = 8;
+const X_TARGET_DIVISIONS = 10;
+const Y_TARGET_DIVISIONS = 6;
 
-const axisTicks = (min: number, max: number): { lo: number; hi: number; ticks: number[] } => {
+const axisTicks = (
+  min: number,
+  max: number,
+  targetDivisions: number
+): { lo: number; hi: number; ticks: number[] } => {
   if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
     const hi = Number.isFinite(max) && max > 0 ? max : 1;
     return { lo: 0, hi, ticks: [0, hi] };
   }
   const range = max - min;
-  const rawStep = range / TARGET_DIVISIONS;
+  const rawStep = range / targetDivisions;
   const magnitude = 10 ** Math.floor(Math.log10(rawStep));
   const normalized = rawStep / magnitude;
   const niceFactor = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
@@ -91,7 +105,7 @@ const Chart = ({ title, xLabel, xValues, xFromZero, series }: ChartProps) => {
 
   const xMin = xFromZero ? 0 : Math.min(...xValues);
   const xMax = Math.max(...xValues);
-  const xAxis = axisTicks(xMin, xMax);
+  const xAxis = axisTicks(xMin, xMax, X_TARGET_DIVISIONS);
 
   const leftSeries = live.filter((s) => s.axis === "left");
   const rightSeries = live.filter((s) => s.axis === "right");
@@ -102,8 +116,8 @@ const Chart = ({ title, xLabel, xValues, xFromZero, series }: ChartProps) => {
   };
   const leftRange = rangeOf(leftSeries);
   const rightRange = rangeOf(rightSeries);
-  const leftAxis = leftRange ? axisTicks(leftRange.min, leftRange.max) : null;
-  const rightAxis = rightRange ? axisTicks(rightRange.min, rightRange.max) : null;
+  const leftAxis = leftRange ? axisTicks(leftRange.min, leftRange.max, Y_TARGET_DIVISIONS) : null;
+  const rightAxis = rightRange ? axisTicks(rightRange.min, rightRange.max, Y_TARGET_DIVISIONS) : null;
 
   // Grid lines are drawn from whichever of left/right has ticks (left wins
   // when both exist), so that same tick count sets the box height -- keeping
