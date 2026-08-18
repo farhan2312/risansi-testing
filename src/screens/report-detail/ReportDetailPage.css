@@ -214,11 +214,14 @@ td.requirement-cell-not-met {
 /* Capacity/Power vs Head performance curve. Inline SVG so it survives the
  * window.print() PDF export -- see PerformanceCurve.tsx. Stretches to fill
  * the card width (preserveAspectRatio keeps the square grid boxes square,
- * just bigger) rather than rendering at its small native pixel size. */
+ * just bigger), capped a bit short of the full card so it reads as a sleek
+ * chart rather than a blown-up one. */
 .performance-curve svg {
   display: block;
   width: 100%;
+  max-width: 640px;
   height: auto;
+  margin: 0 auto;
 }
 
 .performance-curve .curve-grid {
