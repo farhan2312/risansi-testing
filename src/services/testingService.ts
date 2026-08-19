@@ -5,6 +5,7 @@ import type {
   DedupCheckResult,
   NewReportInput,
   NewRequisitionInput,
+  PortalOverview,
   PumpDashboardData,
   PumpTestReport,
   RequisitionAttachment,
@@ -100,6 +101,12 @@ export const listPumpModels = async (): Promise<string[]> => {
 /** Every requisition and report for one physical pump, matched by model. */
 export const getPumpDashboard = async (model: string): Promise<PumpDashboardData> => {
   const { data } = await apiClient.get<PumpDashboardData>(`/pumps/${encodeURIComponent(model)}`, authHeader());
+  return data;
+};
+
+/** Portal-wide counts for the landing overview page. */
+export const getOverview = async (): Promise<PortalOverview> => {
+  const { data } = await apiClient.get<PortalOverview>("/overview", authHeader());
   return data;
 };
 

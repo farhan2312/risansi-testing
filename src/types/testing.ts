@@ -299,3 +299,15 @@ export interface PumpDashboardData {
   requisitions: TestRequisition[];
   reports: PumpTestReport[];
 }
+
+/** Portal-wide counts for the landing overview page -- see /api/overview. */
+export interface PortalOverview {
+  total_requisitions: number;
+  requisitions_by_status: Partial<Record<RequisitionStatus, number>>;
+  total_reports: number;
+  reports_by_format: Partial<Record<ReportFormat, number>>;
+  total_test_points: number;
+  distinct_models_tested: number;
+  requirement_met: number;
+  requirement_unmet: number;
+}

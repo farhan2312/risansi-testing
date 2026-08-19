@@ -12,6 +12,7 @@ import { listPendingUsers } from "@/services/adminService";
 const PENDING_REQUESTS_POLL_MS = 30000;
 
 const NAV_ITEMS = [
+  { href: "/overview", label: "Dashboard" },
   { href: "/requisitions/new", label: "New Requisition", hideFor: ["testing"] },
   { href: "/dashboard", label: "Testing Summary" },
   { href: "/pumps", label: "Pump Dashboard" },

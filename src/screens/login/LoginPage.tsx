@@ -83,7 +83,7 @@ const LoginPage = () => {
     try {
       const result = await login(email.trim(), password);
       saveSession(result.token, result.user);
-      router.push("/dashboard");
+      router.push("/overview");
     } catch (err) {
       setFormError(errorMessage(err, "Unable to sign in. Please try again."));
     } finally {
