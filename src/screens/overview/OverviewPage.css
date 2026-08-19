@@ -5,37 +5,50 @@
   max-width: 1200px;
 }
 
+.overview-page .sticky-page-header h1 {
+  color: var(--text-h);
+  font-size: 30px;
+  letter-spacing: -0.01em;
+}
+
 .overview-page .subtitle {
   color: var(--text-muted);
-  font-size: 14px;
-  margin: 2px 0 0;
+  font-size: 13px;
+  margin: 4px 0 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .overview-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
+  gap: 20px;
   background: var(--surface);
   border-radius: var(--radius);
-  padding: 18px 22px;
+  padding: 20px 24px;
   box-shadow: var(--shadow);
+  border: 1px solid var(--border);
 }
 
 .overview-stat {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .overview-stat .stat-value {
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-h);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .overview-stat .stat-label {
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .overview-grid {
@@ -47,17 +60,27 @@
 .overview-card {
   background: var(--surface);
   border-radius: var(--radius);
-  padding: 18px 20px;
+  padding: 20px 22px;
   box-shadow: var(--shadow);
+  border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.overview-card:hover {
+  box-shadow: 0 8px 20px -10px rgba(10, 61, 143, 0.25);
+  transform: translateY(-1px);
 }
 
 .overview-card h2 {
-  font-size: 15px;
+  font-size: 11px;
+  font-weight: 700;
   margin: 0;
-  color: var(--text);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .overview-breakdown {
@@ -79,8 +102,10 @@
 
 .overview-breakdown-count {
   margin-left: auto;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .overview-dot {
@@ -116,6 +141,7 @@
   margin: 0;
   font-size: 12px;
   color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .overview-card-link {

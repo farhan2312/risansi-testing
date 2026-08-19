@@ -5,6 +5,7 @@ import Link from "next/link";
 import "../dashboard/DashboardPage.css"; // reuses .status-pill / .status-* colors
 import "./OverviewPage.css";
 import { getOverview } from "@/services/testingService";
+import { getCurrentUser } from "@/services/session";
 import type { PortalOverview } from "@/types/testing";
 
 const STATUS_ORDER = ["Pending", "In Testing", "Retest Needed", "Closed"] as const;
@@ -14,6 +15,21 @@ const FORMAT_LABELS: Record<string, string> = {
 };
 
 const statusClass = (status: string) => `status-${status.replace(/\s+/g, "-").toLowerCase()}`;
+
+/** "Good Morning" / "Good Afternoon" / "Good Evening", by local hour. */
+const timeOfDayGreeting = (): string => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good Morning";
+  if (hour < 17) return "Good Afternoon";
+  return "Good Evening";
+};
+
+const TODAY_LABEL = new Intl.DateTimeFormat("en-GB", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+}).format(new Date());
 
 const OverviewPage = () => {
   const [data, setData] = useState<PortalOverview | null>(null);
@@ -33,11 +49,20 @@ const OverviewPage = () => {
   const judgedTotal = data.requirement_met + data.requirement_unmet;
   const metPct = judgedTotal ? Math.round((data.requirement_met / judgedTotal) * 100) : null;
 
+  const user = getCurrentUser();
+  const rawFirstName = (user?.name ?? user?.email ?? "there").trim().split(" ")[0];
+  const firstName = rawFirstName.charAt(0).toUpperCase() + rawFirstName.slice(1);
+  const pendingCount = data.requisitions_by_status.Pending ?? 0;
+
   return (
     <div className="overview-page">
       <div className="sticky-page-header">
-        <h1>Portal Overview</h1>
-        <p className="subtitle">A snapshot of testing activity across the portal.</p>
+        <h1>
+          {timeOfDayGreeting()}, {firstName}.
+        </h1>
+        <p className="subtitle">
+          {TODAY_LABEL} &middot; {data.total_requisitions} requisitions raised &middot; {pendingCount} pending
+        </p>
       </div>
 
       <div className="overview-stats">
