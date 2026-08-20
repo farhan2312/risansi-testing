@@ -25,3 +25,44 @@
   color: var(--text);
   width: 260px;
 }
+
+.pump-index-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  box-shadow: var(--shadow);
+}
+
+.pump-index-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pump-index-stat .stat-value {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-h);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pump-index-stat .stat-value-pos {
+  color: var(--pos);
+}
+
+.pump-index-stat .stat-value-neg {
+  color: var(--neg);
+}
+
+.pump-index-stat .stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

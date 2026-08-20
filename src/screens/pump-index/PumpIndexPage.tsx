@@ -83,6 +83,26 @@ const PumpIndexPage = () => {
     return pumps.filter((p) => p.model.toLowerCase().includes(q));
   }, [pumps, search]);
 
+  // Legacy-imported reports (see CLAUDE.md's "Legacy data import") vs ones
+  // actually filled in through the live app -- a real, useful distinction
+  // for a dashboard that mixes decades of bulk-imported history with fresh
+  // testing. Met/Did Not Meet only counts reports that actually have a rated
+  // head/capacity/power to judge against -- nothing to compare, not counted
+  // either way, same rule the report list itself uses per-row.
+  const summary = useMemo(() => {
+    let historical = 0;
+    let met = 0;
+    let unmet = 0;
+    for (const r of reports) {
+      if (r.prepared_by === "Legacy Import") historical++;
+      const hasTarget = r.rated_head !== null || r.rated_capacity !== null || r.rated_power_kw !== null;
+      if (!hasTarget) continue;
+      if (r.requirement_unmet_fields.length > 0) unmet++;
+      else met++;
+    }
+    return { total: reports.length, historical, met, unmet, pumpCount: pumps.length };
+  }, [reports, pumps]);
+
   return (
     <div className="pump-index-page">
       <div className="pump-index-header sticky-page-header">
@@ -95,6 +115,31 @@ const PumpIndexPage = () => {
           className="pump-index-search"
         />
       </div>
+
+      {!isLoading && !error && (
+        <div className="pump-index-stats">
+          <div className="pump-index-stat">
+            <span className="stat-value">{summary.pumpCount}</span>
+            <span className="stat-label">Pump Models</span>
+          </div>
+          <div className="pump-index-stat">
+            <span className="stat-value">{summary.total}</span>
+            <span className="stat-label">Reports Submitted</span>
+          </div>
+          <div className="pump-index-stat">
+            <span className="stat-value">{summary.historical}</span>
+            <span className="stat-label">Historical Reports</span>
+          </div>
+          <div className="pump-index-stat">
+            <span className="stat-value stat-value-pos">{summary.met}</span>
+            <span className="stat-label">Met Requirement</span>
+          </div>
+          <div className="pump-index-stat">
+            <span className="stat-value stat-value-neg">{summary.unmet}</span>
+            <span className="stat-label">Did Not Meet Requirement</span>
+          </div>
+        </div>
+      )}
 
       {error && <div className="dashboard-error">{error}</div>}
 
