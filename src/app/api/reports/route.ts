@@ -1,6 +1,7 @@
 import { desc, eq, ilike, inArray, sql } from "drizzle-orm";
 
 import { error, json, pointToDict, reportToDict } from "@/lib/api";
+import { logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpModels, pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
@@ -153,6 +154,16 @@ export async function POST(req: Request) {
     // becomes a shared dropdown suggestion once its testing actually closes.
     await db.insert(pumpModels).values({ model: String(model) }).onConflictDoNothing();
   }
+
+  await logAudit({
+    userId: claims.sub,
+    userName: preparedBy,
+    userEmail: claims.email,
+    eventType: "create",
+    entityType: "report",
+    entityId: report.id,
+    entityLabel: report.reportNo ?? report.model,
+  });
 
   return json(
     {

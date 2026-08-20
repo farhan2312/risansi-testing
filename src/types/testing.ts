@@ -334,3 +334,46 @@ export interface BugReport {
   reported_by_name: string | null;
   created_at: string;
 }
+
+// ----- Audit Log (admin-only) -----
+
+export type AuditRange = "today" | "7days" | "30days" | "all";
+
+export interface AuditSummary {
+  logins_24h: number;
+  failed_24h: number;
+  active_users_24h: number;
+  actions_24h: number;
+}
+
+export interface AuditUsageRow {
+  user_id: string;
+  user_name: string | null;
+  user_email: string | null;
+  session_count: number;
+  /** Seconds -- format for display, don't reformat server-side. */
+  active_seconds: number;
+  page_count: number;
+  last_active: string;
+}
+
+export interface AuditSessionEntry {
+  id: string;
+  user_name: string | null;
+  user_email: string | null;
+  event_type: "login" | "login_failed" | "logout";
+  details: string | null;
+  created_at: string;
+}
+
+export interface AuditActivityEntry {
+  id: string;
+  user_name: string | null;
+  user_email: string | null;
+  event_type: "create" | "update" | "delete";
+  entity_type: string | null;
+  entity_id: string | null;
+  entity_label: string | null;
+  details: string | null;
+  created_at: string;
+}

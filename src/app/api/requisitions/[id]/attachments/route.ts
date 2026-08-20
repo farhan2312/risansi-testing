@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 
 import { attachmentToDict, error, json } from "@/lib/api";
+import { logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { requisitionAttachments, testRequisitions, users } from "@/lib/db/schema";
@@ -120,6 +121,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       uploadedByName: requisitionAttachments.uploadedByName,
       createdAt: requisitionAttachments.createdAt,
     });
+
+  await logAudit({
+    userId: claims.sub,
+    userName: uploadedByName,
+    userEmail: claims.email,
+    eventType: "create",
+    entityType: "attachment",
+    entityId: attachment.id,
+    entityLabel: attachment.fileName,
+    details: `Uploaded to requisition ${requisition.model}`,
+  });
 
   return json(attachmentToDict(attachment), 201);
 }

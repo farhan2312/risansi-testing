@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { error } from "@/lib/api";
+import { logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { requisitionAttachments, testRequisitions } from "@/lib/db/schema";
@@ -81,8 +82,19 @@ export async function DELETE(
   const deleted = await db
     .delete(requisitionAttachments)
     .where(and(eq(requisitionAttachments.id, attachmentId), eq(requisitionAttachments.requisitionId, id)))
-    .returning({ id: requisitionAttachments.id });
+    .returning({ id: requisitionAttachments.id, fileName: requisitionAttachments.fileName });
 
   if (!deleted.length) return error("Attachment not found", 404);
+
+  await logAudit({
+    userId: claims.sub,
+    userEmail: claims.email,
+    eventType: "delete",
+    entityType: "attachment",
+    entityId: deleted[0].id,
+    entityLabel: deleted[0].fileName,
+    details: `Removed from requisition ${requisition.model}`,
+  });
+
   return NextResponse.json({ ok: true });
 }

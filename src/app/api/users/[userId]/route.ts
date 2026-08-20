@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { error, json, userToDict } from "@/lib/api";
+import { logAudit } from "@/lib/audit";
 import { AuthError, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { testRequisitions, users } from "@/lib/db/schema";
@@ -50,6 +51,16 @@ export async function PATCH(
       .where(eq(users.id, user.id))
       .returning();
 
+    await logAudit({
+      userId: claims.sub,
+      userEmail: claims.email,
+      eventType: "update",
+      entityType: "user",
+      entityId: updated.id,
+      entityLabel: updated.email,
+      details: `Role changed from ${user.role} to ${newRole}`,
+    });
+
     return json(userToDict(updated));
   }
 
@@ -71,6 +82,16 @@ export async function PATCH(
     .set({ status: newStatus, reviewedBy: claims.sub, reviewedAt: new Date() })
     .where(eq(users.id, user.id))
     .returning();
+
+  await logAudit({
+    userId: claims.sub,
+    userEmail: claims.email,
+    eventType: "update",
+    entityType: "user",
+    entityId: updated.id,
+    entityLabel: updated.email,
+    details: `Access request ${newStatus}`,
+  });
 
   return json(userToDict(updated));
 }
@@ -114,6 +135,15 @@ export async function DELETE(
       .where(eq(testRequisitions.createdBy, userId));
     await tx.update(users).set({ reviewedBy: null }).where(eq(users.reviewedBy, userId));
     await tx.delete(users).where(eq(users.id, userId));
+  });
+
+  await logAudit({
+    userId: claims.sub,
+    userEmail: claims.email,
+    eventType: "delete",
+    entityType: "user",
+    entityId: user.id,
+    entityLabel: user.email,
   });
 
   return json({ success: true });

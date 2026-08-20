@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 
 import { bugReportToDict, error, json } from "@/lib/api";
+import { logAudit } from "@/lib/audit";
 import { AuthError, decodeToken, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { bugReports, users } from "@/lib/db/schema";
@@ -96,6 +97,16 @@ export async function POST(req: Request) {
       reportedByName,
     })
     .returning();
+
+  await logAudit({
+    userId: claims.sub,
+    userName: reportedByName,
+    userEmail: claims.email,
+    eventType: "create",
+    entityType: "bug_report",
+    entityId: report.id,
+    entityLabel: report.title,
+  });
 
   return json(bugReportToDict(report), 201);
 }

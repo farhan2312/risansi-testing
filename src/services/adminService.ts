@@ -1,6 +1,14 @@
 import apiClient from "./apiClient";
 import { getToken } from "./session";
-import type { BugReport, BugReportStatus } from "@/types/testing";
+import type {
+  AuditActivityEntry,
+  AuditRange,
+  AuditSessionEntry,
+  AuditSummary,
+  AuditUsageRow,
+  BugReport,
+  BugReportStatus,
+} from "@/types/testing";
 
 export interface PendingUser {
   id: string;
@@ -92,4 +100,32 @@ export const openBugReportScreenshot = async (id: string): Promise<void> => {
   const url = URL.createObjectURL(data as Blob);
   window.open(url, "_blank", "noopener,noreferrer");
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
+};
+
+// ----- Audit Log (admin-only, same access level as the rest of this file) -----
+
+export const getAuditSummary = async (): Promise<AuditSummary> => {
+  const { data } = await apiClient.get<AuditSummary>("/audit-log/summary", authHeader());
+  return data;
+};
+
+export const getAuditUsage = async (range: AuditRange): Promise<AuditUsageRow[]> => {
+  const { data } = await apiClient.get<AuditUsageRow[]>("/audit-log/usage", { ...authHeader(), params: { range } });
+  return data;
+};
+
+export const getAuditSessions = async (range: AuditRange): Promise<AuditSessionEntry[]> => {
+  const { data } = await apiClient.get<AuditSessionEntry[]>("/audit-log/sessions", {
+    ...authHeader(),
+    params: { range },
+  });
+  return data;
+};
+
+export const getAuditActivity = async (range: AuditRange): Promise<AuditActivityEntry[]> => {
+  const { data } = await apiClient.get<AuditActivityEntry[]>("/audit-log/activity", {
+    ...authHeader(),
+    params: { range },
+  });
+  return data;
 };

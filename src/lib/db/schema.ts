@@ -271,3 +271,50 @@ export const bugReports = pgTable("bug_reports", {
   reportedByName: varchar("reported_by_name", { length: 100 }),
   createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
 });
+
+// Audit Log: append-only trail of logins and every data-changing action,
+// admin-only (see audit.ts and the audit-log API routes). user_id/name/email
+// are ALWAYS a name snapshot (same convention as submitted_by elsewhere) --
+// the log has to stay readable even after the account is later deleted, and
+// a failed login has no valid user_id to begin with.
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: uuid("user_id"),
+  userName: varchar("user_name", { length: 100 }),
+  userEmail: varchar("user_email", { length: 255 }),
+  // 'login' | 'login_failed' | 'logout' | 'create' | 'update' | 'delete'
+  eventType: varchar("event_type", { length: 30 }).notNull(),
+  // 'requisition' | 'report' | 'attachment' | 'user' | 'bug_report' | null (login/logout events)
+  entityType: varchar("entity_type", { length: 30 }),
+  entityId: uuid("entity_id"),
+  // Human-readable label for the row list -- e.g. a requisition's model, a
+  // report's report_no -- so the log reads without joining back to the row
+  // (which may itself be gone by the time anyone looks).
+  entityLabel: varchar("entity_label", { length: 255 }),
+  details: text("details"),
+  createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
+});
+
+// One row per login, closed out at logout (or left open if the session just
+// expired/was abandoned -- lastSeenAt is the fallback "active until" figure
+// for active-time math in that case).
+export const userSessions = pgTable("user_sessions", {
+  id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: uuid("user_id").notNull(),
+  userName: varchar("user_name", { length: 100 }),
+  userEmail: varchar("user_email", { length: 255 }),
+  loginAt: timestamp("login_at", { withTimezone: true }).$defaultFn(() => new Date()),
+  logoutAt: timestamp("logout_at", { withTimezone: true }),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).$defaultFn(() => new Date()),
+  pageViewCount: integer("page_view_count").default(0),
+});
+
+// Individual page navigations within a session -- lightweight, just enough
+// for the "Pages" count and a per-user breakdown, not a full analytics tool.
+export const pageViews = pgTable("page_views", {
+  id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  sessionId: uuid("session_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  path: varchar("path", { length: 255 }).notNull(),
+  viewedAt: timestamp("viewed_at", { withTimezone: true }).$defaultFn(() => new Date()),
+});

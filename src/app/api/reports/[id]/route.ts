@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { error, json, pointToDict, reportToDict } from "@/lib/api";
+import { logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports, testRequisitions } from "@/lib/db/schema";
@@ -67,6 +68,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .where(eq(pumpTestReports.id, id))
     .returning();
 
+  const changedFields = Object.keys(values);
+  if (Array.isArray(body.points)) changedFields.push("points");
+  await logAudit({
+    userId: claims.sub,
+    userEmail: claims.email,
+    eventType: "update",
+    entityType: "report",
+    entityId: report.id,
+    entityLabel: report.reportNo ?? report.model,
+    details: changedFields.length ? `Changed: ${changedFields.join(", ")}` : null,
+  });
+
   // Points are replaced wholesale on edit — simpler and matches how the
   // create flow builds them, rather than diffing add/remove/reorder.
   if (Array.isArray(body.points)) {
@@ -115,6 +128,15 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
   await db.delete(pumpTestReportPoints).where(eq(pumpTestReportPoints.reportId, id));
   await db.delete(pumpTestReports).where(eq(pumpTestReports.id, id));
+
+  await logAudit({
+    userId: claims.sub,
+    userEmail: claims.email,
+    eventType: "delete",
+    entityType: "report",
+    entityId: report.id,
+    entityLabel: report.reportNo ?? report.model,
+  });
 
   // Submitting this report auto-closed its requisition (see reports/route.ts
   // POST) — deleting it undoes that so the requisition doesn't sit "Closed"

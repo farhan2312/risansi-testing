@@ -1,6 +1,7 @@
 import { desc, eq, inArray } from "drizzle-orm";
 
 import { attachmentToDict, error, json, pointToDict, reportToDict, requisitionToDict } from "@/lib/api";
+import { logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports, requisitionAttachments, testRequisitions } from "@/lib/db/schema";
@@ -190,6 +191,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!requisition) {
     return error("Requisition not found", 404);
   }
+
+  const changedFields = Object.keys(values).filter((k) => k !== "updatedAt" && k !== "closedAt");
+  await logAudit({
+    userId: claims.sub,
+    userEmail: claims.email,
+    eventType: "update",
+    entityType: "requisition",
+    entityId: requisition.id,
+    entityLabel: requisition.model,
+    details: changedFields.length ? `Changed: ${changedFields.join(", ")}` : null,
+  });
 
   return json(requisitionToDict(requisition));
 }

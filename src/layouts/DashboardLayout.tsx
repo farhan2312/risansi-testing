@@ -9,6 +9,8 @@ import { useTheme } from "@/contexts/ThemeContext";
 import EditPasswordModal from "@/components/ui/EditPasswordModal";
 import ReportBugModal from "@/components/ui/ReportBugModal";
 import { listPendingUsers } from "@/services/adminService";
+import { logout as logoutRequest } from "@/services/authService";
+import { recordPageView } from "@/services/auditService";
 
 const PENDING_REQUESTS_POLL_MS = 30000;
 
@@ -89,7 +91,14 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
-  const handleLogout = () => {
+  // Records a page view on every route change, for the Audit Log's Usage &
+  // Time tab -- fire-and-forget, never blocks navigation.
+  useEffect(() => {
+    if (pathname) recordPageView(pathname);
+  }, [pathname]);
+
+  const handleLogout = async () => {
+    await logoutRequest();
     clearSession();
     router.push("/");
   };
@@ -139,6 +148,12 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                 className={pathname === "/admin/bug-reports" ? "active" : ""}
               >
                 Bug Reports
+              </Link>
+              <Link
+                href="/admin/audit-log"
+                className={pathname === "/admin/audit-log" ? "active" : ""}
+              >
+                Audit Log
               </Link>
             </>
           )}

@@ -1,0 +1,115 @@
+.audit-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+
+.audit-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.audit-stat .stat-value {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-h);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.audit-stat .stat-value-neg {
+  color: var(--neg);
+}
+
+.audit-stat .stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.audit-tab-row {
+  margin-bottom: 14px;
+}
+
+.audit-range-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.audit-range-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.audit-range-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.audit-tab-subline {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+
+.audit-event {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.audit-event-login {
+  background: var(--pos-soft);
+  color: var(--pos);
+}
+
+.audit-event-login-failed {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
+.audit-event-logout {
+  background: var(--bg-sunk);
+  color: var(--text-muted);
+}
+
+.audit-event-create {
+  background: var(--pos-soft);
+  color: var(--pos);
+}
+
+.audit-event-update {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.audit-event-delete {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
+.audit-details {
+  color: var(--text-muted);
+  font-size: 12px;
+  max-width: 320px;
+  white-space: normal;
+}

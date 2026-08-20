@@ -34,3 +34,13 @@ export const changePassword = async (currentPassword: string, newPassword: strin
   );
   return data;
 };
+
+/** Closes the audit-log session server-side before the token is cleared
+ * client-side -- best-effort, sign-out proceeds either way. */
+export const logout = async (): Promise<void> => {
+  try {
+    await apiClient.post("/auth/logout", {}, { headers: { Authorization: `Bearer ${getToken()}` } });
+  } catch {
+    // Sign-out proceeds regardless -- this is just closing the audit trail.
+  }
+};

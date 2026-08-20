@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
 import { error, json } from "@/lib/api";
+import { logAudit } from "@/lib/audit";
 import { AuthError, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -14,8 +15,9 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ userId: string }> },
 ) {
+  let claims;
   try {
-    requireAdmin(req);
+    claims = requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
@@ -45,5 +47,16 @@ export async function PATCH(
 
   const newHash = await bcrypt.hash(newPassword, 12);
   await db.update(users).set({ passwordHash: newHash }).where(eq(users.id, user.id));
+
+  await logAudit({
+    userId: claims.sub,
+    userEmail: claims.email,
+    eventType: "update",
+    entityType: "user",
+    entityId: user.id,
+    entityLabel: user.email,
+    details: "Password reset by admin",
+  });
+
   return json({ success: true });
 }
