@@ -1,0 +1,95 @@
+.bug-status-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.bug-status-tab {
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bug-status-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.bug-status-tab-count {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 11px;
+}
+
+.bug-type-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bug-type-badge-bug {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
+.bug-type-badge-feature {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.bug-description {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+  max-width: 320px;
+  white-space: pre-wrap;
+}
+
+.bug-severity {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bug-severity-low {
+  color: var(--text-muted);
+}
+
+.bug-severity-medium {
+  color: var(--warn);
+}
+
+.bug-severity-high {
+  color: var(--neg);
+}
+
+.bug-severity-critical {
+  color: var(--neg);
+  font-weight: 700;
+}
+
+.bug-link-btn {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.bug-link-btn:hover {
+  text-decoration: underline;
+}

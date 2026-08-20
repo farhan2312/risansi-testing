@@ -2,6 +2,9 @@ import apiClient from "./apiClient";
 import { getToken } from "./session";
 import type {
   ArchiveReportSummary,
+  BugReport,
+  BugReportSeverity,
+  BugReportType,
   DedupCheckResult,
   NewReportInput,
   NewRequisitionInput,
@@ -150,4 +153,28 @@ export const getLatestObservationReport = async (model: string): Promise<Archive
     .filter((r) => (r.report_format ?? "observation") === "observation")
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
   return matches[0] ?? null;
+};
+
+export interface NewBugReportInput {
+  type: BugReportType;
+  title: string;
+  description?: string;
+  severity: BugReportSeverity;
+  page?: string;
+  screenshot?: File;
+}
+
+/** Available to every logged-in user regardless of role. */
+export const submitBugReport = async (input: NewBugReportInput): Promise<BugReport> => {
+  const form = new FormData();
+  form.append("type", input.type);
+  form.append("title", input.title);
+  if (input.description) form.append("description", input.description);
+  form.append("severity", input.severity);
+  if (input.page) form.append("page", input.page);
+  if (input.screenshot) form.append("screenshot", input.screenshot);
+  const { data } = await apiClient.post<BugReport>("/bug-reports", form, {
+    headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": undefined },
+  });
+  return data;
 };

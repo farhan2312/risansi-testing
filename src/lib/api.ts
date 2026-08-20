@@ -20,6 +20,7 @@ type ReportRow = typeof schema.pumpTestReports.$inferSelect;
 type PointRow = typeof schema.pumpTestReportPoints.$inferSelect;
 type UserRow = typeof schema.users.$inferSelect;
 type AttachmentRow = typeof schema.requisitionAttachments.$inferSelect;
+type BugReportRow = typeof schema.bugReports.$inferSelect;
 
 /** Mirrors sales-portal-next's _user_to_dict(): raw snake_case columns, minus password_hash. */
 export function userToDict(u: UserRow) {
@@ -187,5 +188,27 @@ export function attachmentToDict(a: Omit<AttachmentRow, "fileData">) {
     uploaded_by: a.uploadedBy,
     uploaded_by_name: a.uploadedByName,
     created_at: a.createdAt,
+  };
+}
+
+/** Metadata only -- deliberately omits screenshotData, same reasoning as
+ * attachmentToDict above (the blob only ever travels through its own
+ * dedicated route). */
+export function bugReportToDict(b: Omit<BugReportRow, "screenshotData">) {
+  return {
+    id: b.id,
+    type: b.type,
+    title: b.title,
+    description: b.description,
+    severity: b.severity,
+    page: b.page,
+    status: b.status,
+    screenshot_file_name: b.screenshotFileName,
+    screenshot_mime_type: b.screenshotMimeType,
+    screenshot_file_size: b.screenshotFileSize,
+    has_screenshot: b.screenshotFileName !== null,
+    reported_by: b.reportedBy,
+    reported_by_name: b.reportedByName,
+    created_at: b.createdAt,
   };
 }

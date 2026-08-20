@@ -311,3 +311,26 @@ export interface PortalOverview {
   requirement_met: number;
   requirement_unmet: number;
 }
+
+export type BugReportType = "bug" | "feature";
+export type BugReportSeverity = "Low" | "Medium" | "High" | "Critical";
+export type BugReportStatus = "Open" | "In Progress" | "Resolved";
+
+/** Metadata only -- screenshot bytes are never sent down with the list, only
+ * via the dedicated GET .../bug-reports/[id]/screenshot endpoint. */
+export interface BugReport {
+  id: string;
+  type: BugReportType;
+  title: string;
+  description: string | null;
+  severity: BugReportSeverity;
+  page: string | null;
+  status: BugReportStatus;
+  screenshot_file_name: string | null;
+  screenshot_mime_type: string | null;
+  screenshot_file_size: number | null;
+  has_screenshot: boolean;
+  reported_by: string | null;
+  reported_by_name: string | null;
+  created_at: string;
+}

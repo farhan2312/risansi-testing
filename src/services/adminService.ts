@@ -1,5 +1,6 @@
 import apiClient from "./apiClient";
 import { getToken } from "./session";
+import type { BugReport, BugReportStatus } from "@/types/testing";
 
 export interface PendingUser {
   id: string;
@@ -60,4 +61,35 @@ export const setUserRole = async (
 
 export const deleteUser = async (userId: string): Promise<void> => {
   await apiClient.delete(`/users/${userId}`, authHeader());
+};
+
+/** Admin-only (role === "admin"), matching Manage Users / Access Requests. */
+export const listBugReports = async (status?: BugReportStatus): Promise<BugReport[]> => {
+  const { data } = await apiClient.get<BugReport[]>("/bug-reports", {
+    ...authHeader(),
+    params: status ? { status } : undefined,
+  });
+  return data;
+};
+
+export const setBugReportStatus = async (id: string, status: BugReportStatus): Promise<BugReport> => {
+  const { data } = await apiClient.patch<BugReport>(`/bug-reports/${id}`, { status }, authHeader());
+  return data;
+};
+
+export const deleteBugReport = async (id: string): Promise<void> => {
+  await apiClient.delete(`/bug-reports/${id}`, authHeader());
+};
+
+/** Same auth-safe blob-open pattern as openAttachment in testingService.ts —
+ * the JWT lives in localStorage, not a cookie, so a bare <a href> wouldn't
+ * carry it. */
+export const openBugReportScreenshot = async (id: string): Promise<void> => {
+  const { data } = await apiClient.get(`/bug-reports/${id}/screenshot`, {
+    ...authHeader(),
+    responseType: "blob",
+  });
+  const url = URL.createObjectURL(data as Blob);
+  window.open(url, "_blank", "noopener,noreferrer");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };

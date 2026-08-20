@@ -7,6 +7,7 @@ import "./DashboardLayout.css";
 import { clearSession, getCurrentUser, isAdmin, updateCurrentUser } from "@/services/session";
 import { useTheme } from "@/contexts/ThemeContext";
 import EditPasswordModal from "@/components/ui/EditPasswordModal";
+import ReportBugModal from "@/components/ui/ReportBugModal";
 import { listPendingUsers } from "@/services/adminService";
 
 const PENDING_REQUESTS_POLL_MS = 30000;
@@ -36,6 +37,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
+  const [showReportBug, setShowReportBug] = useState(false);
   const [mustChangePassword, setMustChangePassword] = useState(user?.must_change_password ?? false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -132,6 +134,12 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
               >
                 Manage Users
               </Link>
+              <Link
+                href="/admin/bug-reports"
+                className={pathname === "/admin/bug-reports" ? "active" : ""}
+              >
+                Bug Reports
+              </Link>
             </>
           )}
         </nav>
@@ -182,6 +190,11 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       <div className="testing-content">
         <main className="testing-main">{children}</main>
       </div>
+
+      <button type="button" className="report-bug-fab" onClick={() => setShowReportBug(true)}>
+        🐛 Report a Bug
+      </button>
+      {showReportBug && <ReportBugModal onClose={() => setShowReportBug(false)} />}
 
       {mustChangePassword ? (
         <EditPasswordModal

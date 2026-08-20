@@ -250,3 +250,24 @@ export const requisitionAttachments = pgTable("requisition_attachments", {
   uploadedByName: varchar("uploaded_by_name", { length: 100 }),
   createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
 });
+
+// "Report a Bug" widget, available to every logged-in user regardless of
+// role -- screenshot stored the same bytea-in-Postgres way as attachments
+// above, capped at 4MB app-side (see bug-reports/route.ts).
+export const bugReports = pgTable("bug_reports", {
+  id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  type: varchar("type", { length: 20 }).default("bug"), // 'bug' | 'feature'
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  severity: varchar("severity", { length: 20 }).default("Medium"), // 'Low' | 'Medium' | 'High' | 'Critical'
+  page: varchar("page", { length: 255 }),
+  status: varchar("status", { length: 20 }).default("Open"), // 'Open' | 'In Progress' | 'Resolved'
+  screenshotFileName: varchar("screenshot_file_name", { length: 255 }),
+  screenshotMimeType: varchar("screenshot_mime_type", { length: 100 }),
+  screenshotFileSize: integer("screenshot_file_size"),
+  screenshotData: bytea("screenshot_data"),
+  reportedBy: uuid("reported_by"),
+  // Name snapshot, same convention as requisitionAttachments.uploadedByName.
+  reportedByName: varchar("reported_by_name", { length: 100 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
+});
