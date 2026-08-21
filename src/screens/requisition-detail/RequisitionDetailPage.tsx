@@ -17,11 +17,14 @@ import { getCurrentUser } from "@/services/session";
 import { ecQuotationLabel } from "@/types/testing";
 import type { DedupCheckResult, PumpTestReport, TestRequisition } from "@/types/testing";
 
-/** Installed motor power for a prior-report row: "30 HP (22.38 KW)". Falls
- * back to the raw motor text when no HP figure can be read out of it. */
+/** Installed motor power for a prior-report row, always in KW -- the source
+ * team only ever enters Power in HP, but everything the testing team sees
+ * after a requisition is raised (here, in historical reports, everywhere)
+ * shows the converted KW figure, never the raw HP. Falls back to the raw
+ * motor text when no HP figure can be read out of it at all. */
 const installedPowerLabel = (motor: string | null | undefined): string => {
   const power = installedPowerFromMotor(motor);
-  if (power) return `${power.hp} HP (${power.kw} KW)`;
+  if (power) return `${power.kw} KW`;
   return motor ?? "-";
 };
 
