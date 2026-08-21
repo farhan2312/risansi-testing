@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import "./RequisitionDetailPage.css";
 import "@/components/ui/AttachmentsField.css";
 import { headToKgcm2 } from "@/lib/unitConversion";
-import { formatDate, formatFileSize, installedPowerFromMotor, targetDateFor } from "@/lib/formUtils";
+import { formatDate, formatFileSize, formatNumber, installedPowerFromMotor, targetDateFor } from "@/lib/formUtils";
 import {
   computeRequirementStatus,
   ratedPowerKwFromRequisition,
@@ -191,26 +191,26 @@ const RequisitionDetailPage = () => {
           </div>
           <div>
             <span className="label">Specific Gravity</span>
-            <span>{requisition.specific_gravity ?? "-"}</span>
+            <span>{formatNumber(requisition.specific_gravity)}</span>
           </div>
           <div>
             <span className="label">Power (KW)</span>
-            <span>{powerKw !== undefined ? powerKw : "-"}</span>
+            <span>{powerKw !== undefined ? formatNumber(powerKw) : "-"}</span>
           </div>
           <div>
             <span className="label">Head</span>
             <span>
-              {requisition.head_kgcm2 ?? "-"} {requisition.head_unit ?? ""}
-              {headConvertedKgcm2 !== null && ` (= ${headConvertedKgcm2} KG/CM2)`}
+              {formatNumber(requisition.head_kgcm2)} {requisition.head_unit ?? ""}
+              {headConvertedKgcm2 !== null && ` (= ${formatNumber(headConvertedKgcm2)} KG/CM2)`}
             </span>
           </div>
           <div>
             <span className="label">RPM</span>
-            <span>{requisition.rpm ?? "-"}</span>
+            <span>{formatNumber(requisition.rpm)}</span>
           </div>
           <div>
             <span className="label">Motor RPM</span>
-            <span>{requisition.motor_rpm ?? "-"}</span>
+            <span>{formatNumber(requisition.motor_rpm)}</span>
           </div>
           <div>
             <span className="label">Submitted By</span>
@@ -292,9 +292,9 @@ const RequisitionDetailPage = () => {
                       <td>{r.gearbox_no ?? "-"}</td>
                       <td>{r.motor ?? "-"}</td>
                       <td>{installedPowerLabel(r.motor)}</td>
-                      <td>{r.rated_head ?? "-"}</td>
-                      <td>{r.rated_capacity ?? "-"}</td>
-                      <td>{r.rated_rpm ?? "-"}</td>
+                      <td>{formatNumber(r.rated_head)}</td>
+                      <td>{formatNumber(r.rated_capacity)}</td>
+                      <td>{formatNumber(r.rated_rpm)}</td>
                       <td>{r.points.length}</td>
                       <td>
                         <Link href={`/reports/${r.id}`}>View Report</Link>
@@ -398,9 +398,9 @@ const RequisitionDetailPage = () => {
                 </tr>
                 <tr>
                   <td className="label">Rated Head</td>
-                  <td>{r.rated_head ?? "-"}</td>
+                  <td>{formatNumber(r.rated_head)}</td>
                   <td className="label">Rated RPM</td>
-                  <td>{r.rated_rpm ?? "-"}</td>
+                  <td>{formatNumber(r.rated_rpm)}</td>
                 </tr>
                 <tr>
                   <td className="label">Test Points</td>

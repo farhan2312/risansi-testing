@@ -5,7 +5,7 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import "./TestReportForm.css";
 import { getLatestObservationReport, getReport, getRequisition, submitReport, updateReport } from "@/services/testingService";
 import { computeViscosityChartPoint } from "@/lib/testReportCalc";
-import { normalizeModelOnChange, normalizeMotorRpm } from "@/lib/formUtils";
+import { normalizeModelOnChange, normalizeMotorRpm, formatNumber } from "@/lib/formUtils";
 import { normalizeHeadForSubmit } from "@/lib/unitConversion";
 import {
   clearReportDraft,
@@ -95,7 +95,7 @@ const emptyPoint: PointFormValues = {
 
 const num = (v: string): number | null => (v.trim() === "" ? null : Number(v));
 const numOrUndef = (v: string): number | undefined => (v.trim() === "" ? undefined : Number(v));
-const fmt = (v: number | null) => (v === null || Number.isNaN(v) ? "-" : v);
+const fmt = (v: number | null) => (v === null || Number.isNaN(v) ? "-" : formatNumber(v));
 const str = (v: string | number | null | undefined): string => (v === null || v === undefined ? "" : String(v));
 
 /** Duration between two "HH:MM" (24-hour) times, formatted "HH:MM hrs".

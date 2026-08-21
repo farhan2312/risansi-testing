@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import "./NewRequisitionPage.css";
-import { normalizeModelOnChange } from "@/lib/formUtils";
+import { normalizeModelOnChange, formatNumber } from "@/lib/formUtils";
 import { capacityToM3hr, headToKgcm2 } from "@/lib/unitConversion";
 import { ratedPowerKwFromRequisition } from "@/lib/requirementCheck";
 import AttachmentsField from "@/components/ui/AttachmentsField";
@@ -257,14 +257,14 @@ const NewRequisitionPage = () => {
             <label htmlFor="power_hp">Power (HP)</label>
             <input id="power_hp" type="number" step="any" {...register("power_hp")} />
             {powerConvertedKw !== undefined && (
-              <span className="unit-hint">= {powerConvertedKw} KW</span>
+              <span className="unit-hint">= {formatNumber(powerConvertedKw)} KW</span>
             )}
           </div>
 
           <div className="field">
             <label htmlFor="head_kgcm2">Head</label>
             <input id="head_kgcm2" type="number" step="any" {...register("head_kgcm2")} />
-            {headConverted !== null && <span className="unit-hint">= {headConverted} KG/CM2</span>}
+            {headConverted !== null && <span className="unit-hint">= {formatNumber(headConverted)} KG/CM2</span>}
           </div>
 
           <div className="field">
@@ -299,7 +299,7 @@ const NewRequisitionPage = () => {
           <div className="field">
             <label htmlFor="req_capacity">Req. Capacity</label>
             <input id="req_capacity" type="number" step="any" {...register("req_capacity")} />
-            {capacityConverted !== null && <span className="unit-hint">= {capacityConverted} M3/HR</span>}
+            {capacityConverted !== null && <span className="unit-hint">= {formatNumber(capacityConverted)} M3/HR</span>}
           </div>
 
           <div className="field">

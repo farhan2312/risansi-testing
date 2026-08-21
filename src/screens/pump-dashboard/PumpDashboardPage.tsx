@@ -10,13 +10,17 @@ import { POINT_ROWS } from "@/components/report-detail/ReportDetailSections";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 import { getPumpDashboard } from "@/services/testingService";
 import type { PumpDashboardData, PumpTestReport } from "@/types/testing";
-import { formatDate } from "@/lib/formUtils";
+import { formatDate, formatNumber } from "@/lib/formUtils";
 
 const fmt = (v: number | string | null | undefined) => (v === null || v === undefined || v === "" ? "-" : v);
 
 interface HeaderRowDef {
   label: string;
   field: keyof PumpTestReport;
+  /** True for genuinely-numeric columns -- caps the display at 3 decimal
+   * places instead of passing a raw "22.380000"-style DB value through.
+   * Free-text/identifier fields (PO No., Motor, Witness, etc.) stay plain. */
+  numeric?: boolean;
 }
 
 const HEADER_ROWS: HeaderRowDef[] = [
@@ -26,35 +30,35 @@ const HEADER_ROWS: HeaderRowDef[] = [
   { label: "Gearbox No.", field: "gearbox_no" },
   { label: "Gearbox Ratio", field: "gearbox_ratio" },
   { label: "Motor", field: "motor" },
-  { label: "Motor RPM", field: "motor_rpm" },
+  { label: "Motor RPM", field: "motor_rpm", numeric: true },
   { label: "Capacity Method", field: "test_type" },
   { label: "NPSHa", field: "npsha_status" },
   { label: "Tested By", field: "tested_by" },
   { label: "Capacity Unit", field: "capacity_unit" },
   { label: "Head Unit", field: "head_unit" },
   { label: "Liquid", field: "liquid" },
-  { label: "Rated Capacity", field: "rated_capacity" },
-  { label: "Rated Head", field: "rated_head" },
-  { label: "Rated RPM", field: "rated_rpm" },
-  { label: "Specific Gravity", field: "specific_gravity" },
-  { label: "Viscosity (CPS)", field: "viscosity_cps" },
-  { label: "K for Given CPS", field: "k_for_given_cps" },
-  { label: "Q Theoretical / 100 Rev", field: "q_theoretical_100rev" },
-  { label: "Calculated Head", field: "calculated_head" },
+  { label: "Rated Capacity", field: "rated_capacity", numeric: true },
+  { label: "Rated Head", field: "rated_head", numeric: true },
+  { label: "Rated RPM", field: "rated_rpm", numeric: true },
+  { label: "Specific Gravity", field: "specific_gravity", numeric: true },
+  { label: "Viscosity (CPS)", field: "viscosity_cps", numeric: true },
+  { label: "K for Given CPS", field: "k_for_given_cps", numeric: true },
+  { label: "Q Theoretical / 100 Rev", field: "q_theoretical_100rev", numeric: true },
+  { label: "Calculated Head", field: "calculated_head", numeric: true },
   { label: "Suction", field: "suction_type" },
-  { label: "Reference Voltage (Vin)", field: "reference_voltage" },
-  { label: "Reference Current (Iin)", field: "reference_current" },
-  { label: "V-Notch Baseline (Hin)", field: "vnotch_baseline" },
-  { label: "Vibration — Sound (Db)", field: "vibration_sound_db" },
-  { label: "Vibration — X (mm/sec)", field: "vibration_x_mm_sec" },
-  { label: "Vibration — Y (mm/sec)", field: "vibration_y_mm_sec" },
-  { label: "Vibration — Z (mm/sec)", field: "vibration_z_mm_sec" },
+  { label: "Reference Voltage (Vin)", field: "reference_voltage", numeric: true },
+  { label: "Reference Current (Iin)", field: "reference_current", numeric: true },
+  { label: "V-Notch Baseline (Hin)", field: "vnotch_baseline", numeric: true },
+  { label: "Vibration — Sound (Db)", field: "vibration_sound_db", numeric: true },
+  { label: "Vibration — X (mm/sec)", field: "vibration_x_mm_sec", numeric: true },
+  { label: "Vibration — Y (mm/sec)", field: "vibration_y_mm_sec", numeric: true },
+  { label: "Vibration — Z (mm/sec)", field: "vibration_z_mm_sec", numeric: true },
   { label: "Pump Started At", field: "pump_started_at" },
   { label: "Pump Stopped At", field: "pump_stopped_at" },
   { label: "Total Run", field: "total_run" },
-  { label: "Ambient Temp (°C)", field: "ambient_temp_c" },
-  { label: "Max. Bearing Temp (°C)", field: "max_bearing_temp_c" },
-  { label: "Total Rise (°C)", field: "total_rise_c" },
+  { label: "Ambient Temp (°C)", field: "ambient_temp_c", numeric: true },
+  { label: "Max. Bearing Temp (°C)", field: "max_bearing_temp_c", numeric: true },
+  { label: "Total Rise (°C)", field: "total_rise_c", numeric: true },
   { label: "Witness", field: "witness" },
   { label: "Inspector", field: "inspector" },
   { label: "Recorder", field: "recorder" },
@@ -280,7 +284,9 @@ const PumpDashboardPage = () => {
                       const unmetTitle = unmetTitleByReportId.get(r.id);
                       return (
                         <td key={r.id} className={unmetTitle ? "requirement-cell-not-met" : "highlight"} title={unmetTitle || undefined}>
-                          {fmt(r[row.field] as string | number | null)}
+                          {row.numeric
+                            ? formatNumber(r[row.field] as string | number | null)
+                            : fmt(r[row.field] as string | number | null)}
                         </td>
                       );
                     })}
@@ -314,7 +320,7 @@ const PumpDashboardPage = () => {
                       <td className="row-unit-col">{row.unit ?? ""}</td>
                       {sortedPoints.map(({ point }, i) => (
                         <td key={point.id ?? i} className="highlight">
-                          {fmt(point[row.field])}
+                          {formatNumber(point[row.field])}
                         </td>
                       ))}
                     </tr>

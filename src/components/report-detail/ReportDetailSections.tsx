@@ -4,9 +4,12 @@ import Link from "next/link";
 import PerformanceCurve from "./PerformanceCurve";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 import type { PumpTestReport, PumpTestReportPoint } from "@/types/testing";
-import { formatDate } from "@/lib/formUtils";
+import { formatDate, formatNumber } from "@/lib/formUtils";
 
 const fmt = (v: number | string | null | undefined) => (v === null || v === undefined || v === "" ? "-" : v);
+// Same as `fmt`, but for genuinely-numeric fields -- caps the display at 3
+// decimal places instead of passing a raw "22.380000"-style DB value through.
+const fmtNum = (v: number | string | null | undefined) => formatNumber(v);
 
 export interface PointRowDef {
   label: string;
@@ -100,7 +103,7 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
               <th>Motor</th>
               <td>{fmt(report.motor)}</td>
               <th>Motor RPM</th>
-              <td>{fmt(report.motor_rpm)}</td>
+              <td>{fmtNum(report.motor_rpm)}</td>
               <th>Test Date</th>
               <td>{formatDate(report.test_date ?? report.created_at)}</td>
             </tr>
@@ -123,19 +126,19 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
             <tr>
               <th>Rated Capacity</th>
               <td className={`highlight ${requirementStatus.capacity === false ? "requirement-cell-not-met" : ""}`}>
-                {fmt(report.rated_capacity)}
+                {fmtNum(report.rated_capacity)}
               </td>
               <th>Rated Head</th>
               <td className={`highlight ${requirementStatus.head === false ? "requirement-cell-not-met" : ""}`}>
-                {fmt(report.rated_head)}
+                {fmtNum(report.rated_head)}
               </td>
               <th>Rated RPM</th>
-              <td className="highlight">{fmt(report.rated_rpm)}</td>
+              <td className="highlight">{fmtNum(report.rated_rpm)}</td>
             </tr>
             <tr>
               <th>Rated Power (KW)</th>
               <td className={`highlight ${requirementStatus.power === false ? "requirement-cell-not-met" : ""}`}>
-                {fmt(report.rated_power_kw)}
+                {fmtNum(report.rated_power_kw)}
               </td>
               <th></th>
               <td></td>
@@ -144,27 +147,27 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
             </tr>
             <tr>
               <th>Specific Gravity</th>
-              <td className="highlight">{fmt(report.specific_gravity)}</td>
+              <td className="highlight">{fmtNum(report.specific_gravity)}</td>
               <th>Viscosity (CPS)</th>
-              <td className="highlight">{fmt(report.viscosity_cps)}</td>
+              <td className="highlight">{fmtNum(report.viscosity_cps)}</td>
               <th>K for Given CPS</th>
-              <td className="highlight">{fmt(report.k_for_given_cps)}</td>
+              <td className="highlight">{fmtNum(report.k_for_given_cps)}</td>
             </tr>
             <tr>
               <th>Q Theoretical / 100 Rev</th>
-              <td className="highlight">{fmt(report.q_theoretical_100rev)}</td>
+              <td className="highlight">{fmtNum(report.q_theoretical_100rev)}</td>
               <th>Calculated Head</th>
-              <td className="highlight">{fmt(report.calculated_head)}</td>
+              <td className="highlight">{fmtNum(report.calculated_head)}</td>
               <th>Suction</th>
               <td>{fmt(report.suction_type)}</td>
             </tr>
             <tr>
               <th>Reference Voltage (Vin)</th>
-              <td className="highlight">{fmt(report.reference_voltage)}</td>
+              <td className="highlight">{fmtNum(report.reference_voltage)}</td>
               <th>Reference Current (Iin)</th>
-              <td className="highlight">{fmt(report.reference_current)}</td>
+              <td className="highlight">{fmtNum(report.reference_current)}</td>
               <th>V-Notch Baseline (Hin)</th>
-              <td className="highlight">{fmt(report.vnotch_baseline)}</td>
+              <td className="highlight">{fmtNum(report.vnotch_baseline)}</td>
             </tr>
             <tr>
               <th>Linked Testing Summary</th>
@@ -225,7 +228,7 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
                     <td className="row-unit-col">{row.unit ?? ""}</td>
                     {points.map((p, i) => (
                       <td key={p.id ?? i} className={rowNotMet ? "requirement-cell-not-met" : "highlight"}>
-                        {fmt(p[row.field])}
+                        {fmtNum(p[row.field])}
                       </td>
                     ))}
                   </tr>
@@ -252,15 +255,15 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
             <tbody>
               <tr>
                 <th>Vibration — Sound</th>
-                <td>{fmt(report.vibration_sound_db)} Db</td>
+                <td>{fmtNum(report.vibration_sound_db)} Db</td>
                 <th>X</th>
-                <td>{fmt(report.vibration_x_mm_sec)} mm/sec</td>
+                <td>{fmtNum(report.vibration_x_mm_sec)} mm/sec</td>
               </tr>
               <tr>
                 <th>Y</th>
-                <td>{fmt(report.vibration_y_mm_sec)} mm/sec</td>
+                <td>{fmtNum(report.vibration_y_mm_sec)} mm/sec</td>
                 <th>Z</th>
-                <td>{fmt(report.vibration_z_mm_sec)} mm/sec</td>
+                <td>{fmtNum(report.vibration_z_mm_sec)} mm/sec</td>
               </tr>
               <tr>
                 <th>Pump Started At</th>
@@ -272,13 +275,13 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
                 <th>Total Run</th>
                 <td>{fmt(report.total_run)}</td>
                 <th>Ambient Temp</th>
-                <td>{fmt(report.ambient_temp_c)} °C</td>
+                <td>{fmtNum(report.ambient_temp_c)} °C</td>
               </tr>
               <tr>
                 <th>Max. Bearing Temp</th>
-                <td>{fmt(report.max_bearing_temp_c)} °C</td>
+                <td>{fmtNum(report.max_bearing_temp_c)} °C</td>
                 <th>Total Rise</th>
-                <td>{fmt(report.total_rise_c)} °C</td>
+                <td>{fmtNum(report.total_rise_c)} °C</td>
               </tr>
             </tbody>
           </table>

@@ -72,6 +72,25 @@ const addDays = (dateStr: string, days: number): string => {
   return d.toISOString().slice(0, 10);
 };
 
+/**
+ * Caps any numeric display to at most 3 decimal places, stripping trailing
+ * zeros ("22.380000" -> "22.38", "320.00" -> "320", "9.140000" -> "9.14") --
+ * whole numbers stay whole. Postgres `numeric` columns serialize with their
+ * full column scale (up to 6 decimals in this schema), and raw formula-engine
+ * output can carry long floating-point tails -- this is the one place that
+ * caps both before they reach the screen. Returns "-" for anything
+ * null/undefined/empty/non-numeric, so it's a safe drop-in wherever a value
+ * is actually numeric (not for free-text/identifier fields like PO No. or
+ * Gearbox No., which can contain non-numeric characters worth preserving
+ * as-is).
+ */
+export const formatNumber = (v: number | string | null | undefined): string => {
+  if (v === null || v === undefined || v === "") return "-";
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "-";
+  return String(Number(n.toFixed(3)));
+};
+
 /** A requisition's Target Date: the source team's explicit value if they set
  * one (only shown/filled for "Against R&D Trials" on the requisition form),
  * otherwise 7 days after Date of Requisition, falling back to the submission

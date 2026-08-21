@@ -6,7 +6,7 @@ import "./ReportArchivePage.css";
 import { normalizeModelKey, modelDisplayLabel } from "@/lib/modelKey";
 import { listReports } from "@/services/testingService";
 import type { ArchiveReportSummary } from "@/types/testing";
-import { formatDate } from "@/lib/formUtils";
+import { formatDate, formatNumber } from "@/lib/formUtils";
 
 const PAGE_SIZE = 20;
 
@@ -202,10 +202,10 @@ const ReportArchivePage = () => {
                                   </td>
                                   <td>{r.motor ?? "-"}</td>
                                   <td>{formatDate(r.test_date ?? r.created_at)}</td>
-                                  <td>{r.rated_capacity ?? "-"}</td>
-                                  <td>{r.rated_head ?? "-"}</td>
-                                  <td>{r.rated_rpm ?? "-"}</td>
-                                  <td>{r.rated_power_kw ?? "-"}</td>
+                                  <td>{formatNumber(r.rated_capacity)}</td>
+                                  <td>{formatNumber(r.rated_head)}</td>
+                                  <td>{formatNumber(r.rated_rpm)}</td>
+                                  <td>{formatNumber(r.rated_power_kw)}</td>
                                   <td>{r.pointCount}</td>
                                   <td>{r.max_ve !== null ? `${r.max_ve.toFixed(1)}%` : "-"}</td>
                                   <td>{r.max_me !== null ? `${r.max_me.toFixed(1)}%` : "-"}</td>
