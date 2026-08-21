@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import "./DashboardPage.css";
 import { formatDate, targetDateFor } from "@/lib/formUtils";
 import { listRequisitions, updateRequisition } from "@/services/testingService";
@@ -25,8 +26,15 @@ const STATUS_TABS: { label: string; value: RequisitionStatus | "All" }[] = [
 ];
 
 const DashboardPage = () => {
+  const searchParams = useSearchParams();
   const [requisitions, setRequisitions] = useState<TestRequisition[]>([]);
-  const [activeStatus, setActiveStatus] = useState<RequisitionStatus | "All">("All");
+  // Lets a link like /dashboard?status=Pending (the Overview page's
+  // Requisitions by Status card) land here pre-filtered, instead of always
+  // opening on "All" and making the user click the tab themselves.
+  const [activeStatus, setActiveStatus] = useState<RequisitionStatus | "All">(() => {
+    const fromQuery = searchParams.get("status");
+    return STATUS_TABS.some((t) => t.value === fromQuery) ? (fromQuery as RequisitionStatus) : "All";
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const canCreateRequisition = getCurrentUser()?.role !== "testing";

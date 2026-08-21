@@ -90,8 +90,10 @@ const OverviewPage = () => {
           <ul className="overview-breakdown">
             {STATUS_ORDER.map((status) => (
               <li key={status}>
-                <span className={`status-pill ${statusClass(status)}`}>{status}</span>
-                <span className="overview-breakdown-count">{data.requisitions_by_status[status] ?? 0}</span>
+                <Link href={`/dashboard?status=${encodeURIComponent(status)}`} className="overview-breakdown-link">
+                  <span className={`status-pill ${statusClass(status)}`}>{status}</span>
+                  <span className="overview-breakdown-count">{data.requisitions_by_status[status] ?? 0}</span>
+                </Link>
               </li>
             ))}
           </ul>
