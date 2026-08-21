@@ -177,12 +177,14 @@ const ReportArchivePage = () => {
                             <tr>
                               <th>Report No.</th>
                               <th>Motor</th>
-                              <th>Rated RPM</th>
-                              <th>Rated Head</th>
-                              <th>Suction</th>
                               <th>Test Date</th>
+                              <th>Rated Capacity</th>
+                              <th>Rated Head</th>
+                              <th>Rated RPM</th>
+                              <th>Rated KW</th>
                               <th>Points</th>
-                              <th>Testing Summary-Linked</th>
+                              <th>Max VE</th>
+                              <th>Max ME</th>
                               <th></th>
                             </tr>
                           </thead>
@@ -199,12 +201,14 @@ const ReportArchivePage = () => {
                                     {unmetTitle && <span className="requirement-flag">⚠</span>}
                                   </td>
                                   <td>{r.motor ?? "-"}</td>
-                                  <td>{r.rated_rpm ?? "-"}</td>
-                                  <td>{r.rated_head ?? "-"}</td>
-                                  <td>{r.suction_type ?? "-"}</td>
                                   <td>{formatDate(r.test_date ?? r.created_at)}</td>
+                                  <td>{r.rated_capacity ?? "-"}</td>
+                                  <td>{r.rated_head ?? "-"}</td>
+                                  <td>{r.rated_rpm ?? "-"}</td>
+                                  <td>{r.rated_power_kw ?? "-"}</td>
                                   <td>{r.pointCount}</td>
-                                  <td>{r.requisition_id ? "Yes" : "Historical"}</td>
+                                  <td>{r.max_ve !== null ? `${r.max_ve.toFixed(1)}%` : "-"}</td>
+                                  <td>{r.max_me !== null ? `${r.max_me.toFixed(1)}%` : "-"}</td>
                                   <td>
                                     <Link href={`/reports/${r.id}/curve`}>View Curve</Link>
                                   </td>

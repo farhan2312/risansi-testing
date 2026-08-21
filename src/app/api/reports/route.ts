@@ -32,6 +32,7 @@ export async function GET(req: Request) {
   // Did each report reach its rated head/capacity/power? Only the max
   // across its points matters for that check, so aggregate in SQL rather
   // than shipping every point down just to compute this in the list view.
+  // Max VE/ME ride along the same aggregate for the archive list's columns.
   const maxes = reportIds.length
     ? await db
         .select({
@@ -39,6 +40,8 @@ export async function GET(req: Request) {
           maxHead: sql<string | null>`max(${pumpTestReportPoints.headKgcm2})`,
           maxCapacity: sql<string | null>`max(${pumpTestReportPoints.capacityCalculatedM3hr})`,
           maxPower: sql<string | null>`max(${pumpTestReportPoints.powerCalculatedKw})`,
+          maxVe: sql<string | null>`max(${pumpTestReportPoints.volumetricEfficiency})`,
+          maxMe: sql<string | null>`max(${pumpTestReportPoints.mechanicalEfficiency})`,
         })
         .from(pumpTestReportPoints)
         .where(inArray(pumpTestReportPoints.reportId, reportIds))
@@ -69,6 +72,8 @@ export async function GET(req: Request) {
         ...reportToDict(r),
         pointCount: countByReport.get(r.id) ?? 0,
         requirement_unmet_fields: unmetRequirementLabels(status),
+        max_ve: max?.maxVe === null || max?.maxVe === undefined ? null : Number(max.maxVe),
+        max_me: max?.maxMe === null || max?.maxMe === undefined ? null : Number(max.maxMe),
       };
     })
   );

@@ -286,6 +286,10 @@ export interface ArchiveReportSummary extends Omit<PumpTestReport, "points"> {
   /** Which rated fields (Head/Capacity/Power) the report's own test points
    * never reached -- empty when met or when there's nothing to compare. */
   requirement_unmet_fields: string[];
+  /** Highest Volumetric/Mechanical Efficiency reached across this report's
+   * own test points -- null when there's no VE/ME data to max over. */
+  max_ve: number | null;
+  max_me: number | null;
 }
 
 export interface DedupCheckResult {
