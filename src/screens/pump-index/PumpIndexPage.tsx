@@ -14,12 +14,30 @@ interface PumpIndexRow {
   reportCount: number;
   requisitionCount: number;
   latestDate: string;
+  reports: ArchiveReportSummary[];
 }
+
+/** Which stat tile is currently narrowing the pump list -- "all" for the two
+ * plain totals (Pump Models / Reports Submitted), which just mean "no filter". */
+type StatFilter = "all" | "historical" | "met" | "unmet";
+
+const hasTarget = (r: ArchiveReportSummary) =>
+  r.rated_head !== null || r.rated_capacity !== null || r.rated_power_kw !== null;
+
+/** Same per-report rules the stat tiles themselves are counted with -- a pump
+ * "matches" a filter if at least one of its reports qualifies. */
+const pumpMatchesFilter = (reports: ArchiveReportSummary[], filter: StatFilter): boolean => {
+  if (filter === "all") return true;
+  if (filter === "historical") return reports.some((r) => r.prepared_by === "Legacy Import");
+  if (filter === "met") return reports.some((r) => hasTarget(r) && r.requirement_unmet_fields.length === 0);
+  return reports.some((r) => hasTarget(r) && r.requirement_unmet_fields.length > 0); // "unmet"
+};
 
 const PumpIndexPage = () => {
   const [reports, setReports] = useState<ArchiveReportSummary[]>([]);
   const [requisitions, setRequisitions] = useState<TestRequisition[]>([]);
   const [search, setSearch] = useState("");
+  const [statFilter, setStatFilter] = useState<StatFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -71,6 +89,7 @@ const PumpIndexPage = () => {
         reportCount: g.reports.length,
         requisitionCount: g.requisitions.length,
         latestDate: dates.sort().at(-1) ?? "-",
+        reports: g.reports,
       };
     });
 
@@ -79,9 +98,16 @@ const PumpIndexPage = () => {
 
   const filteredPumps = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return pumps;
-    return pumps.filter((p) => p.model.toLowerCase().includes(q));
-  }, [pumps, search]);
+    return pumps
+      .filter((p) => pumpMatchesFilter(p.reports, statFilter))
+      .filter((p) => !q || p.model.toLowerCase().includes(q));
+  }, [pumps, search, statFilter]);
+
+  const STAT_LABELS: Record<Exclude<StatFilter, "all">, string> = {
+    historical: "Historical Reports",
+    met: "Met Requirement",
+    unmet: "Did Not Meet Requirement",
+  };
 
   // Legacy-imported reports (see CLAUDE.md's "Legacy data import") vs ones
   // actually filled in through the live app -- a real, useful distinction
@@ -118,27 +144,56 @@ const PumpIndexPage = () => {
 
       {!isLoading && !error && (
         <div className="pump-index-stats">
-          <div className="pump-index-stat">
+          <button
+            type="button"
+            className="pump-index-stat pump-index-stat-btn"
+            onClick={() => setStatFilter("all")}
+          >
             <span className="stat-value">{summary.pumpCount}</span>
             <span className="stat-label">Pump Models</span>
-          </div>
-          <div className="pump-index-stat">
+          </button>
+          <button
+            type="button"
+            className="pump-index-stat pump-index-stat-btn"
+            onClick={() => setStatFilter("all")}
+          >
             <span className="stat-value">{summary.total}</span>
             <span className="stat-label">Reports Submitted</span>
-          </div>
-          <div className="pump-index-stat">
+          </button>
+          <button
+            type="button"
+            className={`pump-index-stat pump-index-stat-btn ${statFilter === "historical" ? "active" : ""}`}
+            onClick={() => setStatFilter((f) => (f === "historical" ? "all" : "historical"))}
+          >
             <span className="stat-value">{summary.historical}</span>
             <span className="stat-label">Historical Reports</span>
-          </div>
-          <div className="pump-index-stat">
+          </button>
+          <button
+            type="button"
+            className={`pump-index-stat pump-index-stat-btn ${statFilter === "met" ? "active" : ""}`}
+            onClick={() => setStatFilter((f) => (f === "met" ? "all" : "met"))}
+          >
             <span className="stat-value stat-value-pos">{summary.met}</span>
             <span className="stat-label">Met Requirement</span>
-          </div>
-          <div className="pump-index-stat">
+          </button>
+          <button
+            type="button"
+            className={`pump-index-stat pump-index-stat-btn ${statFilter === "unmet" ? "active" : ""}`}
+            onClick={() => setStatFilter((f) => (f === "unmet" ? "all" : "unmet"))}
+          >
             <span className="stat-value stat-value-neg">{summary.unmet}</span>
             <span className="stat-label">Did Not Meet Requirement</span>
-          </div>
+          </button>
         </div>
+      )}
+
+      {statFilter !== "all" && (
+        <p className="pump-index-filter-note">
+          Showing pumps with at least one report that {statFilter === "historical" ? "is a historical import" : statFilter === "met" ? "met its rated requirement" : "did not meet its rated requirement"} ({STAT_LABELS[statFilter]}).{" "}
+          <button type="button" className="pump-index-filter-clear" onClick={() => setStatFilter("all")}>
+            Clear filter
+          </button>
+        </p>
       )}
 
       {error && <div className="dashboard-error">{error}</div>}
