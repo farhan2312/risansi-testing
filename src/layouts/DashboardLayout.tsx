@@ -29,6 +29,34 @@ const ROLE_LABELS: Record<string, string> = {
   testing: "Testing Team",
 };
 
+/** Current page's label for the top breadcrumb bar -- checked most-specific
+ * pattern first (an edit/curve/report sub-route before its bare [id] parent)
+ * so every route in the app resolves to something meaningful. */
+const pageLabel = (pathname: string): string => {
+  if (pathname === "/overview") return "Dashboard";
+  if (pathname === "/dashboard") return "Testing Summary";
+  if (pathname === "/pumps") return "Pump Dashboard";
+  if (pathname.startsWith("/pumps/")) return "Pump Dashboard";
+  if (pathname === "/reports") return "Report Archive";
+  if (pathname === "/reports/new/observation") return "New Observation Sheet";
+  if (pathname === "/reports/new/viscosity-chart") return "New Viscosity Correction Chart";
+  if (pathname === "/reports/new") return "New Report";
+  if (/^\/reports\/[^/]+\/edit$/.test(pathname)) return "Edit Report";
+  if (/^\/reports\/[^/]+\/curve$/.test(pathname)) return "Performance Curve";
+  if (/^\/reports\/[^/]+$/.test(pathname)) return "Report Detail";
+  if (pathname === "/requisitions/new") return "New Requisition";
+  if (/^\/requisitions\/[^/]+\/edit$/.test(pathname)) return "Edit Requisition";
+  if (/^\/requisitions\/[^/]+\/report\/observation$/.test(pathname)) return "Fill Observation Sheet";
+  if (/^\/requisitions\/[^/]+\/report\/viscosity-chart$/.test(pathname)) return "Fill Viscosity Correction Chart";
+  if (/^\/requisitions\/[^/]+\/report$/.test(pathname)) return "Fill Test Report";
+  if (/^\/requisitions\/[^/]+$/.test(pathname)) return "Requisition Detail";
+  if (pathname === "/admin/access-requests") return "Access Requests";
+  if (pathname === "/admin/users") return "Manage Users";
+  if (pathname === "/admin/bug-reports") return "Bug Reports";
+  if (pathname === "/admin/audit-log") return "Audit Log";
+  return "Pump Testing Portal";
+};
+
 const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -203,12 +231,19 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       </aside>
 
       <div className="testing-content">
+        <div className="testing-topbar">
+          <nav className="topbar-breadcrumb" aria-label="Breadcrumb">
+            <Link href="/overview">Risansi</Link>
+            <span className="topbar-breadcrumb-sep">&rsaquo;</span>
+            <span className="topbar-breadcrumb-current">{pageLabel(pathname)}</span>
+          </nav>
+          <button type="button" className="topbar-report-bug-btn" onClick={() => setShowReportBug(true)}>
+            🐛 Report a Bug
+          </button>
+        </div>
         <main className="testing-main">{children}</main>
       </div>
 
-      <button type="button" className="report-bug-fab" onClick={() => setShowReportBug(true)}>
-        🐛 Report a Bug
-      </button>
       {showReportBug && <ReportBugModal onClose={() => setShowReportBug(false)} />}
 
       {mustChangePassword ? (
