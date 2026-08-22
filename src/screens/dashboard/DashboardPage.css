@@ -74,6 +74,19 @@
   min-width: 180px;
 }
 
+.filter-date-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.filter-date-field input[type="date"] {
+  min-width: 0;
+  width: 140px;
+}
+
 .clear-filters-btn {
   border: 1px solid var(--border);
   background: transparent;

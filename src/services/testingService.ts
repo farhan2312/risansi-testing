@@ -107,9 +107,14 @@ export const getPumpDashboard = async (model: string): Promise<PumpDashboardData
   return data;
 };
 
-/** Portal-wide counts for the landing overview page. */
-export const getOverview = async (): Promise<PortalOverview> => {
-  const { data } = await apiClient.get<PortalOverview>("/overview", authHeader());
+/** Portal-wide counts for the landing overview page. Optional from/to
+ * ("YYYY-MM-DD") narrows every count to that window -- omit both for the
+ * all-time snapshot. */
+export const getOverview = async (range?: { from?: string; to?: string }): Promise<PortalOverview> => {
+  const { data } = await apiClient.get<PortalOverview>("/overview", {
+    ...authHeader(),
+    params: range,
+  });
   return data;
 };
 

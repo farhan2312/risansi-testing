@@ -6,6 +6,7 @@ import "../dashboard/DashboardPage.css"; // reuses .status-pill / .status-* colo
 import "./OverviewPage.css";
 import { getOverview } from "@/services/testingService";
 import { getCurrentUser } from "@/services/session";
+import { formatDate } from "@/lib/formUtils";
 import type { PortalOverview } from "@/types/testing";
 
 const STATUS_ORDER = ["Pending", "In Testing", "Retest Needed", "Closed"] as const;
@@ -36,14 +37,39 @@ const OverviewPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  useEffect(() => {
-    getOverview()
-      .then(setData)
-      .catch(() => setLoadError("Could not load the overview. Please try again."))
-      .finally(() => setIsLoading(false));
-  }, []);
+  // Date range filter -- narrows every stat/card on this page to a window,
+  // instead of always showing the all-time snapshot.
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const hasRange = dateFrom !== "" || dateTo !== "";
 
-  if (isLoading) return <p className="detail-empty">Loading...</p>;
+  const clearRange = () => {
+    setDateFrom("");
+    setDateTo("");
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setLoadError("");
+
+    getOverview({ from: dateFrom || undefined, to: dateTo || undefined })
+      .then((result) => {
+        if (!cancelled) setData(result);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError("Could not load the overview. Please try again.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dateFrom, dateTo]);
+
+  if (isLoading && !data) return <p className="detail-empty">Loading...</p>;
   if (loadError || !data) return <p className="detail-empty">{loadError || "Nothing to show."}</p>;
 
   const judgedTotal = data.requirement_met + data.requirement_unmet;
@@ -65,7 +91,29 @@ const OverviewPage = () => {
         </p>
       </div>
 
-      <div className="overview-stats">
+      <div className="overview-filter-bar">
+        <label className="overview-filter-date">
+          From
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+        </label>
+        <label className="overview-filter-date">
+          To
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        </label>
+        {hasRange ? (
+          <span className="overview-filter-note">
+            Showing {dateFrom ? formatDate(dateFrom) : "the beginning"} &ndash;{" "}
+            {dateTo ? formatDate(dateTo) : "now"}.{" "}
+            <button type="button" className="overview-filter-clear" onClick={clearRange}>
+              Clear
+            </button>
+          </span>
+        ) : (
+          <span className="overview-filter-note">Showing all-time.</span>
+        )}
+      </div>
+
+      <div className="overview-stats" aria-busy={isLoading}>
         <div className="overview-stat">
           <span className="stat-value">{data.total_requisitions}</span>
           <span className="stat-label">Requisitions Raised</span>

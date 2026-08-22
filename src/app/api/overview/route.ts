@@ -11,6 +11,11 @@ export const dynamic = "force-dynamic";
 /**
  * Portal-wide snapshot for the landing overview page -- counts only, no row
  * data, so this stays cheap regardless of how many reports/points pile up.
+ *
+ * Optional `?from=YYYY-MM-DD&to=YYYY-MM-DD` narrows every count to that
+ * window: requisitions by `date_of_requisition` (falling back to
+ * `created_at` for the rare row missing it), reports/points/models by the
+ * report's `test_date` (same fallback). Omit both for the all-time snapshot.
  */
 export async function GET(req: Request) {
   try {
@@ -20,21 +25,38 @@ export async function GET(req: Request) {
     throw e;
   }
 
+  const { searchParams } = new URL(req.url);
+  const from = searchParams.get("from") || undefined;
+  const to = searchParams.get("to") || undefined;
+
+  const reqDateCol = sql`coalesce(${testRequisitions.dateOfRequisition}, ${testRequisitions.createdAt}::date)`;
+  const reportDateCol = sql`coalesce(${pumpTestReports.testDate}, ${pumpTestReports.createdAt}::date)`;
+  const dateRange = (col: ReturnType<typeof sql>) => {
+    const parts: ReturnType<typeof sql>[] = [];
+    if (from) parts.push(sql`${col} >= ${from}`);
+    if (to) parts.push(sql`${col} <= ${to}`);
+    return parts.length ? sql.join(parts, sql` and `) : sql`true`;
+  };
+  const reqDateCondition = dateRange(reqDateCol);
+  const reportDateCondition = dateRange(reportDateCol);
+
   const [requisitionsByStatus, reportsByFormat, totals] = await Promise.all([
     db
       .select({ status: testRequisitions.status, n: sql<number>`count(*)` })
       .from(testRequisitions)
+      .where(reqDateCondition)
       .groupBy(testRequisitions.status),
     db
       .select({ format: pumpTestReports.reportFormat, n: sql<number>`count(*)` })
       .from(pumpTestReports)
+      .where(reportDateCondition)
       .groupBy(pumpTestReports.reportFormat),
     db
       .select({
-        totalRequisitions: sql<number>`(select count(*) from ${testRequisitions})`,
-        totalReports: sql<number>`(select count(*) from ${pumpTestReports})`,
-        totalPoints: sql<number>`(select count(*) from ${pumpTestReportPoints})`,
-        distinctModels: sql<number>`(select count(distinct ${pumpTestReports.model}) from ${pumpTestReports})`,
+        totalRequisitions: sql<number>`(select count(*) from ${testRequisitions} where ${reqDateCondition})`,
+        totalReports: sql<number>`(select count(*) from ${pumpTestReports} where ${reportDateCondition})`,
+        totalPoints: sql<number>`(select count(*) from ${pumpTestReportPoints} where report_id in (select id from ${pumpTestReports} where ${reportDateCondition}))`,
+        distinctModels: sql<number>`(select count(distinct model) from ${pumpTestReports} where ${reportDateCondition})`,
       })
       .from(pumpTestReports)
       .limit(1),
@@ -43,6 +65,8 @@ export async function GET(req: Request) {
   // Pass/fail: only meaningful for Closed requisitions that actually have a
   // linked report -- same rule and same computeRequirementStatus formula the
   // Testing Summary page's Green/Red filter uses, so the two never disagree.
+  // Scoped by the requisition's own date, same as the "Requisitions Raised"
+  // bucket above, so every tile on a filtered view describes the same window.
   const closedWithReport = await db
     .select({
       requisitionId: testRequisitions.id,
@@ -53,7 +77,7 @@ export async function GET(req: Request) {
     })
     .from(testRequisitions)
     .innerJoin(pumpTestReports, sql`${pumpTestReports.requisitionId} = ${testRequisitions.id}`)
-    .where(sql`${testRequisitions.status} = 'Closed'`);
+    .where(sql`${testRequisitions.status} = 'Closed' and ${reqDateCondition}`);
 
   const reportIds = closedWithReport.map((r) => r.reportId);
   const maxes = reportIds.length

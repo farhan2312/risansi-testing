@@ -45,6 +45,15 @@ const DashboardPage = () => {
   const [categoryFilter, setCategoryFilter] = useState(ALL);
   const [sourceTeamFilter, setSourceTeamFilter] = useState(ALL);
   const [responsiblePersonFilter, setResponsiblePersonFilter] = useState(ALL);
+  const [submittedByFilter, setSubmittedByFilter] = useState(ALL);
+  const [retestFilter, setRetestFilter] = useState(ALL);
+  // Quick "Month" pick (e.g. "2026-08") -- a shortcut for the common case of
+  // "show me last month's requisitions" without having to work out exact
+  // From/To dates. Combines (AND) with the From/To range below when both
+  // are set, same as every other filter here.
+  const [monthFilter, setMonthFilter] = useState(ALL);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   // Only meaningful once a single Category is selected -- a second-level
   // filter for how many of that category's filled reports met their rated
   // requirements vs didn't ("Red").
@@ -55,12 +64,42 @@ const DashboardPage = () => {
     [requisitions]
   );
 
+  const submittedByOptions = useMemo(
+    () =>
+      [...new Set(requisitions.map((r) => r.submitted_by).filter((v): v is string => Boolean(v)))].sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [requisitions]
+  );
+
+  // Every distinct calendar month a requisition was raised in, newest first
+  // ("2026-08" -> "August 2026") -- populates the Month quick-filter.
+  const monthOptions = useMemo(() => {
+    const months = new Set<string>();
+    for (const r of requisitions) {
+      if (r.date_of_requisition) months.add(r.date_of_requisition.slice(0, 7));
+    }
+    return [...months].sort().reverse();
+  }, [requisitions]);
+
+  const monthLabel = (ym: string) => {
+    const [y, m] = ym.split("-");
+    return new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(
+      new Date(Number(y), Number(m) - 1, 1)
+    );
+  };
+
   const hasActiveFilters =
     modelFilter !== ALL ||
     ecFilter.trim() !== "" ||
     categoryFilter !== ALL ||
     sourceTeamFilter !== ALL ||
     responsiblePersonFilter !== ALL ||
+    submittedByFilter !== ALL ||
+    retestFilter !== ALL ||
+    monthFilter !== ALL ||
+    dateFrom !== "" ||
+    dateTo !== "" ||
     reportResultFilter !== "All";
 
   const clearFilters = () => {
@@ -69,6 +108,11 @@ const DashboardPage = () => {
     setCategoryFilter(ALL);
     setSourceTeamFilter(ALL);
     setResponsiblePersonFilter(ALL);
+    setSubmittedByFilter(ALL);
+    setRetestFilter(ALL);
+    setMonthFilter(ALL);
+    setDateFrom("");
+    setDateTo("");
     setReportResultFilter("All");
   };
 
@@ -87,9 +131,29 @@ const DashboardPage = () => {
       if (categoryFilter !== ALL && r.category !== categoryFilter) return false;
       if (sourceTeamFilter !== ALL && r.source_team !== sourceTeamFilter) return false;
       if (responsiblePersonFilter !== ALL && r.responsible_person !== responsiblePersonFilter) return false;
+      if (submittedByFilter !== ALL && r.submitted_by !== submittedByFilter) return false;
+      if (retestFilter !== ALL) {
+        if (retestFilter === "Yes" && r.retest_needed !== true) return false;
+        if (retestFilter === "No" && r.retest_needed !== false) return false;
+      }
+      if (monthFilter !== ALL && r.date_of_requisition?.slice(0, 7) !== monthFilter) return false;
+      if (dateFrom && (!r.date_of_requisition || r.date_of_requisition < dateFrom)) return false;
+      if (dateTo && (!r.date_of_requisition || r.date_of_requisition > dateTo)) return false;
       return true;
     });
-  }, [requisitions, modelFilter, ecFilter, categoryFilter, sourceTeamFilter, responsiblePersonFilter]);
+  }, [
+    requisitions,
+    modelFilter,
+    ecFilter,
+    categoryFilter,
+    sourceTeamFilter,
+    responsiblePersonFilter,
+    submittedByFilter,
+    retestFilter,
+    monthFilter,
+    dateFrom,
+    dateTo,
+  ]);
 
   // Of that scope, how many actually have a filled-in report, split by
   // whether it met its rated head/capacity/power ("Green") or not ("Red").
@@ -205,6 +269,35 @@ const DashboardPage = () => {
             </option>
           ))}
         </select>
+        <select value={submittedByFilter} onChange={(e) => setSubmittedByFilter(e.target.value)}>
+          <option value={ALL}>All Submitted By</option>
+          {submittedByOptions.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        <select value={retestFilter} onChange={(e) => setRetestFilter(e.target.value)}>
+          <option value={ALL}>Retest Needed: All</option>
+          <option value="Yes">Retest Needed: Yes</option>
+          <option value="No">Retest Needed: No</option>
+        </select>
+        <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}>
+          <option value={ALL}>All Months</option>
+          {monthOptions.map((ym) => (
+            <option key={ym} value={ym}>
+              {monthLabel(ym)}
+            </option>
+          ))}
+        </select>
+        <label className="filter-date-field">
+          From
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+        </label>
+        <label className="filter-date-field">
+          To
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        </label>
         {hasActiveFilters && (
           <button type="button" className="clear-filters-btn" onClick={clearFilters}>
             Clear Filters

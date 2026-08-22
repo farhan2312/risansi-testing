@@ -18,6 +18,53 @@
   font-variant-numeric: tabular-nums;
 }
 
+.overview-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.overview-filter-bar input {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.overview-filter-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.overview-filter-date input {
+  width: 140px;
+}
+
+.overview-filter-note {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.overview-filter-clear {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.overview-filter-clear:hover {
+  text-decoration: underline;
+}
+
 .overview-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
