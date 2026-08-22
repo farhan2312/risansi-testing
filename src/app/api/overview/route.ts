@@ -14,8 +14,10 @@ export const dynamic = "force-dynamic";
  *
  * Optional `?from=YYYY-MM-DD&to=YYYY-MM-DD` narrows every count to that
  * window: requisitions by `date_of_requisition` (falling back to
- * `created_at` for the rare row missing it), reports/points/models by the
- * report's `test_date` (same fallback). Omit both for the all-time snapshot.
+ * `created_at` for the rare row missing it), reports/points by the report's
+ * `test_date` (same fallback). Distinct models draws from both tables, so
+ * it stays in sync with the Pump Dashboard's own "Pump Models" tile. Omit
+ * both for the all-time snapshot.
  */
 export async function GET(req: Request) {
   try {
@@ -56,7 +58,19 @@ export async function GET(req: Request) {
         totalRequisitions: sql<number>`(select count(*) from ${testRequisitions} where ${reqDateCondition})`,
         totalReports: sql<number>`(select count(*) from ${pumpTestReports} where ${reportDateCondition})`,
         totalPoints: sql<number>`(select count(*) from ${pumpTestReportPoints} where report_id in (select id from ${pumpTestReports} where ${reportDateCondition}))`,
-        distinctModels: sql<number>`(select count(distinct model) from ${pumpTestReports} where ${reportDateCondition})`,
+        // Every distinct pump model known to the portal -- raised for testing
+        // OR actually tested, same "normalize away case/punctuation" key the
+        // Pump Dashboard groups by (lib/modelKey.ts's normalizeModelKey), so
+        // this always agrees with that page's "Pump Models" tile.
+        distinctModels: sql<number>`(
+          select count(distinct key) from (
+            select upper(regexp_replace(model, '[^A-Za-z0-9]', '', 'g')) as key
+            from ${testRequisitions} where ${reqDateCondition}
+            union
+            select upper(regexp_replace(model, '[^A-Za-z0-9]', '', 'g')) as key
+            from ${pumpTestReports} where ${reportDateCondition}
+          ) all_models
+        )`,
       })
       .from(pumpTestReports)
       .limit(1),

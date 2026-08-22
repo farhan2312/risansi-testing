@@ -128,7 +128,7 @@ const OverviewPage = () => {
         </div>
         <div className="overview-stat">
           <span className="stat-value">{data.distinct_models_tested}</span>
-          <span className="stat-label">Pump Models Tested</span>
+          <span className="stat-label">Pump Models</span>
         </div>
       </div>
 

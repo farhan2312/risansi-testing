@@ -311,6 +311,8 @@ export interface PortalOverview {
   total_reports: number;
   reports_by_format: Partial<Record<ReportFormat, number>>;
   total_test_points: number;
+  /** Distinct pump models raised for testing OR actually tested -- same
+   * normalized-key count as the Pump Dashboard's "Pump Models" tile. */
   distinct_models_tested: number;
   requirement_met: number;
   requirement_unmet: number;
