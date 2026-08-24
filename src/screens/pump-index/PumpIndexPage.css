@@ -94,6 +94,16 @@
   border-color: var(--accent);
 }
 
+.pump-index-match-pos {
+  color: var(--pos);
+  font-weight: 600;
+}
+
+.pump-index-match-neg {
+  color: var(--neg);
+  font-weight: 600;
+}
+
 .pump-index-filter-note {
   margin: -8px 0 0;
   font-size: 13px;

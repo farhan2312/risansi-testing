@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import "../dashboard/DashboardPage.css";
+import "../report-archive/ReportArchivePage.css"; // reuses .pump-row/.expand-toggle/.nested-report-table
 import "./PumpIndexPage.css";
 import { modelDisplayLabel, normalizeModelKey } from "@/lib/modelKey";
 import { listReports, listRequisitions } from "@/services/testingService";
@@ -33,6 +34,17 @@ const pumpMatchesFilter = (reports: ArchiveReportSummary[], filter: StatFilter):
   return reports.some((r) => hasTarget(r) && r.requirement_unmet_fields.length > 0); // "unmet"
 };
 
+/** A pump's own reports that actually satisfy the active filter -- a pump
+ * can have reports on both sides (some met, some didn't), so "matches the
+ * filter" alone doesn't tell you that split. Backs both the count column
+ * and the expanded "View Report" list below each row. */
+const matchingReports = (reports: ArchiveReportSummary[], filter: StatFilter): ArchiveReportSummary[] => {
+  if (filter === "all") return reports;
+  if (filter === "historical") return reports.filter((r) => r.prepared_by === "Legacy Import");
+  if (filter === "met") return reports.filter((r) => hasTarget(r) && r.requirement_unmet_fields.length === 0);
+  return reports.filter((r) => hasTarget(r) && r.requirement_unmet_fields.length > 0); // "unmet"
+};
+
 const PumpIndexPage = () => {
   const [reports, setReports] = useState<ArchiveReportSummary[]>([]);
   const [requisitions, setRequisitions] = useState<TestRequisition[]>([]);
@@ -40,6 +52,16 @@ const PumpIndexPage = () => {
   const [statFilter, setStatFilter] = useState<StatFilter>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = (model: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(model)) next.delete(model);
+      else next.add(model);
+      return next;
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -206,23 +228,102 @@ const PumpIndexPage = () => {
         <table className="requisition-table">
           <thead>
             <tr>
+              <th></th>
               <th>Pump Model</th>
               <th>Requisitions</th>
               <th>Test Reports</th>
+              {statFilter !== "all" && <th>{STAT_LABELS[statFilter]}</th>}
               <th>Latest Activity</th>
             </tr>
           </thead>
           <tbody>
-            {filteredPumps.map((p) => (
-              <tr key={p.model}>
-                <td>
-                  <Link href={`/pumps/${encodeURIComponent(p.model)}`}>{p.model}</Link>
-                </td>
-                <td>{p.requisitionCount}</td>
-                <td>{p.reportCount}</td>
-                <td>{formatDate(p.latestDate)}</td>
-              </tr>
-            ))}
+            {filteredPumps.map((p) => {
+              const isOpen = expanded.has(p.model);
+              // With a KPI filter active, expanding shows just the reports
+              // that satisfy it (the whole point of "how many were met") --
+              // with no filter, every report for the pump.
+              const rowsToShow = [...matchingReports(p.reports, statFilter)].sort((a, b) =>
+                (b.test_date ?? b.created_at).localeCompare(a.test_date ?? a.created_at)
+              );
+              return (
+                <Fragment key={p.model}>
+                  <tr className="pump-row" onClick={() => toggleExpanded(p.model)}>
+                    <td className="expand-toggle">{isOpen ? "−" : "+"}</td>
+                    <td className="pump-model-cell">
+                      <Link href={`/pumps/${encodeURIComponent(p.model)}`} onClick={(e) => e.stopPropagation()}>
+                        {p.model}
+                      </Link>
+                    </td>
+                    <td>{p.requisitionCount}</td>
+                    <td>{p.reportCount}</td>
+                    {statFilter !== "all" && (
+                      <td
+                        className={
+                          statFilter === "met"
+                            ? "pump-index-match-pos"
+                            : statFilter === "unmet"
+                              ? "pump-index-match-neg"
+                              : ""
+                        }
+                      >
+                        {rowsToShow.length} of {p.reportCount}
+                      </td>
+                    )}
+                    <td>{formatDate(p.latestDate)}</td>
+                  </tr>
+                  {isOpen && (
+                    <tr className="pump-detail-row">
+                      <td></td>
+                      <td colSpan={statFilter !== "all" ? 5 : 4}>
+                        {rowsToShow.length === 0 ? (
+                          <p className="dashboard-empty">No reports match this filter for {p.model}.</p>
+                        ) : (
+                          <table className="nested-report-table">
+                            <thead>
+                              <tr>
+                                <th>Report No.</th>
+                                <th>Test Date</th>
+                                <th>Points</th>
+                                <th></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {rowsToShow.map((r) => {
+                                const unmetFields = r.requirement_unmet_fields ?? [];
+                                const unmetTitle = unmetFields.length
+                                  ? `Outside rated ${unmetFields.join(", ")}`
+                                  : "";
+                                return (
+                                  <tr key={r.id}>
+                                    <td>{r.report_no ?? r.motor ?? "-"}</td>
+                                    <td>{formatDate(r.test_date ?? r.created_at)}</td>
+                                    <td>{r.pointCount}</td>
+                                    <td>
+                                      <span className="status-actions">
+                                        <Link
+                                          href={`/reports/${r.id}`}
+                                          className={`status-pill ${unmetTitle ? "status-view-report-unmet" : "status-view-report"}`}
+                                          title={unmetTitle || undefined}
+                                        >
+                                          View Report{unmetTitle && " ⚠"}
+                                        </Link>
+                                        <Link href={`/reports/${r.id}/curve`} className="status-pill status-view-curve">
+                                          View Curve
+                                        </Link>
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       )}
