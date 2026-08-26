@@ -21,6 +21,7 @@ import {
 } from "@/services/testingService";
 import {
   CAPACITY_UNITS,
+  ecQuotationFormatHint,
   ecQuotationLabel,
   HEAD_UNITS,
   MOTOR_RPM_OPTIONS,
@@ -249,7 +250,14 @@ const EditRequisitionPage = () => {
 
           <div className="field">
             <label htmlFor="ec_quotation_no">{ecQuotationLabel(category)}</label>
-            <input id="ec_quotation_no" {...register("ec_quotation_no")} placeholder="N/A" />
+            <input
+              id="ec_quotation_no"
+              {...register("ec_quotation_no")}
+              placeholder={ecQuotationFormatHint(category) ?? "N/A"}
+            />
+            {ecQuotationFormatHint(category) && (
+              <span className="unit-hint">Format: {ecQuotationFormatHint(category)}</span>
+            )}
           </div>
 
           <div className="field">

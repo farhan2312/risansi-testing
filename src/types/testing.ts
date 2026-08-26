@@ -19,6 +19,12 @@ export const ecQuotationLabel = (category?: string | null): string => {
   return "EC/Quotation/Offer No.";
 };
 
+/** RIL's standard quotation-number scheme, shown as a format hint under the
+ * field once Category is "Against Quotation Test" -- undefined (no hint)
+ * for every other category. */
+export const ecQuotationFormatHint = (category?: string | null): string | undefined =>
+  category === "Against Quotation Test" ? "RIL/QT/TSM CODING/CATEGORY OF ITEM/OFFER" : undefined;
+
 export const SOURCE_TEAMS = ["Research", "Proposal", "Testing"] as const;
 
 export const RESPONSIBLE_PERSONS = ["Sachin", "Vikas"] as const;
