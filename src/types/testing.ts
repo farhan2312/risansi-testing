@@ -19,11 +19,14 @@ export const ecQuotationLabel = (category?: string | null): string => {
   return "EC/Quotation/Offer No.";
 };
 
-/** RIL's standard quotation-number scheme, shown as a format hint under the
- * field once Category is "Against Quotation Test" -- undefined (no hint)
- * for every other category. */
-export const ecQuotationFormatHint = (category?: string | null): string | undefined =>
-  category === "Against Quotation Test" ? "RIL/QT/TSM CODING/CATEGORY OF ITEM/OFFER" : undefined;
+/** RIL's standard EC/quotation-number schemes, shown as a format hint under
+ * the field for the categories that have one -- undefined (no hint) for
+ * every other category. */
+export const ecQuotationFormatHint = (category?: string | null): string | undefined => {
+  if (category === "Against Quotation Test") return "RIL/QT/TSM CODING/CATEGORY OF ITEM/OFFER";
+  if (category === "Against EC Based") return "EC/YEAR/1/So No./EC No.";
+  return undefined;
+};
 
 export const SOURCE_TEAMS = ["Research", "Proposal", "Testing"] as const;
 
