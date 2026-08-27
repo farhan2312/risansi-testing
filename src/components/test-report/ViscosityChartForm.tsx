@@ -800,7 +800,9 @@ const ViscosityChartForm = ({
                 <th>Amps</th>
                 <th>Cos Phi</th>
                 {testType !== "Flow Meter" && (
-                  <th className={`computed-col ${requirementStatus.capacity === false ? "requirement-col-not-met" : ""}`}>
+                  <th className={`computed-col ${requirementStatus.capacity === false ? "requirement-col-not-met" : ""}`}
+                    title="As per IS 1520:1977 (V-notch) / bucket-fill (Barrel)"
+                  >
                     Capacity (M3/Hr)
                     {requirementStatus.capacity === false && (
                       <span className="requirement-flag" title="Testing did not reach the rated capacity">
@@ -809,7 +811,9 @@ const ViscosityChartForm = ({
                     )}
                   </th>
                 )}
-                <th className={`computed-col ${requirementStatus.power === false ? "requirement-col-not-met" : ""}`}>
+                <th className={`computed-col ${requirementStatus.power === false ? "requirement-col-not-met" : ""}`}
+                  title="√3 x Volts x Amps x Cos Phi / 1000"
+                >
                   Power (KW)
                   {requirementStatus.power === false && (
                     <span className="requirement-flag" title="Measured power exceeded the rated power">
@@ -817,12 +821,39 @@ const ViscosityChartForm = ({
                     </span>
                   )}
                 </th>
-                <th className="computed-col">ME % (Water)</th>
-                <th className="computed-col" title="Slip for Viscous Fluid = K x Slip of Water (Theoretical Capacity at Measured RPM − Measured Capacity)">
+                <th className="computed-col" title="Capacity (M3/Hr) x Head (MWC) / 367">
+                  Theoretical Power (KW)
+                </th>
+                <th className="computed-col" title="Measured Capacity / ((RPM / 100) x Q Theoretical/100 Rev) x 100">
+                  VE % (Water)
+                </th>
+                <th className="computed-col" title="Theoretical Power / Measured Power x 100">
+                  ME % (Water)
+                </th>
+                <th className="computed-col" title="Q Theoretical/100 Rev x RPM / 100">
+                  Theo. Capacity at Measured RPM (M3/Hr)
+                </th>
+                <th className="computed-col" title="Theoretical Capacity at Measured RPM − Measured Capacity">
+                  Slip of Water (M3/Hr)
+                </th>
+                <th className="computed-col" title="K x Slip of Water">
                   Slip Viscous (M3/Hr)
                 </th>
-                <th className="computed-col">VE % (Liquid)</th>
-                <th className="computed-col">ME % (Liquid)</th>
+                <th className="computed-col" title="Rated RPM x Q Theoretical/100 Rev / 100">
+                  Theo. Capacity at Rated RPM (M3/Hr)
+                </th>
+                <th className="computed-col" title="Theoretical Capacity at Rated RPM − Slip for Viscous Fluid">
+                  Capacity for Liquid at Rated RPM (M3/Hr)
+                </th>
+                <th className="computed-col" title="Capacity for Liquid at Rated RPM (M3/Hr) x 1000">
+                  Capacity for Liquid at Rated RPM (LPH)
+                </th>
+                <th className="computed-col" title="Capacity for Liquid at Rated RPM / ((RPM / 100) x Q Theoretical/100 Rev) x 100">
+                  VE % (Liquid)
+                </th>
+                <th className="computed-col" title="(Capacity for Liquid at Rated RPM x Head (MWC) / 367) / Measured Power x 100">
+                  ME % (Liquid)
+                </th>
                 <th></th>
               </tr>
             </thead>
@@ -867,8 +898,15 @@ const ViscosityChartForm = ({
                     <td className={`computed-cell ${requirementStatus.power === false ? "requirement-cell-not-met" : ""}`}>
                       {fmt(computed?.powerCalculatedKw ?? null)}
                     </td>
+                    <td className="computed-cell">{fmt(computed?.theoreticalPowerKw ?? null)}</td>
+                    <td className="computed-cell">{fmt(computed?.volumetricEfficiency ?? null)}</td>
                     <td className="computed-cell">{fmt(computed?.mechanicalEfficiency ?? null)}</td>
+                    <td className="computed-cell">{fmt(computed?.theoreticalCapacityAtMeasuredRpm ?? null)}</td>
+                    <td className="computed-cell">{fmt(computed?.slipWater ?? null)}</td>
                     <td className="computed-cell">{fmt(computed?.slipViscous ?? null)}</td>
+                    <td className="computed-cell">{fmt(computed?.theoreticalCapacityAtRatedRpm ?? null)}</td>
+                    <td className="computed-cell">{fmt(computed?.capacityLiquidAtRatedRpmM3hr ?? null)}</td>
+                    <td className="computed-cell">{fmt(computed?.capacityLiquidAtRatedRpmLph ?? null)}</td>
                     <td className="computed-cell">{fmt(computed?.volumetricEfficiencyLiquid ?? null)}</td>
                     <td className="computed-cell">{fmt(computed?.mechanicalEfficiencyLiquid ?? null)}</td>
                     <td>

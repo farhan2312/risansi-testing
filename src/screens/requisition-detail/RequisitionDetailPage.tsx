@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import "./RequisitionDetailPage.css";
 import "@/components/ui/AttachmentsField.css";
 import { headToKgcm2 } from "@/lib/unitConversion";
-import { formatDate, formatFileSize, formatNumber, installedPowerFromMotor, targetDateFor } from "@/lib/formUtils";
+import { formatDate, formatFileSize, formatNumber, installedPowerLabel, motorWithKw, targetDateFor } from "@/lib/formUtils";
 import {
   computeRequirementStatus,
   ratedPowerKwFromRequisition,
@@ -16,17 +16,6 @@ import { dedupCheck, getRequisition, openAttachment, updateRequisition } from "@
 import { getCurrentUser } from "@/services/session";
 import { ecQuotationLabel } from "@/types/testing";
 import type { DedupCheckResult, PumpTestReport, TestRequisition } from "@/types/testing";
-
-/** Installed motor power for a prior-report row, always in KW -- the source
- * team only ever enters Power in HP, but everything the testing team sees
- * after a requisition is raised (here, in historical reports, everywhere)
- * shows the converted KW figure, never the raw HP. Falls back to the raw
- * motor text when no HP figure can be read out of it at all. */
-const installedPowerLabel = (motor: string | null | undefined): string => {
-  const power = installedPowerFromMotor(motor);
-  if (power) return `${power.kw} KW`;
-  return motor ?? "-";
-};
 
 /** Short "did this report meet its rated targets" label for a list row --
  * empty string when there's nothing to flag (still valid either way, this
@@ -394,7 +383,7 @@ const RequisitionDetailPage = () => {
                   <td className="label">Gearbox No.</td>
                   <td>{r.gearbox_no ?? "-"}</td>
                   <td className="label">Motor</td>
-                  <td>{r.motor ?? "-"}</td>
+                  <td>{motorWithKw(r.motor)}</td>
                 </tr>
                 <tr>
                   <td className="label">Rated Head</td>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import PerformanceCurve from "./PerformanceCurve";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 import type { PumpTestReport, PumpTestReportPoint } from "@/types/testing";
-import { formatDate, formatNumber } from "@/lib/formUtils";
+import { formatDate, formatNumber, installedPowerLabel } from "@/lib/formUtils";
 
 const fmt = (v: number | string | null | undefined) => (v === null || v === undefined || v === "" ? "-" : v);
 // Same as `fmt`, but for genuinely-numeric fields -- caps the display at 3
@@ -23,33 +23,103 @@ export interface PointRowDef {
 export const POINT_ROWS: PointRowDef[] = [
   { label: "Measured Data at RPM", unit: "RPM", field: "rpm" },
   { label: "Measured Data at Head", unit: "kg/cm2", field: "head_kgcm2" },
-  { label: "Measured Data at Head", unit: "MWC", field: "head_mwc" },
+  {
+    label: "Measured Data at Head",
+    unit: "MWC",
+    field: "head_mwc",
+    formula: "1 kg/cm2 = 10 MWC",
+  },
   { label: "Height Taken for Filling", unit: "mm", field: "height_taken_for_filling" },
   { label: "Height Over V-Notch", unit: "mm", field: "vnotch_height" },
   { label: "Time to Fill 5L Bucket", unit: "sec", field: "time_taken_to_fill_bucket_sec" },
   { label: "Initial Reading", unit: "mm", field: "initial_reading" },
-  { label: "Differential Height", unit: "mm", field: "differential_height" },
-  { label: "Capacity Calculated", unit: "M3/Hr", field: "capacity_calculated_m3hr" },
+  {
+    label: "Differential Height",
+    unit: "mm",
+    field: "differential_height",
+    formula: "Height Over V-Notch − Initial Reading",
+  },
+  {
+    label: "Capacity Calculated",
+    unit: "M3/Hr",
+    field: "capacity_calculated_m3hr",
+    formula: "As per IS 1520:1977 (V-notch) / bucket-fill (Barrel) / direct reading (Flow Meter)",
+  },
   { label: "Volts Measured", unit: "V", field: "volts" },
   { label: "Amperes Measured", unit: "A", field: "amps" },
   { label: "Cos Phi", field: "cos_phi" },
-  { label: "Power Calculated", unit: "Kw", field: "power_calculated_kw" },
-  { label: "Theoretical Power Calculated", unit: "Kw", field: "theoretical_power_kw" },
-  { label: "Volumetric Efficiency (VE)", unit: "%", field: "volumetric_efficiency" },
-  { label: "Mechanical Efficiency (ME)", unit: "%", field: "mechanical_efficiency" },
-  { label: "Theoretical Capacity at Measured RPM", unit: "M3/Hr", field: "theoretical_capacity_at_measured_rpm" },
-  { label: "Slip of Water", unit: "M3/Hr", field: "slip_water" },
+  {
+    label: "Power Calculated",
+    unit: "Kw",
+    field: "power_calculated_kw",
+    formula: "√3 x Volts x Amps x Cos Phi / 1000",
+  },
+  {
+    label: "Theoretical Power Calculated",
+    unit: "Kw",
+    field: "theoretical_power_kw",
+    formula: "Capacity (M3/Hr) x Head (MWC) / 367",
+  },
+  {
+    label: "Volumetric Efficiency (VE)",
+    unit: "%",
+    field: "volumetric_efficiency",
+    formula: "Measured Capacity / ((RPM / 100) x Q Theoretical/100 Rev) x 100",
+  },
+  {
+    label: "Mechanical Efficiency (ME)",
+    unit: "%",
+    field: "mechanical_efficiency",
+    formula: "Theoretical Power / Measured Power x 100",
+  },
+  {
+    label: "Theoretical Capacity at Measured RPM",
+    unit: "M3/Hr",
+    field: "theoretical_capacity_at_measured_rpm",
+    formula: "Q Theoretical/100 Rev x RPM / 100",
+  },
+  {
+    label: "Slip of Water",
+    unit: "M3/Hr",
+    field: "slip_water",
+    formula: "Theoretical Capacity at Measured RPM − Measured Capacity",
+  },
   {
     label: "Slip for Viscous Fluid",
     unit: "M3/Hr",
     field: "slip_viscous",
     formula: "Slip for Viscous Fluid = K x Slip of Water",
   },
-  { label: "Theoretical Capacity at Rated RPM", unit: "M3/Hr", field: "theoretical_capacity_at_rated_rpm" },
-  { label: "Capacity for Liquid at Rated RPM", unit: "M3/Hr", field: "capacity_liquid_at_rated_rpm_m3hr" },
-  { label: "Capacity for Liquid at Rated RPM", unit: "LPH", field: "capacity_liquid_at_rated_rpm_lph" },
-  { label: "Volumetric Efficiency for Liquid", unit: "%", field: "volumetric_efficiency_liquid" },
-  { label: "Mechanical Efficiency for Liquid", unit: "%", field: "mechanical_efficiency_liquid" },
+  {
+    label: "Theoretical Capacity at Rated RPM",
+    unit: "M3/Hr",
+    field: "theoretical_capacity_at_rated_rpm",
+    formula: "Rated RPM x Q Theoretical/100 Rev / 100",
+  },
+  {
+    label: "Capacity for Liquid at Rated RPM",
+    unit: "M3/Hr",
+    field: "capacity_liquid_at_rated_rpm_m3hr",
+    formula: "Theoretical Capacity at Rated RPM − Slip for Viscous Fluid",
+  },
+  {
+    label: "Capacity for Liquid at Rated RPM",
+    unit: "LPH",
+    field: "capacity_liquid_at_rated_rpm_lph",
+    formula: "Capacity for Liquid at Rated RPM (M3/Hr) x 1000",
+  },
+  {
+    label: "Volumetric Efficiency for Liquid",
+    unit: "%",
+    field: "volumetric_efficiency_liquid",
+    formula: "Capacity for Liquid at Rated RPM / ((RPM / 100) x Q Theoretical/100 Rev) x 100",
+  },
+  {
+    label: "Mechanical Efficiency for Liquid",
+    unit: "%",
+    field: "mechanical_efficiency_liquid",
+    formula: "(Capacity for Liquid at Rated RPM x Head (MWC) / 367) / Measured Power x 100",
+  },
 ];
 
 /**
@@ -104,8 +174,8 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
               <td>{fmt(report.gearbox_no)}</td>
               <th>Gearbox Ratio</th>
               <td>{fmt(report.gearbox_ratio)}</td>
-              <th></th>
-              <td></td>
+              <th>Installed Power (KW)</th>
+              <td>{installedPowerLabel(report.motor)}</td>
             </tr>
             <tr>
               <th>Motor</th>
@@ -158,13 +228,17 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
               <td className="highlight">{fmtNum(report.specific_gravity)}</td>
               <th>Viscosity (CPS)</th>
               <td className="highlight">{fmtNum(report.viscosity_cps)}</td>
-              <th>K for Given CPS</th>
+              <th title="Used in: Slip for Viscous Fluid = K x Slip of Water">
+                K for Given CPS<span className="formula-flag">ƒ</span>
+              </th>
               <td className="highlight">{fmtNum(report.k_for_given_cps)}</td>
             </tr>
             <tr>
               <th>Q Theoretical / 100 Rev</th>
               <td className="highlight">{fmtNum(report.q_theoretical_100rev)}</td>
-              <th>Calculated Head</th>
+              <th title="Calculated Head (MWC) = Head (MLC) x Specific Gravity">
+                Calculated Head<span className="formula-flag">ƒ</span>
+              </th>
               <td className="highlight">{fmtNum(report.calculated_head)}</td>
               <th>Suction</th>
               <td>{fmt(report.suction_type)}</td>

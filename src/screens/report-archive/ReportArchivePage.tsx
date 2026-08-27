@@ -6,7 +6,7 @@ import "./ReportArchivePage.css";
 import { normalizeModelKey, modelDisplayLabel } from "@/lib/modelKey";
 import { listReports } from "@/services/testingService";
 import type { ArchiveReportSummary } from "@/types/testing";
-import { formatDate, formatNumber } from "@/lib/formUtils";
+import { formatDate, formatNumber, motorWithKw } from "@/lib/formUtils";
 
 const PAGE_SIZE = 20;
 
@@ -200,7 +200,7 @@ const ReportArchivePage = () => {
                                     <Link href={`/reports/${r.id}`}>{r.report_no ?? r.motor ?? "View report"}</Link>
                                     {unmetTitle && <span className="requirement-flag">⚠</span>}
                                   </td>
-                                  <td>{r.motor ?? "-"}</td>
+                                  <td>{motorWithKw(r.motor)}</td>
                                   <td>{formatDate(r.test_date ?? r.created_at)}</td>
                                   <td>{formatNumber(r.rated_capacity)}</td>
                                   <td>{formatNumber(r.rated_head)}</td>

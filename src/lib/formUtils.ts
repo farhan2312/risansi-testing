@@ -49,6 +49,26 @@ export const installedPowerFromMotor = (
   return { hp, kw: Math.round(hp * 0.746 * 100) / 100 };
 };
 
+/** "Installed Power (KW)" label for a Motor field -- always KW, never the
+ * raw HP a source team member typed (see installedPowerFromMotor above).
+ * Falls back to the raw motor text when no HP figure can be read out of it
+ * at all, so the caller always has something to show. */
+export const installedPowerLabel = (motor: string | null | undefined): string => {
+  const power = installedPowerFromMotor(motor);
+  if (power) return `${power.kw} KW`;
+  return motor ?? "-";
+};
+
+/** "CGL 3HP" -> "CGL 3HP (2.24 KW)" -- appends the KW conversion rather than
+ * replacing the raw text, for a spot where the brand/model info in Motor is
+ * worth keeping alongside it (e.g. a compact list column). Unparseable motor
+ * text (or none) is returned as-is. */
+export const motorWithKw = (motor: string | null | undefined): string => {
+  if (!motor) return motor ?? "-";
+  const power = installedPowerFromMotor(motor);
+  return power ? `${motor} (${power.kw} KW)` : motor;
+};
+
 /**
  * Renders a stored date as dd/mm/yy for display. Accepts a plain date
  * ("2026-08-10") or a timestamp ("2026-08-10T07:16:04.694Z") and returns "-"

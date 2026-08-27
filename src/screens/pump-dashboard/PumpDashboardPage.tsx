@@ -10,7 +10,7 @@ import { POINT_ROWS } from "@/components/report-detail/ReportDetailSections";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 import { getPumpDashboard } from "@/services/testingService";
 import type { PumpDashboardData, PumpTestReport } from "@/types/testing";
-import { formatDate, formatNumber } from "@/lib/formUtils";
+import { formatDate, formatNumber, installedPowerLabel, motorWithKw } from "@/lib/formUtils";
 
 const fmt = (v: number | string | null | undefined) => (v === null || v === undefined || v === "" ? "-" : v);
 
@@ -21,6 +21,11 @@ interface HeaderRowDef {
    * places instead of passing a raw "22.380000"-style DB value through.
    * Free-text/identifier fields (PO No., Motor, Witness, etc.) stay plain. */
   numeric?: boolean;
+  /** For a row not backed by its own column -- derives the display value
+   * from the report instead of a plain `r[field]` lookup. `field` still
+   * has to name a real column (used only to decide whether this row has
+   * anything to show for a given report). */
+  derive?: (r: PumpTestReport) => string;
 }
 
 const HEADER_ROWS: HeaderRowDef[] = [
@@ -30,6 +35,10 @@ const HEADER_ROWS: HeaderRowDef[] = [
   { label: "Gearbox No.", field: "gearbox_no" },
   { label: "Gearbox Ratio", field: "gearbox_ratio" },
   { label: "Motor", field: "motor" },
+  // Installed motor power -- the source team only ever enters this as free
+  // text embedded in Motor ("CGL 30HP"), so it's derived, never its own
+  // column. Always shown in KW, never the raw HP (see installedPowerLabel).
+  { label: "Installed Power (KW)", field: "motor", derive: (r) => installedPowerLabel(r.motor) },
   { label: "Motor RPM", field: "motor_rpm", numeric: true },
   { label: "Capacity Method", field: "test_type" },
   { label: "NPSHa", field: "npsha_status" },
@@ -231,7 +240,7 @@ const PumpDashboardPage = () => {
                         ? "Viscosity Correction Chart"
                         : "Observation Sheet"}
                     </td>
-                    <td>{r.motor ?? "-"}</td>
+                    <td>{motorWithKw(r.motor)}</td>
                     <td>{r.points.length}</td>
                     <td>
                       <span className="status-actions">
@@ -284,9 +293,11 @@ const PumpDashboardPage = () => {
                       const unmetTitle = unmetTitleByReportId.get(r.id);
                       return (
                         <td key={r.id} className={unmetTitle ? "requirement-cell-not-met" : "highlight"} title={unmetTitle || undefined}>
-                          {row.numeric
-                            ? formatNumber(r[row.field] as string | number | null)
-                            : fmt(r[row.field] as string | number | null)}
+                          {row.derive
+                            ? row.derive(r)
+                            : row.numeric
+                              ? formatNumber(r[row.field] as string | number | null)
+                              : fmt(r[row.field] as string | number | null)}
                         </td>
                       );
                     })}
