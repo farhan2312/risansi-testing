@@ -818,6 +818,9 @@ const ViscosityChartForm = ({
                   )}
                 </th>
                 <th className="computed-col">ME % (Water)</th>
+                <th className="computed-col" title="Slip for Viscous Fluid = K x Slip of Water (Theoretical Capacity at Measured RPM − Measured Capacity)">
+                  Slip Viscous (M3/Hr)
+                </th>
                 <th className="computed-col">VE % (Liquid)</th>
                 <th className="computed-col">ME % (Liquid)</th>
                 <th></th>
@@ -865,6 +868,7 @@ const ViscosityChartForm = ({
                       {fmt(computed?.powerCalculatedKw ?? null)}
                     </td>
                     <td className="computed-cell">{fmt(computed?.mechanicalEfficiency ?? null)}</td>
+                    <td className="computed-cell">{fmt(computed?.slipViscous ?? null)}</td>
                     <td className="computed-cell">{fmt(computed?.volumetricEfficiencyLiquid ?? null)}</td>
                     <td className="computed-cell">{fmt(computed?.mechanicalEfficiencyLiquid ?? null)}</td>
                     <td>

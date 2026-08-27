@@ -206,6 +206,16 @@
   cursor: help;
 }
 
+/* Marks a row-label with a formula tooltip (title attr on the cell) --
+ * matches the "Formulae" column the original Excel workbook prints next to
+ * a computed row. */
+.formula-flag {
+  margin-left: 4px;
+  color: var(--text-muted);
+  font-style: italic;
+  cursor: help;
+}
+
 td.requirement-cell-not-met {
   background: var(--neg-soft);
   color: var(--neg);

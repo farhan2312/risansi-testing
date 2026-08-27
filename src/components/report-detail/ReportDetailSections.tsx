@@ -15,6 +15,9 @@ export interface PointRowDef {
   label: string;
   unit?: string;
   field: keyof PumpTestReportPoint;
+  /** Shown as a hover tooltip on the row label -- matches the "Formulae"
+   * column the original Excel workbook prints next to a computed row. */
+  formula?: string;
 }
 
 export const POINT_ROWS: PointRowDef[] = [
@@ -36,7 +39,12 @@ export const POINT_ROWS: PointRowDef[] = [
   { label: "Mechanical Efficiency (ME)", unit: "%", field: "mechanical_efficiency" },
   { label: "Theoretical Capacity at Measured RPM", unit: "M3/Hr", field: "theoretical_capacity_at_measured_rpm" },
   { label: "Slip of Water", unit: "M3/Hr", field: "slip_water" },
-  { label: "Slip for Viscous Fluid", unit: "M3/Hr", field: "slip_viscous" },
+  {
+    label: "Slip for Viscous Fluid",
+    unit: "M3/Hr",
+    field: "slip_viscous",
+    formula: "Slip for Viscous Fluid = K x Slip of Water",
+  },
   { label: "Theoretical Capacity at Rated RPM", unit: "M3/Hr", field: "theoretical_capacity_at_rated_rpm" },
   { label: "Capacity for Liquid at Rated RPM", unit: "M3/Hr", field: "capacity_liquid_at_rated_rpm_m3hr" },
   { label: "Capacity for Liquid at Rated RPM", unit: "LPH", field: "capacity_liquid_at_rated_rpm_lph" },
@@ -217,8 +225,9 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
                     : "Testing did not reach this rated value";
                 return (
                   <tr key={`${row.label}-${row.unit ?? ""}`}>
-                    <td className="row-label-col">
+                    <td className="row-label-col" title={row.formula}>
                       {row.label}
+                      {row.formula && <span className="formula-flag">ƒ</span>}
                       {rowNotMet && (
                         <span className="requirement-flag" title={rowNotMetTitle}>
                           ⚠
