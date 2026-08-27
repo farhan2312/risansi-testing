@@ -258,7 +258,7 @@ const PumpIndexPage = () => {
   return (
     <div className="pump-index-page">
       <div className="pump-index-header sticky-page-header">
-        <h1>Pump Dashboard</h1>
+        <h1>Report Compilation</h1>
         <input
           type="text"
           placeholder="Search by model..."

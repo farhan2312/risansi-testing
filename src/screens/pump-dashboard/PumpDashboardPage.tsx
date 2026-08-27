@@ -145,7 +145,7 @@ const PumpDashboardPage = () => {
       <div className="pump-dashboard-header sticky-page-header">
         <h1>{data.model}</h1>
         <Link href="/pumps" className="back-link">
-          &larr; Back to pump dashboard
+          &larr; Back to report compilation
         </Link>
       </div>
 

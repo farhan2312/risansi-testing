@@ -18,7 +18,7 @@ const NAV_ITEMS = [
   { href: "/overview", label: "Dashboard" },
   { href: "/requisitions/new", label: "New Requisition", hideFor: ["testing"] },
   { href: "/dashboard", label: "Testing Summary" },
-  { href: "/pumps", label: "Pump Dashboard" },
+  { href: "/pumps", label: "Report Compilation" },
   { href: "/reports", label: "Report Archive" },
 ];
 
@@ -35,8 +35,8 @@ const ROLE_LABELS: Record<string, string> = {
 const pageLabel = (pathname: string): string => {
   if (pathname === "/overview") return "Dashboard";
   if (pathname === "/dashboard") return "Testing Summary";
-  if (pathname === "/pumps") return "Pump Dashboard";
-  if (pathname.startsWith("/pumps/")) return "Pump Dashboard";
+  if (pathname === "/pumps") return "Report Compilation";
+  if (pathname.startsWith("/pumps/")) return "Report Compilation";
   if (pathname === "/reports") return "Report Archive";
   if (pathname === "/reports/new/observation") return "New Observation Sheet";
   if (pathname === "/reports/new/viscosity-chart") return "New Viscosity Correction Chart";
