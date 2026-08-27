@@ -14,7 +14,13 @@ import {
   type ArchiveReportSummary,
   type TestRequisition,
 } from "@/types/testing";
-import { formatDate } from "@/lib/formUtils";
+import { formatDate, formatNumber } from "@/lib/formUtils";
+
+/** Every measured value in a point array, formatted and comma-joined -- "-"
+ * for a report with no points at all, "-" per position for a point that
+ * never recorded this field. */
+const pointList = (values: (number | null)[]): string =>
+  values.length ? values.map((v) => formatNumber(v)).join(", ") : "-";
 
 const ALL = "All";
 
@@ -475,6 +481,9 @@ const PumpIndexPage = () => {
                                 <th>Report No.</th>
                                 <th>Test Date</th>
                                 <th>Points</th>
+                                <th>Rated / Measured Head (KG/CM2)</th>
+                                <th>Rated / Measured Capacity (M3/Hr)</th>
+                                <th>Rated / Measured Power (KW)</th>
                                 <th></th>
                               </tr>
                             </thead>
@@ -489,6 +498,15 @@ const PumpIndexPage = () => {
                                     <td>{r.report_no ?? r.motor ?? "-"}</td>
                                     <td>{formatDate(r.test_date ?? r.created_at)}</td>
                                     <td>{r.pointCount}</td>
+                                    <td className={unmetFields.includes("Head") ? "requirement-cell-not-met" : ""}>
+                                      <strong>{formatNumber(r.rated_head)}</strong> / {pointList(r.points_head_kgcm2)}
+                                    </td>
+                                    <td className={unmetFields.includes("Capacity") ? "requirement-cell-not-met" : ""}>
+                                      <strong>{formatNumber(r.rated_capacity)}</strong> / {pointList(r.points_capacity_m3hr)}
+                                    </td>
+                                    <td className={unmetFields.includes("Power") ? "requirement-cell-not-met" : ""}>
+                                      <strong>{formatNumber(r.rated_power_kw)}</strong> / {pointList(r.points_power_kw)}
+                                    </td>
                                     <td>
                                       <span className="status-actions">
                                         <Link

@@ -299,6 +299,13 @@ export interface ArchiveReportSummary extends Omit<PumpTestReport, "points"> {
    * own test points -- null when there's no VE/ME data to max over. */
   max_ve: number | null;
   max_me: number | null;
+  /** Every test point's own head/capacity/power, in the same order across
+   * all three arrays (sorted by head ascending, same convention the report
+   * detail page's Test Data table uses) -- backs the Pump Dashboard's
+   * expanded "rated vs every measured point" columns. */
+  points_head_kgcm2: (number | null)[];
+  points_capacity_m3hr: (number | null)[];
+  points_power_kw: (number | null)[];
 }
 
 export interface DedupCheckResult {
