@@ -67,6 +67,7 @@ const PumpIndexPage = () => {
   // so a pump only shows up if it has a requisition matching every active
   // one -- lets you narrow the Pump Dashboard the same way, e.g. "which
   // pumps has Research raised in August".
+  const [modelFilter, setModelFilter] = useState(ALL);
   const [ecFilter, setEcFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(ALL);
   const [sourceTeamFilter, setSourceTeamFilter] = useState(ALL);
@@ -142,6 +143,8 @@ const PumpIndexPage = () => {
     return rows.sort((a, b) => a.model.localeCompare(b.model));
   }, [reports, requisitions]);
 
+  const modelOptions = useMemo(() => pumps.map((p) => p.model), [pumps]);
+
   const submittedByOptions = useMemo(
     () =>
       [...new Set(requisitions.map((r) => r.submitted_by).filter((v): v is string => Boolean(v)))].sort((a, b) =>
@@ -184,6 +187,7 @@ const PumpIndexPage = () => {
   };
 
   const hasActiveReqFilters =
+    modelFilter !== ALL ||
     ecFilter.trim() !== "" ||
     categoryFilter !== ALL ||
     sourceTeamFilter !== ALL ||
@@ -195,6 +199,7 @@ const PumpIndexPage = () => {
     dateTo !== "";
 
   const clearReqFilters = () => {
+    setModelFilter(ALL);
     setEcFilter("");
     setCategoryFilter(ALL);
     setSourceTeamFilter(ALL);
@@ -210,6 +215,7 @@ const PumpIndexPage = () => {
     const q = search.trim().toLowerCase();
     return pumps
       .filter((p) => pumpMatchesFilter(p.reports, statFilter))
+      .filter((p) => modelFilter === ALL || p.model === modelFilter)
       .filter((p) => !hasActiveReqFilters || p.requisitions.some(requisitionMatchesFilters))
       .filter((p) => !q || p.model.toLowerCase().includes(q));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -217,6 +223,7 @@ const PumpIndexPage = () => {
     pumps,
     search,
     statFilter,
+    modelFilter,
     hasActiveReqFilters,
     ecFilter,
     categoryFilter,
@@ -314,6 +321,14 @@ const PumpIndexPage = () => {
       )}
 
       <div className="filter-bar">
+        <select value={modelFilter} onChange={(e) => setModelFilter(e.target.value)}>
+          <option value={ALL}>All Models</option>
+          {modelOptions.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
         <input
           type="text"
           placeholder="Filter by EC/Quotation No..."
