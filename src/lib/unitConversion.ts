@@ -98,3 +98,23 @@ export const normalizeHeadForSubmit = (
   if (converted === null) return { head: value, unit };
   return { head: converted, unit: "KG/CM2" };
 };
+
+/**
+ * Normalizes a form's Rated Capacity value + unit for submission: converts
+ * to M3/HR and resets the unit label to match, so the stored pair always
+ * agrees -- mirrors normalizeHeadForSubmit above. Without this, a report
+ * submitted with e.g. LPH picked stored a raw LPH figure in rated_capacity
+ * while the requirement check compares it directly against test points'
+ * capacity_calculated_m3hr (always M3/Hr), silently comparing mismatched
+ * units. Falls back to the raw entry when there's nothing (or nothing
+ * convertible, e.g. an unrecognized unit) to convert from.
+ */
+export const normalizeCapacityForSubmit = (
+  value: number | undefined | null,
+  unit: string | undefined | null,
+  specificGravity?: number | undefined | null
+): { capacity: number | undefined | null; unit: string | undefined | null } => {
+  const converted = capacityToM3hr(value, unit, specificGravity);
+  if (converted === null) return { capacity: value, unit };
+  return { capacity: converted, unit: "M3/HR" };
+};

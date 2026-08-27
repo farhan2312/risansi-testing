@@ -6,7 +6,7 @@ import "./TestReportForm.css";
 import { getRequisition, submitReport, updateReport } from "@/services/testingService";
 import { computePoint } from "@/lib/testReportCalc";
 import { normalizeModelOnChange, normalizeMotorRpm, formatNumber } from "@/lib/formUtils";
-import { normalizeHeadForSubmit } from "@/lib/unitConversion";
+import { normalizeCapacityForSubmit, normalizeHeadForSubmit } from "@/lib/unitConversion";
 import {
   clearReportDraft,
   draftFromRequisition,
@@ -414,6 +414,13 @@ const TestReportForm = ({
         values.head_unit || null,
         numOrUndef(values.specific_gravity) ?? null
       );
+      // Same story for Rated Capacity -- always M3/Hr, since it's compared
+      // directly against test points' computed capacity_calculated_m3hr.
+      const normalizedCapacity = normalizeCapacityForSubmit(
+        numOrUndef(values.rated_capacity) ?? null,
+        values.capacity_unit || null,
+        numOrUndef(values.specific_gravity) ?? null
+      );
 
       const payload = {
         model,
@@ -427,10 +434,10 @@ const TestReportForm = ({
         motor_rpm: numOrUndef(values.motor_rpm),
         test_type: values.test_type,
         npsha_status: values.npsha_status,
-        capacity_unit: values.capacity_unit,
+        capacity_unit: normalizedCapacity.unit ?? undefined,
         head_unit: normalizedHead.unit ?? undefined,
         liquid: values.liquid || undefined,
-        rated_capacity: numOrUndef(values.rated_capacity),
+        rated_capacity: normalizedCapacity.capacity ?? undefined,
         rated_head: normalizedHead.head ?? undefined,
         specific_gravity: numOrUndef(values.specific_gravity),
         viscosity_cps: numOrUndef(values.viscosity_cps),
