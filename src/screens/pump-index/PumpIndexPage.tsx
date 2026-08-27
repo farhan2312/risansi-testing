@@ -7,8 +7,16 @@ import "../report-archive/ReportArchivePage.css"; // reuses .pump-row/.expand-to
 import "./PumpIndexPage.css";
 import { modelDisplayLabel, normalizeModelKey } from "@/lib/modelKey";
 import { listReports, listRequisitions } from "@/services/testingService";
-import type { ArchiveReportSummary, TestRequisition } from "@/types/testing";
+import {
+  REQUISITION_CATEGORIES,
+  RESPONSIBLE_PERSONS,
+  SOURCE_TEAMS,
+  type ArchiveReportSummary,
+  type TestRequisition,
+} from "@/types/testing";
 import { formatDate } from "@/lib/formUtils";
+
+const ALL = "All";
 
 interface PumpIndexRow {
   model: string;
@@ -16,6 +24,7 @@ interface PumpIndexRow {
   requisitionCount: number;
   latestDate: string;
   reports: ArchiveReportSummary[];
+  requisitions: TestRequisition[];
 }
 
 /** Which stat tile is currently narrowing the pump list -- "all" for the two
@@ -53,6 +62,20 @@ const PumpIndexPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  // Same requisition-level filters as the Testing Summary page, applied here
+  // so a pump only shows up if it has a requisition matching every active
+  // one -- lets you narrow the Pump Dashboard the same way, e.g. "which
+  // pumps has Research raised in August".
+  const [ecFilter, setEcFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState(ALL);
+  const [sourceTeamFilter, setSourceTeamFilter] = useState(ALL);
+  const [responsiblePersonFilter, setResponsiblePersonFilter] = useState(ALL);
+  const [submittedByFilter, setSubmittedByFilter] = useState(ALL);
+  const [retestFilter, setRetestFilter] = useState(ALL);
+  const [monthFilter, setMonthFilter] = useState(ALL);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const toggleExpanded = (model: string) => {
     setExpanded((prev) => {
@@ -112,18 +135,99 @@ const PumpIndexPage = () => {
         requisitionCount: g.requisitions.length,
         latestDate: dates.sort().at(-1) ?? "-",
         reports: g.reports,
+        requisitions: g.requisitions,
       };
     });
 
     return rows.sort((a, b) => a.model.localeCompare(b.model));
   }, [reports, requisitions]);
 
+  const submittedByOptions = useMemo(
+    () =>
+      [...new Set(requisitions.map((r) => r.submitted_by).filter((v): v is string => Boolean(v)))].sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [requisitions]
+  );
+
+  // Every distinct calendar month a requisition was raised in, newest first.
+  const monthOptions = useMemo(() => {
+    const months = new Set<string>();
+    for (const r of requisitions) {
+      if (r.date_of_requisition) months.add(r.date_of_requisition.slice(0, 7));
+    }
+    return [...months].sort().reverse();
+  }, [requisitions]);
+
+  const monthLabel = (ym: string) => {
+    const [y, m] = ym.split("-");
+    return new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(
+      new Date(Number(y), Number(m) - 1, 1)
+    );
+  };
+
+  const requisitionMatchesFilters = (r: TestRequisition): boolean => {
+    const ec = ecFilter.trim().toLowerCase();
+    if (ec && !(r.ec_quotation_no ?? "").toLowerCase().includes(ec)) return false;
+    if (categoryFilter !== ALL && r.category !== categoryFilter) return false;
+    if (sourceTeamFilter !== ALL && r.source_team !== sourceTeamFilter) return false;
+    if (responsiblePersonFilter !== ALL && r.responsible_person !== responsiblePersonFilter) return false;
+    if (submittedByFilter !== ALL && r.submitted_by !== submittedByFilter) return false;
+    if (retestFilter !== ALL) {
+      if (retestFilter === "Yes" && r.retest_needed !== true) return false;
+      if (retestFilter === "No" && r.retest_needed !== false) return false;
+    }
+    if (monthFilter !== ALL && r.date_of_requisition?.slice(0, 7) !== monthFilter) return false;
+    if (dateFrom && (!r.date_of_requisition || r.date_of_requisition < dateFrom)) return false;
+    if (dateTo && (!r.date_of_requisition || r.date_of_requisition > dateTo)) return false;
+    return true;
+  };
+
+  const hasActiveReqFilters =
+    ecFilter.trim() !== "" ||
+    categoryFilter !== ALL ||
+    sourceTeamFilter !== ALL ||
+    responsiblePersonFilter !== ALL ||
+    submittedByFilter !== ALL ||
+    retestFilter !== ALL ||
+    monthFilter !== ALL ||
+    dateFrom !== "" ||
+    dateTo !== "";
+
+  const clearReqFilters = () => {
+    setEcFilter("");
+    setCategoryFilter(ALL);
+    setSourceTeamFilter(ALL);
+    setResponsiblePersonFilter(ALL);
+    setSubmittedByFilter(ALL);
+    setRetestFilter(ALL);
+    setMonthFilter(ALL);
+    setDateFrom("");
+    setDateTo("");
+  };
+
   const filteredPumps = useMemo(() => {
     const q = search.trim().toLowerCase();
     return pumps
       .filter((p) => pumpMatchesFilter(p.reports, statFilter))
+      .filter((p) => !hasActiveReqFilters || p.requisitions.some(requisitionMatchesFilters))
       .filter((p) => !q || p.model.toLowerCase().includes(q));
-  }, [pumps, search, statFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    pumps,
+    search,
+    statFilter,
+    hasActiveReqFilters,
+    ecFilter,
+    categoryFilter,
+    sourceTeamFilter,
+    responsiblePersonFilter,
+    submittedByFilter,
+    retestFilter,
+    monthFilter,
+    dateFrom,
+    dateTo,
+  ]);
 
   const STAT_LABELS: Record<Exclude<StatFilter, "all">, string> = {
     historical: "Historical Reports",
@@ -209,6 +313,73 @@ const PumpIndexPage = () => {
         </div>
       )}
 
+      <div className="filter-bar">
+        <input
+          type="text"
+          placeholder="Filter by EC/Quotation No..."
+          value={ecFilter}
+          onChange={(e) => setEcFilter(e.target.value)}
+        />
+        <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+          <option value={ALL}>All Categories</option>
+          {REQUISITION_CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <select value={sourceTeamFilter} onChange={(e) => setSourceTeamFilter(e.target.value)}>
+          <option value={ALL}>All Source Teams</option>
+          {SOURCE_TEAMS.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <select value={responsiblePersonFilter} onChange={(e) => setResponsiblePersonFilter(e.target.value)}>
+          <option value={ALL}>All Responsible Persons</option>
+          {RESPONSIBLE_PERSONS.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        <select value={submittedByFilter} onChange={(e) => setSubmittedByFilter(e.target.value)}>
+          <option value={ALL}>All Submitted By</option>
+          {submittedByOptions.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        <select value={retestFilter} onChange={(e) => setRetestFilter(e.target.value)}>
+          <option value={ALL}>Retest Needed: All</option>
+          <option value="Yes">Retest Needed: Yes</option>
+          <option value="No">Retest Needed: No</option>
+        </select>
+        <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}>
+          <option value={ALL}>All Months</option>
+          {monthOptions.map((ym) => (
+            <option key={ym} value={ym}>
+              {monthLabel(ym)}
+            </option>
+          ))}
+        </select>
+        <label className="filter-date-field">
+          From
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+        </label>
+        <label className="filter-date-field">
+          To
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        </label>
+        {hasActiveReqFilters && (
+          <button type="button" className="clear-filters-btn" onClick={clearReqFilters}>
+            Clear Filters
+          </button>
+        )}
+      </div>
+
       {statFilter !== "all" && (
         <p className="pump-index-filter-note">
           Showing pumps with at least one report that {statFilter === "historical" ? "is a historical import" : statFilter === "met" ? "met its rated requirement" : "did not meet its rated requirement"} ({STAT_LABELS[statFilter]}).{" "}
@@ -245,6 +416,9 @@ const PumpIndexPage = () => {
               const rowsToShow = [...matchingReports(p.reports, statFilter)].sort((a, b) =>
                 (b.test_date ?? b.created_at).localeCompare(a.test_date ?? a.created_at)
               );
+              const matchingRequisitionCount = hasActiveReqFilters
+                ? p.requisitions.filter(requisitionMatchesFilters).length
+                : p.requisitionCount;
               return (
                 <Fragment key={p.model}>
                   <tr className="pump-row" onClick={() => toggleExpanded(p.model)}>
@@ -254,7 +428,9 @@ const PumpIndexPage = () => {
                         {p.model}
                       </Link>
                     </td>
-                    <td>{p.requisitionCount}</td>
+                    <td title={hasActiveReqFilters ? `${matchingRequisitionCount} of ${p.requisitionCount} match the filters` : undefined}>
+                      {hasActiveReqFilters ? `${matchingRequisitionCount} of ${p.requisitionCount}` : p.requisitionCount}
+                    </td>
                     <td>{p.reportCount}</td>
                     {statFilter !== "all" && (
                       <td
