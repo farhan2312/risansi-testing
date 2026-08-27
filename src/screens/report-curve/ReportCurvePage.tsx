@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import "../report-detail/ReportDetailPage.css";
 import { getReport } from "@/services/testingService";
-import { formatDate } from "@/lib/formUtils";
+import { formatDate, reportExportFileName } from "@/lib/formUtils";
 import PerformanceCurve from "@/components/report-detail/PerformanceCurve";
 import type { PumpTestReport } from "@/types/testing";
 
@@ -25,6 +25,17 @@ const ReportCurvePage = () => {
     if (!id) return;
     getReport(id).then(setReport).catch(() => setError("Could not load report."));
   }, [id]);
+
+  // See ReportDetailPage's identical effect -- browsers use document.title
+  // as the default "Save as PDF" filename.
+  useEffect(() => {
+    if (!report) return;
+    const previousTitle = document.title;
+    document.title = reportExportFileName(report, "Curve");
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [report]);
 
   if (error) return <div className="form-error-banner">{error}</div>;
   if (!report) return <p className="detail-empty">Loading...</p>;

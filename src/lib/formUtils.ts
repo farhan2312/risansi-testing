@@ -91,6 +91,30 @@ export const formatNumber = (v: number | string | null | undefined): string => {
   return String(Number(n.toFixed(3)));
 };
 
+/**
+ * Suggested filename for a report's "Export PDF" (window.print() -> the
+ * browser's own Save as PDF, no PDF library involved) -- the EC/Quotation
+ * number if the report has one, since that's what the source/testing teams
+ * actually file these reports by, not the generic page title. Falls back to
+ * the report number, then the model, when there's no EC/Quotation number on
+ * the report yet. Slashes (EC numbers are typically "EC/26/1/965/39071",
+ * Quotation numbers similarly slash-delimited) aren't valid in file names on
+ * most OSes, so they're swapped for dashes.
+ *
+ * Sets `document.title`, which Chrome/Edge/Firefox all use as the default
+ * Save-as-PDF filename -- call this right before `window.print()` (or keep
+ * it live via an effect) and restore the previous title afterward so the
+ * browser tab doesn't stay stuck on it.
+ */
+export const reportExportFileName = (
+  report: { ec_no?: string | null; report_no?: string | null; model: string },
+  suffix?: string
+): string => {
+  const base = report.ec_no || report.report_no || report.model || "Pump Test Report";
+  const sanitized = base.replace(/[\\/]/g, "-");
+  return suffix ? `${sanitized} - ${suffix}` : sanitized;
+};
+
 /** A requisition's Target Date: the source team's explicit value if they set
  * one (only shown/filled for "Against R&D Trials" on the requisition form),
  * otherwise 7 days after Date of Requisition, falling back to the submission

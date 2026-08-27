@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import "./ReportDetailPage.css";
 import { deleteReport, getReport } from "@/services/testingService";
 import { getCurrentUser } from "@/services/session";
+import { reportExportFileName } from "@/lib/formUtils";
 import { isWithinReportEditWindow, REPORT_EDIT_WINDOW_DAYS } from "@/lib/reportEditWindow";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import ReportDetailSections from "@/components/report-detail/ReportDetailSections";
@@ -29,6 +30,18 @@ const ReportDetailPage = () => {
     if (!id) return;
     getReport(id).then(setReport).catch(() => setError("Could not load report."));
   }, [id]);
+
+  // Browsers use document.title as the default "Save as PDF" filename --
+  // suggest the EC/Quotation number (what these are actually filed by)
+  // instead of the generic "Pump Testing Portal" tab title.
+  useEffect(() => {
+    if (!report) return;
+    const previousTitle = document.title;
+    document.title = reportExportFileName(report);
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [report]);
 
   const handleDelete = async () => {
     if (!report) return;
