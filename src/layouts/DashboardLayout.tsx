@@ -14,9 +14,9 @@ import { recordPageView } from "@/services/auditService";
 
 const PENDING_REQUESTS_POLL_MS = 30000;
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { href: string; label: string; hideFor?: string[] }[] = [
   { href: "/overview", label: "Dashboard" },
-  { href: "/requisitions/new", label: "New Requisition", hideFor: ["testing"] },
+  { href: "/requisitions/new", label: "New Requisition" },
   { href: "/dashboard", label: "Testing Summary" },
   { href: "/pumps", label: "Report Compilation" },
   { href: "/reports", label: "Report Archive" },

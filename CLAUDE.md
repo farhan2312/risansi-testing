@@ -70,7 +70,7 @@ Four roles (legacy `"user"` role fully retired):
 | Role | Can do |
 |---|---|
 | **source** | Raise requisitions (sees only their own). Edit their own requisitions, but only intake fields (model, category, EC/quotation no., offer date, responsible person, source team, date of receipt, QTH/power/head/RPM/capacity) — not status/retest/testing-result fields. Cannot fill, edit, or delete reports. |
-| **testing** | Cannot raise requisitions. Can Start Testing / mark Retest Needed, reassign "Responsible Person" inline from the requisitions list, fill/edit/delete reports. |
+| **testing** | Can also raise requisitions now (same as source/central-admin — this was "cannot raise" earlier, explicitly reversed). Plus Start Testing / mark Retest Needed, reassign "Responsible Person" inline from the requisitions list, fill/edit/delete reports. |
 | **central-admin** | Same requisition-raising rights as source. **No** access to Manage Users / Access Requests (this was explicitly granted then revoked — do not re-add without asking). |
 | **admin** | Everything, plus Manage Users (role changes, password reset, **delete user** — see FK gotcha below) and Access Requests (approve/reject signups). |
 

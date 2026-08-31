@@ -37,7 +37,6 @@ const DashboardPage = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const canCreateRequisition = getCurrentUser()?.role !== "testing";
   const canReassign = getCurrentUser()?.role === "testing";
 
   const [modelFilter, setModelFilter] = useState(ALL);
@@ -211,11 +210,9 @@ const DashboardPage = () => {
     <div className="dashboard-page">
       <div className="dashboard-header sticky-page-header">
         <h1>Testing Summary</h1>
-        {canCreateRequisition && (
-          <Link href="/requisitions/new" className="new-requisition-btn">
-            + New Requisition
-          </Link>
-        )}
+        <Link href="/requisitions/new" className="new-requisition-btn">
+          + New Requisition
+        </Link>
       </div>
 
       <div className="status-tabs">
