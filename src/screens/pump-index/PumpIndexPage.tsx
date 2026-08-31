@@ -246,11 +246,10 @@ const PumpIndexPage = () => {
     return true;
   };
 
-  // Whether a pump needs at least one requisition matching every active
-  // filter to stay in the list -- deliberately excludes modelFilter, which
-  // is checked separately against the pump's own model and shouldn't force
-  // a report-only pump (zero requisitions) out of the list just because a
-  // model was picked.
+  // Whether any requisition-attribute filter (Category/Source Team/EC/etc.)
+  // is active -- excludes modelFilter, which is checked separately against
+  // the pump's own model, not one of its requisitions. See filteredPumps
+  // below for how a pump with zero requisitions is treated once this is true.
   const hasActiveReqFilters =
     ecFilter.trim() !== "" ||
     categoryFilter !== ALL ||
@@ -282,7 +281,17 @@ const PumpIndexPage = () => {
     return pumps
       .filter((p) => pumpMatchesFilter(p.reports, statFilter))
       .filter((p) => modelFilter === ALL || p.model === modelFilter)
-      .filter((p) => !hasActiveReqFilters || p.requisitions.some(requisitionMatchesFilters))
+      // Category/Source Team/EC/etc. describe a requisition, which a report-
+      // only pump (a legacy import with reports but zero requisitions -- most
+      // of the catalog) never has one of. Requiring a match would silently
+      // drop those pumps out of the list on every one of these filters, so a
+      // pump with no requisitions to check has nothing to disqualify it and
+      // stays -- only a pump that DOES have requisitions, none of which
+      // match, gets filtered out. Same reasoning already applied to
+      // modelFilter above, generalized to the rest of this group.
+      .filter(
+        (p) => !hasActiveReqFilters || p.requisitions.length === 0 || p.requisitions.some(requisitionMatchesFilters)
+      )
       .filter((p) => !q || p.model.toLowerCase().includes(q));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -509,8 +518,16 @@ const PumpIndexPage = () => {
                         {p.model}
                       </Link>
                     </td>
-                    <td title={hasActiveReqFilters ? `${matchingRequisitionCount} of ${p.requisitionCount} match the filters` : undefined}>
-                      {hasActiveReqFilters ? `${matchingRequisitionCount} of ${p.requisitionCount}` : p.requisitionCount}
+                    <td
+                      title={
+                        hasActiveReqFilters && p.requisitionCount > 0
+                          ? `${matchingRequisitionCount} of ${p.requisitionCount} match the filters`
+                          : undefined
+                      }
+                    >
+                      {hasActiveReqFilters && p.requisitionCount > 0
+                        ? `${matchingRequisitionCount} of ${p.requisitionCount}`
+                        : p.requisitionCount}
                     </td>
                     <td>{p.reportCount}</td>
                     {statFilter !== "all" && (
