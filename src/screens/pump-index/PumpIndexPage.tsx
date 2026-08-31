@@ -227,8 +227,12 @@ const PumpIndexPage = () => {
     return true;
   };
 
+  // Whether a pump needs at least one requisition matching every active
+  // filter to stay in the list -- deliberately excludes modelFilter, which
+  // is checked separately against the pump's own model and shouldn't force
+  // a report-only pump (zero requisitions) out of the list just because a
+  // model was picked.
   const hasActiveReqFilters =
-    modelFilter !== ALL ||
     ecFilter.trim() !== "" ||
     categoryFilter !== ALL ||
     sourceTeamFilter !== ALL ||
@@ -238,6 +242,8 @@ const PumpIndexPage = () => {
     monthFilter !== ALL ||
     dateFrom !== "" ||
     dateTo !== "";
+
+  const hasAnyFilterActive = hasActiveReqFilters || modelFilter !== ALL;
 
   const clearReqFilters = () => {
     setModelFilter(ALL);
@@ -429,7 +435,7 @@ const PumpIndexPage = () => {
           To
           <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         </label>
-        {hasActiveReqFilters && (
+        {hasAnyFilterActive && (
           <button type="button" className="clear-filters-btn" onClick={clearReqFilters}>
             Clear Filters
           </button>
