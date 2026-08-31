@@ -533,7 +533,11 @@ const PumpIndexPage = () => {
                       <td></td>
                       <td colSpan={statFilter !== "all" ? 5 : 4}>
                         {rowsToShow.length === 0 ? (
-                          <p className="dashboard-empty">No reports match this filter for {p.model}.</p>
+                          <p className="dashboard-empty">
+                            {statFilter === "all"
+                              ? `No test reports have been filled for ${p.model} yet.`
+                              : `No reports match this filter for ${p.model}.`}
+                          </p>
                         ) : (
                           <table className="nested-report-table">
                             <thead>
