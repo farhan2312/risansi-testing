@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import "./ReportDetailPage.css";
 import { deleteReport, getReport } from "@/services/testingService";
-import { getCurrentUser } from "@/services/session";
+import { canAssignRetest as canAssignRetestRole, getCurrentUser } from "@/services/session";
 import { reportExportFileName } from "@/lib/formUtils";
 import { isWithinReportEditWindow, REPORT_EDIT_WINDOW_DAYS } from "@/lib/reportEditWindow";
+import { buildUnmetRows, computeRequirementStatus, maxOf, unmetRequirementLabels } from "@/lib/requirementCheck";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import AssignRetestModal from "@/components/ui/AssignRetestModal";
 import ReportDetailSections from "@/components/report-detail/ReportDetailSections";
 import type { PumpTestReport } from "@/types/testing";
 
@@ -25,6 +27,9 @@ const ReportDetailPage = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const canEditOrDelete = getCurrentUser()?.role === "testing";
+  const canAssignRetest = canAssignRetestRole();
+  const [showAssignRetest, setShowAssignRetest] = useState(false);
+  const [assignedRetestId, setAssignedRetestId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -57,6 +62,20 @@ const ReportDetailPage = () => {
 
   if (error) return <div className="form-error-banner">{error}</div>;
   if (!report) return <p className="detail-empty">Loading...</p>;
+
+  // Did testing actually satisfy the rated requirements? Same rule every
+  // other "outside rated requirement" flag in the app uses -- Assign Retest
+  // only makes sense once this comes back non-empty.
+  const unmetLabels = unmetRequirementLabels(computeRequirementStatus(report, report.points));
+  const unmetRows = buildUnmetRows(
+    report,
+    {
+      head: maxOf(report.points, "head_kgcm2"),
+      capacity: maxOf(report.points, "capacity_calculated_m3hr"),
+      power: maxOf(report.points, "power_calculated_kw"),
+    },
+    unmetLabels
+  );
 
   return (
     <div className="report-detail-page">
@@ -102,6 +121,22 @@ const ReportDetailPage = () => {
               {isDeleting ? "Deleting..." : "Delete"}
             </button>
           )}
+          {canAssignRetest && unmetLabels.length > 0 && (
+            assignedRetestId ? (
+              <Link href={`/requisitions/${assignedRetestId}`} className="status-pill status-view-report">
+                Retest Assigned — View →
+              </Link>
+            ) : (
+              <button
+                type="button"
+                className="assign-retest-btn"
+                onClick={() => setShowAssignRetest(true)}
+                title={`Outside rated ${unmetLabels.join(", ")}`}
+              >
+                Assign Retest
+              </button>
+            )
+          )}
           <Link href="/reports" className="back-link">
             &larr; Back to archive
           </Link>
@@ -109,6 +144,20 @@ const ReportDetailPage = () => {
       </div>
 
       <ReportDetailSections report={report} />
+
+      {showAssignRetest && (
+        <AssignRetestModal
+          reportId={report.id}
+          model={report.model}
+          reportNo={report.report_no}
+          unmetRows={unmetRows}
+          onClose={() => setShowAssignRetest(false)}
+          onAssigned={(result) => {
+            setAssignedRetestId(result.requisition.id);
+            setShowAssignRetest(false);
+          }}
+        />
+      )}
 
       {showDeleteConfirm && (
         <ConfirmModal

@@ -29,7 +29,10 @@ export interface RequirementStatus {
   power: boolean | null;
 }
 
-const maxOf = (points: RequirementPoints[], field: keyof RequirementPoints): number | null => {
+/** Exported so anything that needs the same "highest recorded value" a
+ * report was actually judged against (e.g. the Assign Retest modal's rated
+ * vs. measured snapshot) doesn't have to re-derive it separately. */
+export const maxOf = (points: RequirementPoints[], field: keyof RequirementPoints): number | null => {
   const values = points.map((p) => p[field]).filter((v): v is number => v !== null && v !== undefined);
   return values.length ? Math.max(...values) : null;
 };
@@ -61,6 +64,49 @@ export const computeRequirementStatus = (
     power: checkStaysWithin(report.rated_power_kw, "power_calculated_kw"),
   };
 };
+
+export interface UnmetRow {
+  label: string;
+  unit: string;
+  rated: number | null;
+  measured: number | null;
+  /** Head/Capacity: measured has to reach rated (a floor). Power: measured
+   * has to stay under rated (a ceiling). Only changes the wording. */
+  direction: "below-target" | "over-limit";
+}
+
+/** Rated-vs-measured snapshot for whichever fields are in `unmetLabels` --
+ * shared by the Assign Retest modal so both call sites (the report detail
+ * page, which has raw points to max over, and the pump index page, which
+ * already has the maxed arrays) build the identical row shape. */
+export const buildUnmetRows = (
+  rated: RequirementInputs,
+  measured: { head: number | null; capacity: number | null; power: number | null },
+  unmetLabels: string[]
+): UnmetRow[] =>
+  [
+    unmetLabels.includes("Head") && {
+      label: "Head",
+      unit: "KG/CM2",
+      rated: rated.rated_head,
+      measured: measured.head,
+      direction: "below-target" as const,
+    },
+    unmetLabels.includes("Capacity") && {
+      label: "Capacity",
+      unit: "M3/HR",
+      rated: rated.rated_capacity,
+      measured: measured.capacity,
+      direction: "below-target" as const,
+    },
+    unmetLabels.includes("Power") && {
+      label: "Power",
+      unit: "KW",
+      rated: rated.rated_power_kw,
+      measured: measured.power,
+      direction: "over-limit" as const,
+    },
+  ].filter((r): r is UnmetRow => Boolean(r));
 
 /** Human-readable labels for whichever fields came back "not met" -- shared
  * by every place a report shows this flag (detail page, archive/list rows,

@@ -399,3 +399,29 @@ export interface AuditActivityEntry {
   details: string | null;
   created_at: string;
 }
+
+// ----- Action Registry (Admin / Central Admin only) -----
+
+/** One "Assign Retest" -- a durable rated-vs-measured snapshot of why a
+ * retest was raised, plus any action points the assigner typed in. See
+ * /api/reports/[id]/assign-retest. */
+export interface ActionRegistryEntry {
+  id: string;
+  requisition_id: string;
+  report_id: string;
+  model: string;
+  report_no: string | null;
+  /** e.g. "Head, Power" */
+  unmet_fields: string;
+  rated_head: number | null;
+  measured_head: number | null;
+  rated_capacity: number | null;
+  measured_capacity: number | null;
+  rated_power_kw: number | null;
+  measured_power_kw: number | null;
+  action_points: string[];
+  assigned_by: string | null;
+  assigned_by_name: string | null;
+  originally_raised_by: string | null;
+  created_at: string;
+}

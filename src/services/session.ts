@@ -41,3 +41,7 @@ export const isAdmin = (): boolean => getCurrentUser()?.role === "admin";
 export const isCentralAdmin = (): boolean => getCurrentUser()?.role === "central-admin";
 
 export const isSource = (): boolean => getCurrentUser()?.role === "source";
+
+/** Admin or Central Admin -- who can Assign Retest and browse the Action
+ * Registry (see CLAUDE.md's role table). */
+export const canAssignRetest = (): boolean => isAdmin() || isCentralAdmin();

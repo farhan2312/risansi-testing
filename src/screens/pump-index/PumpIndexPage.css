@@ -104,6 +104,27 @@
   font-weight: 600;
 }
 
+/* "Assign Retest" pill, alongside View Report / View Curve -- a <button>,
+ * not a <Link>, so it needs the border/background reset .status-pill's
+ * <a>-oriented siblings get for free. */
+.assign-retest-pill {
+  border: none;
+  background: var(--warn-soft);
+  color: var(--warn);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.assign-retest-pill:hover:not(:disabled) {
+  background: var(--warn);
+  color: #fff;
+}
+
+.assign-retest-pill:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Rated + every measured point for one field, in the Report Compilation
  * expanded rows -- two short lines instead of a single slash-joined string. */
 .pump-index-rated-vs-measured {

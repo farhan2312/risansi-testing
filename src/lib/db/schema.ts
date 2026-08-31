@@ -318,3 +318,39 @@ export const pageViews = pgTable("page_views", {
   path: varchar("path", { length: 255 }).notNull(),
   viewedAt: timestamp("viewed_at", { withTimezone: true }).$defaultFn(() => new Date()),
 });
+
+// One row per "Assign Retest" (see reports/[id]/assign-retest/route.ts) --
+// a durable record of why a retest was raised: which rated fields the
+// original report missed (with the exact rated vs. measured figures, a
+// snapshot so it stays meaningful even if the report is later edited/
+// deleted), whatever action points the assigning admin typed in, and who's
+// who. requisitionId links to the fresh retest requisition that action
+// created; reportId to the report that failed. Admin/Central Admin only,
+// both to create (Assign Retest) and to browse (Action Registry page).
+export const actionRegistry = pgTable("action_registry", {
+  id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  requisitionId: uuid("requisition_id").notNull(),
+  reportId: uuid("report_id").notNull(),
+  model: varchar("model", { length: 100 }).notNull(),
+  reportNo: varchar("report_no", { length: 20 }),
+  unmetFields: varchar("unmet_fields", { length: 100 }).notNull(), // e.g. "Head, Power"
+  ratedHead: numeric("rated_head", { precision: 10, scale: 2 }),
+  measuredHead: numeric("measured_head", { precision: 10, scale: 2 }),
+  ratedCapacity: numeric("rated_capacity", { precision: 10, scale: 4 }),
+  measuredCapacity: numeric("measured_capacity", { precision: 10, scale: 4 }),
+  ratedPowerKw: numeric("rated_power_kw", { precision: 10, scale: 4 }),
+  measuredPowerKw: numeric("measured_power_kw", { precision: 10, scale: 6 }),
+  // One action point per line -- simple newline-delimited text rather than a
+  // child table, same convention as every other free-text notes field here.
+  actionPoints: text("action_points"),
+  assignedBy: uuid("assigned_by"),
+  // Name snapshot, same convention as test_requisitions.submitted_by -- who
+  // clicked "Assign Retest" (always Admin/Central Admin).
+  assignedByName: varchar("assigned_by_name", { length: 100 }),
+  // Who raised the ORIGINAL testing request that produced the failed report
+  // -- the original requisition's submitted_by when this report has a
+  // linked requisition, else the report's own tested_by/prepared_by. A name
+  // snapshot for the same reason as assignedByName above.
+  originallyRaisedBy: varchar("originally_raised_by", { length: 100 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
+});

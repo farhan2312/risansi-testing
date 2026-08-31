@@ -99,6 +99,26 @@
   cursor: not-allowed;
 }
 
+.assign-retest-btn {
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--warn);
+  background: transparent;
+  color: var(--warn);
+  cursor: pointer;
+}
+
+.assign-retest-btn:hover:not(:disabled) {
+  background: var(--warn-soft);
+}
+
+.assign-retest-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .report-detail-page .back-link {
   color: var(--accent);
   text-decoration: none;

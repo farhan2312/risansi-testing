@@ -1,6 +1,7 @@
 import apiClient from "./apiClient";
 import { getToken } from "./session";
 import type {
+  ActionRegistryEntry,
   AuditActivityEntry,
   AuditRange,
   AuditSessionEntry,
@@ -127,5 +128,11 @@ export const getAuditActivity = async (range: AuditRange): Promise<AuditActivity
     ...authHeader(),
     params: { range },
   });
+  return data;
+};
+
+/** Admin / Central Admin only, matching who can Assign Retest. */
+export const listActionRegistry = async (): Promise<ActionRegistryEntry[]> => {
+  const { data } = await apiClient.get<ActionRegistryEntry[]>("/action-registry", authHeader());
   return data;
 };

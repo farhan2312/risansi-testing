@@ -1,6 +1,7 @@
 import apiClient from "./apiClient";
 import { getToken } from "./session";
 import type {
+  ActionRegistryEntry,
   ArchiveReportSummary,
   BugReport,
   BugReportSeverity,
@@ -145,6 +146,24 @@ export const updateReport = async (
 
 export const deleteReport = async (id: string): Promise<void> => {
   await apiClient.delete(`/reports/${id}`, authHeader());
+};
+
+export interface AssignRetestResult {
+  requisition: TestRequisition;
+  action_registry_entry: ActionRegistryEntry;
+}
+
+/** Raises a fresh Pending requisition for this report's model, Retest Needed
+ * pre-set, and records an Action Registry entry (unmet fields, rated/
+ * measured snapshot, the given action points) -- Admin / Central Admin
+ * only. */
+export const assignRetest = async (reportId: string, actionPoints: string[] = []): Promise<AssignRetestResult> => {
+  const { data } = await apiClient.post<AssignRetestResult>(
+    `/reports/${reportId}/assign-retest`,
+    { action_points: actionPoints },
+    authHeader()
+  );
+  return data;
 };
 
 /** Latest Observation Sheet report submitted for this exact pump model, if

@@ -21,6 +21,7 @@ type PointRow = typeof schema.pumpTestReportPoints.$inferSelect;
 type UserRow = typeof schema.users.$inferSelect;
 type AttachmentRow = typeof schema.requisitionAttachments.$inferSelect;
 type BugReportRow = typeof schema.bugReports.$inferSelect;
+type ActionRegistryRow = typeof schema.actionRegistry.$inferSelect;
 
 /** Mirrors sales-portal-next's _user_to_dict(): raw snake_case columns, minus password_hash. */
 export function userToDict(u: UserRow) {
@@ -210,5 +211,27 @@ export function bugReportToDict(b: Omit<BugReportRow, "screenshotData">) {
     reported_by: b.reportedBy,
     reported_by_name: b.reportedByName,
     created_at: b.createdAt,
+  };
+}
+
+export function actionRegistryToDict(a: ActionRegistryRow) {
+  return {
+    id: a.id,
+    requisition_id: a.requisitionId,
+    report_id: a.reportId,
+    model: a.model,
+    report_no: a.reportNo,
+    unmet_fields: a.unmetFields,
+    rated_head: a.ratedHead,
+    measured_head: a.measuredHead,
+    rated_capacity: a.ratedCapacity,
+    measured_capacity: a.measuredCapacity,
+    rated_power_kw: a.ratedPowerKw,
+    measured_power_kw: a.measuredPowerKw,
+    action_points: a.actionPoints ? a.actionPoints.split("\n").filter((s) => s.trim() !== "") : [],
+    assigned_by: a.assignedBy,
+    assigned_by_name: a.assignedByName,
+    originally_raised_by: a.originallyRaisedBy,
+    created_at: a.createdAt,
   };
 }

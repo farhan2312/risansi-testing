@@ -7,6 +7,9 @@ import "../report-archive/ReportArchivePage.css"; // reuses .pump-row/.expand-to
 import "./PumpIndexPage.css";
 import { modelDisplayLabel, normalizeModelKey } from "@/lib/modelKey";
 import { listReports, listRequisitions } from "@/services/testingService";
+import { canAssignRetest as canAssignRetestRole } from "@/services/session";
+import { buildUnmetRows } from "@/lib/requirementCheck";
+import AssignRetestModal from "@/components/ui/AssignRetestModal";
 import {
   REQUISITION_CATEGORIES,
   RESPONSIBLE_PERSONS,
@@ -15,6 +18,15 @@ import {
   type TestRequisition,
 } from "@/types/testing";
 import { formatDate, formatNumber } from "@/lib/formUtils";
+
+/** Highest non-null value in a measured-points column, same "what the
+ * report was actually judged against" figure the requirement check itself
+ * maxes over -- shared by the rated/measured display and the Assign Retest
+ * modal's snapshot. */
+const maxOfColumn = (values: (number | null)[]): number | null => {
+  const nums = values.filter((v): v is number => v !== null);
+  return nums.length ? Math.max(...nums) : null;
+};
 
 /** Rated target + every measured point for one field (Head/Capacity/Power),
  * as a small two-line list rather than a single "rated / measured" string.
@@ -31,8 +43,7 @@ const RatedVsMeasured = ({
   values: (number | null)[];
   failed: boolean;
 }) => {
-  const nums = values.filter((v): v is number => v !== null);
-  const maxVal = nums.length ? Math.max(...nums) : null;
+  const maxVal = maxOfColumn(values);
 
   return (
     <div className="pump-index-rated-vs-measured">
@@ -103,6 +114,14 @@ const PumpIndexPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  // Assign Retest (Admin / Central Admin only) -- see ReportDetailPage's
+  // identical feature. Per-report state since this list can hold many
+  // reports at once: which one has its modal open, and which have already
+  // gotten a new requisition this session (report id -> its id).
+  const canAssignRetest = canAssignRetestRole();
+  const [assignRetestTarget, setAssignRetestTarget] = useState<ArchiveReportSummary | null>(null);
+  const [assignedRetestByReport, setAssignedRetestByReport] = useState<Record<string, string>>({});
 
   // Same requisition-level filters as the Testing Summary page, applied here
   // so a pump only shows up if it has a requisition matching every active
@@ -572,6 +591,24 @@ const PumpIndexPage = () => {
                                         <Link href={`/reports/${r.id}/curve`} className="status-pill status-view-curve">
                                           View Curve
                                         </Link>
+                                        {canAssignRetest && unmetTitle && (
+                                          assignedRetestByReport[r.id] ? (
+                                            <Link
+                                              href={`/requisitions/${assignedRetestByReport[r.id]}`}
+                                              className="status-pill status-view-report"
+                                            >
+                                              Retest Assigned
+                                            </Link>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              className="status-pill assign-retest-pill"
+                                              onClick={() => setAssignRetestTarget(r)}
+                                            >
+                                              Assign Retest
+                                            </button>
+                                          )
+                                        )}
                                       </span>
                                     </td>
                                   </tr>
@@ -588,6 +625,28 @@ const PumpIndexPage = () => {
             })}
           </tbody>
         </table>
+      )}
+
+      {assignRetestTarget && (
+        <AssignRetestModal
+          reportId={assignRetestTarget.id}
+          model={assignRetestTarget.model}
+          reportNo={assignRetestTarget.report_no}
+          unmetRows={buildUnmetRows(
+            assignRetestTarget,
+            {
+              head: maxOfColumn(assignRetestTarget.points_head_kgcm2),
+              capacity: maxOfColumn(assignRetestTarget.points_capacity_m3hr),
+              power: maxOfColumn(assignRetestTarget.points_power_kw),
+            },
+            assignRetestTarget.requirement_unmet_fields
+          )}
+          onClose={() => setAssignRetestTarget(null)}
+          onAssigned={(result) => {
+            setAssignedRetestByReport((prev) => ({ ...prev, [assignRetestTarget.id]: result.requisition.id }));
+            setAssignRetestTarget(null);
+          }}
+        />
       )}
     </div>
   );

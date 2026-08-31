@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import "./DashboardLayout.css";
-import { clearSession, getCurrentUser, isAdmin, updateCurrentUser } from "@/services/session";
+import { canAssignRetest, clearSession, getCurrentUser, isAdmin, updateCurrentUser } from "@/services/session";
 import { useTheme } from "@/contexts/ThemeContext";
 import EditPasswordModal from "@/components/ui/EditPasswordModal";
 import ReportBugModal from "@/components/ui/ReportBugModal";
@@ -54,6 +54,7 @@ const pageLabel = (pathname: string): string => {
   if (pathname === "/admin/users") return "Manage Users";
   if (pathname === "/admin/bug-reports") return "Bug Reports";
   if (pathname === "/admin/audit-log") return "Audit Log";
+  if (pathname === "/admin/action-registry") return "Action Registry";
   return "Pump Testing Portal";
 };
 
@@ -152,6 +153,19 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
               {item.label}
             </Link>
           ))}
+
+          {/* Lives in the Testing group, not Admin -- Action Registry entries
+           * come out of Testing's own Assign Retest flow, and Central Admin
+           * (who doesn't get the rest of the Admin section, see CLAUDE.md)
+           * still needs a way in since they can Assign Retest too. */}
+          {canAssignRetest() && (
+            <Link
+              href="/admin/action-registry"
+              className={pathname === "/admin/action-registry" ? "active" : ""}
+            >
+              Action Registry
+            </Link>
+          )}
 
           {isAdmin() && (
             <>
