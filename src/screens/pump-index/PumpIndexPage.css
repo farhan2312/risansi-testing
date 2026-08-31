@@ -104,6 +104,19 @@
   font-weight: 600;
 }
 
+/* Rated + every measured point for one field, in the Report Compilation
+ * expanded rows -- two short lines instead of a single slash-joined string. */
+.pump-index-rated-vs-measured {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: normal;
+}
+
+.pump-index-rated-vs-measured > div:first-child {
+  font-weight: 600;
+}
+
 .pump-index-filter-note {
   margin: -8px 0 0;
   font-size: 13px;

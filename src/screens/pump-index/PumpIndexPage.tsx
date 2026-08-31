@@ -16,11 +16,46 @@ import {
 } from "@/types/testing";
 import { formatDate, formatNumber } from "@/lib/formUtils";
 
-/** Every measured value in a point array, formatted and comma-joined -- "-"
- * for a report with no points at all, "-" per position for a point that
- * never recorded this field. */
-const pointList = (values: (number | null)[]): string =>
-  values.length ? values.map((v) => formatNumber(v)).join(", ") : "-";
+/** Rated target + every measured point for one field (Head/Capacity/Power),
+ * as a small two-line list rather than a single "rated / measured" string.
+ * When the report failed this field, the one measured value that actually
+ * decided that -- the max, since that's what a floor (Head/Capacity) or
+ * ceiling (Power) check compares against the rating -- is highlighted red,
+ * same as the rated figure it's being judged against. */
+const RatedVsMeasured = ({
+  rated,
+  values,
+  failed,
+}: {
+  rated: number | string | null | undefined;
+  values: (number | null)[];
+  failed: boolean;
+}) => {
+  const nums = values.filter((v): v is number => v !== null);
+  const maxVal = nums.length ? Math.max(...nums) : null;
+
+  return (
+    <div className="pump-index-rated-vs-measured">
+      <div>
+        Rated:{" "}
+        <span className={failed ? "pump-index-match-neg" : undefined}>{formatNumber(rated)}</span>
+      </div>
+      <div>
+        Measured:{" "}
+        {values.length === 0
+          ? "-"
+          : values.map((v, i) => (
+              <span key={i}>
+                <span className={failed && v !== null && v === maxVal ? "pump-index-match-neg" : undefined}>
+                  {formatNumber(v)}
+                </span>
+                {i < values.length - 1 ? ", " : ""}
+              </span>
+            ))}
+      </div>
+    </div>
+  );
+};
 
 const ALL = "All";
 
@@ -498,14 +533,26 @@ const PumpIndexPage = () => {
                                     <td>{r.report_no ?? r.motor ?? "-"}</td>
                                     <td>{formatDate(r.test_date ?? r.created_at)}</td>
                                     <td>{r.pointCount}</td>
-                                    <td className={unmetFields.includes("Head") ? "requirement-cell-not-met" : ""}>
-                                      <strong>{formatNumber(r.rated_head)}</strong> / {pointList(r.points_head_kgcm2)}
+                                    <td>
+                                      <RatedVsMeasured
+                                        rated={r.rated_head}
+                                        values={r.points_head_kgcm2}
+                                        failed={unmetFields.includes("Head")}
+                                      />
                                     </td>
-                                    <td className={unmetFields.includes("Capacity") ? "requirement-cell-not-met" : ""}>
-                                      <strong>{formatNumber(r.rated_capacity)}</strong> / {pointList(r.points_capacity_m3hr)}
+                                    <td>
+                                      <RatedVsMeasured
+                                        rated={r.rated_capacity}
+                                        values={r.points_capacity_m3hr}
+                                        failed={unmetFields.includes("Capacity")}
+                                      />
                                     </td>
-                                    <td className={unmetFields.includes("Power") ? "requirement-cell-not-met" : ""}>
-                                      <strong>{formatNumber(r.rated_power_kw)}</strong> / {pointList(r.points_power_kw)}
+                                    <td>
+                                      <RatedVsMeasured
+                                        rated={r.rated_power_kw}
+                                        values={r.points_power_kw}
+                                        failed={unmetFields.includes("Power")}
+                                      />
                                     </td>
                                     <td>
                                       <span className="status-actions">
