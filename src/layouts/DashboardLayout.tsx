@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import "./DashboardLayout.css";
@@ -29,33 +29,97 @@ const ROLE_LABELS: Record<string, string> = {
   testing: "Testing Team",
 };
 
-/** Current page's label for the top breadcrumb bar -- checked most-specific
- * pattern first (an edit/curve/report sub-route before its bare [id] parent)
- * so every route in the app resolves to something meaningful. */
-const pageLabel = (pathname: string): string => {
-  if (pathname === "/overview") return "Dashboard";
-  if (pathname === "/dashboard") return "Testing Summary";
-  if (pathname === "/pumps") return "Report Compilation";
-  if (pathname.startsWith("/pumps/")) return "Report Compilation";
-  if (pathname === "/reports") return "Report Archive";
-  if (pathname === "/reports/new/observation") return "New Observation Sheet";
-  if (pathname === "/reports/new/viscosity-chart") return "New Viscosity Correction Chart";
-  if (pathname === "/reports/new") return "New Report";
-  if (/^\/reports\/[^/]+\/edit$/.test(pathname)) return "Edit Report";
-  if (/^\/reports\/[^/]+\/curve$/.test(pathname)) return "Performance Curve";
-  if (/^\/reports\/[^/]+$/.test(pathname)) return "Report Detail";
-  if (pathname === "/requisitions/new") return "New Requisition";
-  if (/^\/requisitions\/[^/]+\/edit$/.test(pathname)) return "Edit Requisition";
-  if (/^\/requisitions\/[^/]+\/report\/observation$/.test(pathname)) return "Fill Observation Sheet";
-  if (/^\/requisitions\/[^/]+\/report\/viscosity-chart$/.test(pathname)) return "Fill Viscosity Correction Chart";
-  if (/^\/requisitions\/[^/]+\/report$/.test(pathname)) return "Fill Test Report";
-  if (/^\/requisitions\/[^/]+$/.test(pathname)) return "Requisition Detail";
-  if (pathname === "/admin/access-requests") return "Access Requests";
-  if (pathname === "/admin/users") return "Manage Users";
-  if (pathname === "/admin/bug-reports") return "Bug Reports";
-  if (pathname === "/admin/audit-log") return "Audit Log";
-  if (pathname === "/admin/action-registry") return "Action Registry";
-  return "Pump Testing Portal";
+interface Crumb {
+  label: string;
+  /** Omitted on the last crumb (the current page) -- everything before it
+   * is a real link back up the page's own hierarchy, not just to Dashboard. */
+  href?: string;
+}
+
+/** Full breadcrumb trail for the top bar, most-specific pattern checked
+ * first (an edit/curve/report sub-route before its bare [id] parent) so
+ * every route in the app resolves to something meaningful. Nested pages
+ * (report/requisition sub-routes) get their immediate parent as a real
+ * clickable link, not just "Risansi" -- previously the only clickable
+ * crumb from anywhere was the Dashboard link itself. */
+const pageTrail = (pathname: string): Crumb[] => {
+  if (pathname === "/overview") return [{ label: "Dashboard" }];
+  if (pathname === "/dashboard") return [{ label: "Testing Summary" }];
+  if (pathname === "/pumps") return [{ label: "Report Compilation" }];
+  if (pathname.startsWith("/pumps/")) {
+    return [{ label: "Report Compilation", href: "/pumps" }, { label: "Pump Detail" }];
+  }
+  if (pathname === "/reports") return [{ label: "Report Archive" }];
+  if (pathname === "/reports/new/observation") {
+    return [{ label: "Report Archive", href: "/reports" }, { label: "New Observation Sheet" }];
+  }
+  if (pathname === "/reports/new/viscosity-chart") {
+    return [{ label: "Report Archive", href: "/reports" }, { label: "New Viscosity Correction Chart" }];
+  }
+  if (pathname === "/reports/new") {
+    return [{ label: "Report Archive", href: "/reports" }, { label: "New Report" }];
+  }
+  let m = pathname.match(/^\/reports\/([^/]+)\/edit$/);
+  if (m) {
+    return [
+      { label: "Report Archive", href: "/reports" },
+      { label: "Report Detail", href: `/reports/${m[1]}` },
+      { label: "Edit Report" },
+    ];
+  }
+  m = pathname.match(/^\/reports\/([^/]+)\/curve$/);
+  if (m) {
+    return [
+      { label: "Report Archive", href: "/reports" },
+      { label: "Report Detail", href: `/reports/${m[1]}` },
+      { label: "Performance Curve" },
+    ];
+  }
+  if (/^\/reports\/[^/]+$/.test(pathname)) {
+    return [{ label: "Report Archive", href: "/reports" }, { label: "Report Detail" }];
+  }
+  if (pathname === "/requisitions/new") return [{ label: "New Requisition" }];
+  m = pathname.match(/^\/requisitions\/([^/]+)\/edit$/);
+  if (m) {
+    return [
+      { label: "Testing Summary", href: "/dashboard" },
+      { label: "Requisition Detail", href: `/requisitions/${m[1]}` },
+      { label: "Edit Requisition" },
+    ];
+  }
+  m = pathname.match(/^\/requisitions\/([^/]+)\/report\/observation$/);
+  if (m) {
+    return [
+      { label: "Testing Summary", href: "/dashboard" },
+      { label: "Requisition Detail", href: `/requisitions/${m[1]}` },
+      { label: "Fill Observation Sheet" },
+    ];
+  }
+  m = pathname.match(/^\/requisitions\/([^/]+)\/report\/viscosity-chart$/);
+  if (m) {
+    return [
+      { label: "Testing Summary", href: "/dashboard" },
+      { label: "Requisition Detail", href: `/requisitions/${m[1]}` },
+      { label: "Fill Viscosity Correction Chart" },
+    ];
+  }
+  m = pathname.match(/^\/requisitions\/([^/]+)\/report$/);
+  if (m) {
+    return [
+      { label: "Testing Summary", href: "/dashboard" },
+      { label: "Requisition Detail", href: `/requisitions/${m[1]}` },
+      { label: "Fill Test Report" },
+    ];
+  }
+  if (/^\/requisitions\/[^/]+$/.test(pathname)) {
+    return [{ label: "Testing Summary", href: "/dashboard" }, { label: "Requisition Detail" }];
+  }
+  if (pathname === "/admin/access-requests") return [{ label: "Access Requests" }];
+  if (pathname === "/admin/users") return [{ label: "Manage Users" }];
+  if (pathname === "/admin/bug-reports") return [{ label: "Bug Reports" }];
+  if (pathname === "/admin/audit-log") return [{ label: "Audit Log" }];
+  if (pathname === "/admin/action-registry") return [{ label: "Action Registry" }];
+  return [{ label: "Pump Testing Portal" }];
 };
 
 const DashboardLayout = ({ children }: { children: ReactNode }) => {
@@ -248,8 +312,16 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
         <div className="testing-topbar">
           <nav className="topbar-breadcrumb" aria-label="Breadcrumb">
             <Link href="/overview">Risansi</Link>
-            <span className="topbar-breadcrumb-sep">&rsaquo;</span>
-            <span className="topbar-breadcrumb-current">{pageLabel(pathname)}</span>
+            {pageTrail(pathname).map((crumb, i, trail) => (
+              <Fragment key={crumb.href ?? crumb.label}>
+                <span className="topbar-breadcrumb-sep">&rsaquo;</span>
+                {crumb.href && i < trail.length - 1 ? (
+                  <Link href={crumb.href}>{crumb.label}</Link>
+                ) : (
+                  <span className="topbar-breadcrumb-current">{crumb.label}</span>
+                )}
+              </Fragment>
+            ))}
           </nav>
           <button type="button" className="topbar-report-bug-btn" onClick={() => setShowReportBug(true)}>
             🐛 Report a Bug
