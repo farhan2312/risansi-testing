@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { error } from "@/lib/api";
-import { logAudit } from "@/lib/audit";
+import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { requisitionAttachments, testRequisitions } from "@/lib/db/schema";
@@ -87,6 +87,7 @@ export async function DELETE(
   if (!deleted.length) return error("Attachment not found", 404);
 
   await logAudit({
+    ipAddress: getClientIp(req),
     userId: claims.sub,
     userEmail: claims.email,
     eventType: "delete",

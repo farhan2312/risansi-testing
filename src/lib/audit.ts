@@ -20,6 +20,23 @@ export interface AuditParams {
   entityId?: string | null;
   entityLabel?: string | null;
   details?: string | null;
+  ipAddress?: string | null;
+}
+
+/** Best-effort client IP off a Next.js Request. Vercel (and most proxies)
+ * set x-forwarded-for as "client, proxy1, proxy2..." -- the first entry is
+ * the original client. x-real-ip is a one-value fallback some setups use
+ * instead. Returns null rather than the proxy's own address when neither
+ * header is present, rather than guessing. */
+export function getClientIp(req: Request): string | null {
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const first = forwardedFor.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
+  return null;
 }
 
 export async function logAudit(params: AuditParams): Promise<void> {
@@ -33,6 +50,7 @@ export async function logAudit(params: AuditParams): Promise<void> {
       entityId: params.entityId ?? null,
       entityLabel: params.entityLabel ?? null,
       details: params.details ?? null,
+      ipAddress: params.ipAddress ?? null,
     });
   } catch (err) {
     // Never let an audit-log write take down the real request it's

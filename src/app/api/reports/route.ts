@@ -1,7 +1,7 @@
 import { desc, eq, ilike, inArray, sql } from "drizzle-orm";
 
 import { error, json, pointToDict, reportToDict } from "@/lib/api";
-import { logAudit } from "@/lib/audit";
+import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpModels, pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
@@ -184,6 +184,7 @@ export async function POST(req: Request) {
   }
 
   await logAudit({
+    ipAddress: getClientIp(req),
     userId: claims.sub,
     userName: preparedBy,
     userEmail: claims.email,

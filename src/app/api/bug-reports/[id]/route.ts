@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { bugReportToDict, error, json } from "@/lib/api";
-import { logAudit } from "@/lib/audit";
+import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { bugReports } from "@/lib/db/schema";
@@ -42,6 +42,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   if (status !== undefined) {
     await logAudit({
+      ipAddress: getClientIp(req),
       userId: claims.sub,
       userEmail: claims.email,
       eventType: "update",
@@ -72,6 +73,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   if (!deleted.length) return error("Bug report not found", 404);
 
   await logAudit({
+    ipAddress: getClientIp(req),
     userId: claims.sub,
     userEmail: claims.email,
     eventType: "delete",

@@ -113,3 +113,131 @@
   max-width: 320px;
   white-space: normal;
 }
+
+/* ---------- Role badges (Usage & Time, Activity) ---------- */
+
+.audit-role-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border: 1px solid currentColor;
+  vertical-align: middle;
+}
+
+.audit-role-source {
+  color: var(--text-muted);
+}
+
+.audit-role-testing {
+  color: var(--info);
+}
+
+.audit-role-centraladmin {
+  color: #9a6b00;
+}
+
+.audit-role-admin {
+  color: var(--accent);
+}
+
+/* ---------- Usage & Time: clickable rows + page-breakdown drill-down ---------- */
+
+.audit-user-row {
+  cursor: pointer;
+}
+
+.audit-user-row:hover {
+  background: var(--surface-hover);
+}
+
+.audit-expand-toggle {
+  display: inline-block;
+  width: 16px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.audit-user-detail-row td {
+  background: var(--bg-sunk);
+  padding: 12px 20px;
+}
+
+.audit-page-breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.audit-page-breakdown-table th,
+.audit-page-breakdown-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-size: 12.5px;
+}
+
+.audit-page-breakdown-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+.audit-page-breakdown-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* ---------- Activity: search/filter toolbar + entity links ---------- */
+
+.audit-activity-toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.audit-activity-toolbar input[type="text"] {
+  flex: 1;
+  min-width: 200px;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-app);
+  color: var(--text-h);
+  font-size: 13px;
+}
+
+.audit-activity-toolbar select {
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-app);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.audit-activity-table .audit-when {
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.audit-entity-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.audit-entity-link:hover {
+  text-decoration: underline;
+}
+
+.audit-ip {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}

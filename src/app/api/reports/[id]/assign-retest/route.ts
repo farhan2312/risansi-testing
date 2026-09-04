@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import { actionRegistryToDict, error, json, requisitionToDict } from "@/lib/api";
-import { logAudit } from "@/lib/audit";
+import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { actionRegistry, pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
@@ -137,6 +137,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .returning();
 
   await logAudit({
+    ipAddress: getClientIp(req),
     userId: claims.sub,
     userName: submittedBy,
     userEmail: claims.email,

@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
 import { error, json } from "@/lib/api";
-import { logAudit } from "@/lib/audit";
+import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -49,6 +49,7 @@ export async function PATCH(
   await db.update(users).set({ passwordHash: newHash }).where(eq(users.id, user.id));
 
   await logAudit({
+    ipAddress: getClientIp(req),
     userId: claims.sub,
     userEmail: claims.email,
     eventType: "update",

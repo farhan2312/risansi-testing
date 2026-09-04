@@ -372,11 +372,22 @@ export interface AuditUsageRow {
   user_id: string;
   user_name: string | null;
   user_email: string | null;
+  /** Null when the account has since been deleted -- role comes from a live
+   * join against users, not a snapshot. */
+  user_role: string | null;
   session_count: number;
   /** Seconds -- format for display, don't reformat server-side. */
   active_seconds: number;
   page_count: number;
   last_active: string;
+}
+
+/** Per-page breakdown for one user within a range -- backs the "click a
+ * user for the page breakdown" drill-down on Usage & Time. */
+export interface AuditUserPageRow {
+  path: string;
+  view_count: number;
+  last_viewed: string;
 }
 
 export interface AuditSessionEntry {
@@ -392,12 +403,19 @@ export interface AuditActivityEntry {
   id: string;
   user_name: string | null;
   user_email: string | null;
+  user_role: string | null;
   event_type: "create" | "update" | "delete";
   entity_type: string | null;
   entity_id: string | null;
   entity_label: string | null;
   details: string | null;
+  ip_address: string | null;
   created_at: string;
+}
+
+export interface AuditActivityResult {
+  entries: AuditActivityEntry[];
+  total: number;
 }
 
 // ----- Action Registry (Admin / Central Admin only) -----

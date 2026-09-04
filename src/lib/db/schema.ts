@@ -292,6 +292,10 @@ export const auditLogs = pgTable("audit_logs", {
   // (which may itself be gone by the time anyone looks).
   entityLabel: varchar("entity_label", { length: 255 }),
   details: text("details"),
+  // Best-effort client IP, read off the request at the moment of the action
+  // (see getClientIp in audit.ts) -- null for anything logged before this
+  // column existed, or where no forwarding header was present.
+  ipAddress: varchar("ip_address", { length: 64 }),
   createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
 });
 

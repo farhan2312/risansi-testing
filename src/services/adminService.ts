@@ -2,11 +2,12 @@ import apiClient from "./apiClient";
 import { getToken } from "./session";
 import type {
   ActionRegistryEntry,
-  AuditActivityEntry,
+  AuditActivityResult,
   AuditRange,
   AuditSessionEntry,
   AuditSummary,
   AuditUsageRow,
+  AuditUserPageRow,
   BugReport,
   BugReportStatus,
 } from "@/types/testing";
@@ -123,8 +124,25 @@ export const getAuditSessions = async (range: AuditRange): Promise<AuditSessionE
   return data;
 };
 
-export const getAuditActivity = async (range: AuditRange): Promise<AuditActivityEntry[]> => {
-  const { data } = await apiClient.get<AuditActivityEntry[]>("/audit-log/activity", {
+export const getAuditActivity = async (
+  range: AuditRange,
+  filters?: { search?: string; action?: "create" | "update" | "delete" }
+): Promise<AuditActivityResult> => {
+  const { data } = await apiClient.get<AuditActivityResult>("/audit-log/activity", {
+    ...authHeader(),
+    params: {
+      range,
+      ...(filters?.search ? { search: filters.search } : {}),
+      ...(filters?.action ? { action: filters.action } : {}),
+    },
+  });
+  return data;
+};
+
+/** Which pages one user visited within a range, and how often -- backs the
+ * "click a user for the page breakdown" drill-down on Usage & Time. */
+export const getAuditUserPages = async (userId: string, range: AuditRange): Promise<AuditUserPageRow[]> => {
+  const { data } = await apiClient.get<AuditUserPageRow[]>(`/audit-log/usage/${userId}/pages`, {
     ...authHeader(),
     params: { range },
   });

@@ -1,7 +1,7 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 
 import { error, json } from "@/lib/api";
-import { logAudit } from "@/lib/audit";
+import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { userSessions } from "@/lib/db/schema";
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     await db.update(userSessions).set({ logoutAt: now, lastSeenAt: now }).where(eq(userSessions.id, session.id));
   }
 
-  await logAudit({ userId: claims.sub, userEmail: claims.email, eventType: "logout" });
+  await logAudit({ ipAddress: getClientIp(req), userId: claims.sub, userEmail: claims.email, eventType: "logout" });
 
   return json({ success: true });
 }
