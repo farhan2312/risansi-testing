@@ -218,7 +218,6 @@ const AdminAuditLogPage = () => {
                   <th>Role</th>
                   <th>Active Time</th>
                   <th>Sessions</th>
-                  <th>Pages</th>
                   <th>Last Active</th>
                 </tr>
               </thead>
@@ -235,12 +234,11 @@ const AdminAuditLogPage = () => {
                         <strong>{formatDuration(r.active_seconds)}</strong>
                       </td>
                       <td>{r.session_count}</td>
-                      <td>{r.page_count}</td>
                       <td>{new Date(r.last_active).toLocaleString()}</td>
                     </tr>
                     {expandedUser === r.user_id && (
                       <tr className="audit-user-detail-row">
-                        <td colSpan={6}>
+                        <td colSpan={5}>
                           {pagesLoading && !userPages[r.user_id] ? (
                             <p className="audit-tab-subline">Loading page breakdown...</p>
                           ) : (userPages[r.user_id]?.length ?? 0) === 0 ? (
