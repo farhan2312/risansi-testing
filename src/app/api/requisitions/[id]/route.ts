@@ -5,6 +5,7 @@ import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports, requisitionAttachments, testRequisitions } from "@/lib/db/schema";
+import { findRequisitionByIdOrNo } from "@/lib/requisitionLookup";
 
 export const dynamic = "force-dynamic";
 
@@ -86,9 +87,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     throw e;
   }
 
-  const { id } = await params;
+  const { id: idOrNo } = await params;
 
-  const [requisition] = await db.select().from(testRequisitions).where(eq(testRequisitions.id, id)).limit(1);
+  const requisition = await findRequisitionByIdOrNo(idOrNo);
   if (!requisition) {
     return error("Requisition not found", 404);
   }
@@ -96,6 +97,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return error("You can only view requisitions you raised.", 403);
   }
 
+  const id = requisition.id;
   const reports = await db.select().from(pumpTestReports).where(eq(pumpTestReports.requisitionId, id));
 
   const reportIds = reports.map((r) => r.id);
@@ -144,17 +146,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
   }
-  const { id } = await params;
+  const { id: idOrNo } = await params;
 
-  if (claims.role === "source") {
-    const [existing] = await db.select().from(testRequisitions).where(eq(testRequisitions.id, id)).limit(1);
-    if (!existing) {
-      return error("Requisition not found", 404);
-    }
-    if (existing.createdBy !== claims.sub) {
-      return error("You can only edit requisitions you raised.", 403);
-    }
+  const existing = await findRequisitionByIdOrNo(idOrNo);
+  if (!existing) {
+    return error("Requisition not found", 404);
   }
+  if (claims.role === "source" && existing.createdBy !== claims.sub) {
+    return error("You can only edit requisitions you raised.", 403);
+  }
+  const id = existing.id;
 
   let body: Record<string, unknown>;
   try {

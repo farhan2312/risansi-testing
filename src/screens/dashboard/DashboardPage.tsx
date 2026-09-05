@@ -359,7 +359,7 @@ const DashboardPage = () => {
             {filteredRequisitions.map((r) => (
               <tr key={r.id}>
                 <td>
-                  <Link href={`/requisitions/${r.id}`}>{r.model}</Link>
+                  <Link href={`/requisitions/${r.requisition_no ?? r.id}`}>{r.model}</Link>
                 </td>
                 <td>{r.category ?? "-"}</td>
                 <td>{r.ec_quotation_no ?? "-"}</td>

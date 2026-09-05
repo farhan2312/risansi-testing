@@ -5,7 +5,8 @@ import { error } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { requisitionAttachments, testRequisitions } from "@/lib/db/schema";
+import { requisitionAttachments } from "@/lib/db/schema";
+import { findRequisitionByIdOrNo } from "@/lib/requisitionLookup";
 
 export const dynamic = "force-dynamic";
 
@@ -27,12 +28,13 @@ export async function GET(
     throw e;
   }
 
-  const { id, attachmentId } = await params;
-  const [requisition] = await db.select().from(testRequisitions).where(eq(testRequisitions.id, id)).limit(1);
+  const { id: idOrNo, attachmentId } = await params;
+  const requisition = await findRequisitionByIdOrNo(idOrNo);
   if (!requisition) return error("Requisition not found", 404);
   if (claims.role === "source" && requisition.createdBy !== claims.sub) {
     return error("You can only view requisitions you raised.", 403);
   }
+  const id = requisition.id;
 
   const [attachment] = await db
     .select()
@@ -72,12 +74,13 @@ export async function DELETE(
     throw e;
   }
 
-  const { id, attachmentId } = await params;
-  const [requisition] = await db.select().from(testRequisitions).where(eq(testRequisitions.id, id)).limit(1);
+  const { id: idOrNo, attachmentId } = await params;
+  const requisition = await findRequisitionByIdOrNo(idOrNo);
   if (!requisition) return error("Requisition not found", 404);
   if (!canManageAttachments(claims.role, requisition.createdBy, claims.sub)) {
     return error("You don't have permission to remove attachments from this testing summary.", 403);
   }
+  const id = requisition.id;
 
   const deleted = await db
     .delete(requisitionAttachments)

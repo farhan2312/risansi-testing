@@ -41,6 +41,7 @@ export function userToDict(u: UserRow) {
 export function requisitionToDict(r: RequisitionRow) {
   return {
     id: r.id,
+    requisition_no: r.requisitionNo,
     model: r.model,
     category: r.category,
     ec_quotation_no: r.ecQuotationNo,

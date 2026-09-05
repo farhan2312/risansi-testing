@@ -152,10 +152,16 @@ export async function POST(req: Request) {
   const [creator] = await db.select().from(users).where(eq(users.id, claims.sub)).limit(1);
   const submittedBy = creator?.name ?? claims.email;
 
+  const seqResult = await db.execute<{ n: number }>(
+    sql`select nextval('test_requisitions_requisition_no_seq') as n`
+  );
+  const requisitionNo = `REQ-${String(seqResult.rows[0].n).padStart(6, "0")}`;
+
   const [requisition] = await db
     .insert(testRequisitions)
     .values({
       ...values,
+      requisitionNo,
       status: "Pending",
       createdBy: claims.sub,
       submittedBy,

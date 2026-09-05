@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { actionRegistryToDict, error, json, requisitionToDict } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
@@ -90,9 +90,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const submittedBy = assigner?.name ?? claims.email;
   const originallyRaisedBy = original?.submittedBy ?? report.testedBy ?? report.preparedBy ?? null;
 
+  const seqResult = await db.execute<{ n: number }>(
+    sql`select nextval('test_requisitions_requisition_no_seq') as n`
+  );
+  const requisitionNo = `REQ-${String(seqResult.rows[0].n).padStart(6, "0")}`;
+
   const [requisition] = await db
     .insert(testRequisitions)
     .values({
+      requisitionNo,
       model: report.model,
       category: original?.category ?? null,
       ecQuotationNo: original?.ecQuotationNo ?? null,

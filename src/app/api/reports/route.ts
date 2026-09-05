@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { pumpModels, pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
 import { POINT_FIELD_MAP, REPORT_FIELD_MAP } from "@/lib/reportFieldMaps";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
+import { findRequisitionByIdOrNo } from "@/lib/requisitionLookup";
 
 export const dynamic = "force-dynamic";
 
@@ -127,12 +128,19 @@ export async function POST(req: Request) {
     return error("'model' is required", 400);
   }
 
-  const requisitionId = body.requisitionId ? String(body.requisitionId) : null;
-  if (requisitionId) {
-    const [requisition] = await db.select().from(testRequisitions).where(eq(testRequisitions.id, requisitionId)).limit(1);
+  // The caller may pass either the requisition's real uuid or its
+  // human-facing requisition_no (a report-fill page's URL, and thus its
+  // "which requisition is this for" param, addresses by the latter now) --
+  // resolve to the real row once and use ITS id for the actual FK-style
+  // storage below, never the raw string the caller sent.
+  const requisitionIdOrNo = body.requisitionId ? String(body.requisitionId) : null;
+  let requisitionId: string | null = null;
+  if (requisitionIdOrNo) {
+    const requisition = await findRequisitionByIdOrNo(requisitionIdOrNo);
     if (!requisition) {
       return error("Requisition not found", 404);
     }
+    requisitionId = requisition.id;
   }
 
   const seqResult = await db.execute<{ n: number }>(

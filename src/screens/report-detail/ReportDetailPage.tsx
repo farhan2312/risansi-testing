@@ -153,7 +153,7 @@ const ReportDetailPage = () => {
           unmetRows={unmetRows}
           onClose={() => setShowAssignRetest(false)}
           onAssigned={(result) => {
-            setAssignedRetestId(result.requisition.id);
+            setAssignedRetestId(result.requisition.requisition_no ?? result.requisition.id);
             setShowAssignRetest(false);
           }}
         />

@@ -193,7 +193,7 @@ const PumpDashboardPage = () => {
               {data.requisitions.map((r) => (
                 <tr key={r.id}>
                   <td>
-                    <Link href={`/requisitions/${r.id}`}>{r.category ?? "-"}</Link>
+                    <Link href={`/requisitions/${r.requisition_no ?? r.id}`}>{r.category ?? "-"}</Link>
                   </td>
                   <td>{r.ec_quotation_no ?? "-"}</td>
                   <td>{r.responsible_person ?? "-"}</td>

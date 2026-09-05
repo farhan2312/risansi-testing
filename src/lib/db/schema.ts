@@ -47,6 +47,16 @@ export const users = pgTable("users", {
 
 export const testRequisitions = pgTable("test_requisitions", {
   id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  // Human-readable sequential number ("REQ-000123"), assigned via the DB
+  // sequence test_requisitions_requisition_no_seq at insert time (see
+  // requisitions/route.ts POST) -- the identifier shown in the URL and UI
+  // instead of the raw uuid id above, same pattern as pump_test_reports
+  // .report_no. id itself never disappears -- every FK-style reference
+  // (pump_test_reports.requisition_id, action_registry.requisition_id,
+  // audit_logs.entity_id) keeps storing the real uuid; only the
+  // human-facing routes resolve either form down to it (see
+  // lib/requisitionLookup.ts).
+  requisitionNo: varchar("requisition_no", { length: 20 }),
 
   model: varchar("model", { length: 100 }).notNull(),
   category: varchar("category", { length: 100 }),

@@ -4,7 +4,8 @@ import { attachmentToDict, error, json } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { requisitionAttachments, testRequisitions, users } from "@/lib/db/schema";
+import { requisitionAttachments, users } from "@/lib/db/schema";
+import { findRequisitionByIdOrNo } from "@/lib/requisitionLookup";
 
 export const dynamic = "force-dynamic";
 
@@ -33,12 +34,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     throw e;
   }
 
-  const { id } = await params;
-  const [requisition] = await db.select().from(testRequisitions).where(eq(testRequisitions.id, id)).limit(1);
+  const { id: idOrNo } = await params;
+  const requisition = await findRequisitionByIdOrNo(idOrNo);
   if (!requisition) return error("Requisition not found", 404);
   if (claims.role === "source" && requisition.createdBy !== claims.sub) {
     return error("You can only view requisitions you raised.", 403);
   }
+  const id = requisition.id;
 
   const rows = await db
     .select({
@@ -67,12 +69,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     throw e;
   }
 
-  const { id } = await params;
-  const [requisition] = await db.select().from(testRequisitions).where(eq(testRequisitions.id, id)).limit(1);
+  const { id: idOrNo } = await params;
+  const requisition = await findRequisitionByIdOrNo(idOrNo);
   if (!requisition) return error("Requisition not found", 404);
   if (!canManageAttachments(claims.role, requisition.createdBy, claims.sub)) {
     return error("You don't have permission to attach files to this testing summary.", 403);
   }
+  const id = requisition.id;
 
   let form: FormData;
   try {

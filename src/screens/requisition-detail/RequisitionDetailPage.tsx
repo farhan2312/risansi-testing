@@ -122,7 +122,7 @@ const RequisitionDetailPage = () => {
         </div>
         <div className="detail-header-actions">
           {canEditRequisition && (
-            <Link href={`/requisitions/${requisition.id}/edit`} className="edit-report-btn">
+            <Link href={`/requisitions/${requisition.requisition_no ?? requisition.id}/edit`} className="edit-report-btn">
               Edit
             </Link>
           )}
@@ -323,7 +323,7 @@ const RequisitionDetailPage = () => {
             Once physical testing is complete, submit the test report below.
             This will close the testing summary.
           </p>
-          <button onClick={() => router.push(`/requisitions/${requisition.id}/report`)}>
+          <button onClick={() => router.push(`/requisitions/${requisition.requisition_no ?? requisition.id}/report`)}>
             Fill Test Report
           </button>
         </section>
@@ -350,12 +350,12 @@ const RequisitionDetailPage = () => {
               </p>
               <div className="retest-actions">
                 {!hasObservation && (
-                  <button onClick={() => router.push(`/requisitions/${requisition.id}/report/observation`)}>
+                  <button onClick={() => router.push(`/requisitions/${requisition.requisition_no ?? requisition.id}/report/observation`)}>
                     + Fill Observation Sheet
                   </button>
                 )}
                 {!hasViscosityChart && (
-                  <button onClick={() => router.push(`/requisitions/${requisition.id}/report/viscosity-chart`)}>
+                  <button onClick={() => router.push(`/requisitions/${requisition.requisition_no ?? requisition.id}/report/viscosity-chart`)}>
                     + Fill Viscosity Correction Chart
                   </button>
                 )}

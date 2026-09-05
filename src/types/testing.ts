@@ -53,6 +53,9 @@ export type ReportFormat = (typeof REPORT_FORMATS)[number];
 
 export interface TestRequisition {
   id: string;
+  /** Human-readable sequential number ("REQ-000123") -- shown in the URL
+   * and UI instead of id. */
+  requisition_no: string | null;
   model: string;
   category: string | null;
   ec_quotation_no: string | null;

@@ -664,7 +664,10 @@ const PumpIndexPage = () => {
           )}
           onClose={() => setAssignRetestTarget(null)}
           onAssigned={(result) => {
-            setAssignedRetestByReport((prev) => ({ ...prev, [assignRetestTarget.id]: result.requisition.id }));
+            setAssignedRetestByReport((prev) => ({
+              ...prev,
+              [assignRetestTarget.id]: result.requisition.requisition_no ?? result.requisition.id,
+            }));
             setAssignRetestTarget(null);
           }}
         />

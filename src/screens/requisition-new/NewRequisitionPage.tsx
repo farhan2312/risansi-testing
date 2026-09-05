@@ -114,7 +114,7 @@ const NewRequisitionPage = () => {
         // attachment that fails here can be re-added from Edit.
         await Promise.allSettled(pendingFiles.map((f) => uploadAttachment(requisition.id, f)));
       }
-      router.push(`/requisitions/${requisition.id}`);
+      router.push(`/requisitions/${requisition.requisition_no ?? requisition.id}`);
     } catch {
       setSubmitError("Could not create testing summary. Please try again.");
     }
