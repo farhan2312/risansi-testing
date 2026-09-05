@@ -58,6 +58,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ model: s
 
   const displayModel = modelDisplayLabel([...reports, ...requisitions]);
 
+  // Every requisition for this model is already in memory (allRequisitions
+  // above) -- reuse it rather than a fresh query, same "which requisition is
+  // this report linked to" join reports/[id] does, just batched.
+  const requisitionNoById = new Map(allRequisitions.map((r) => [r.id, r.requisitionNo]));
+
   return json({
     model: displayModel,
     requisitions: requisitions
@@ -67,6 +72,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ model: s
       .sort((a, b) => (b.createdAt?.toString() ?? "").localeCompare(a.createdAt?.toString() ?? ""))
       .map((r) => ({
         ...reportToDict(r),
+        requisition_no: r.requisitionId ? requisitionNoById.get(r.requisitionId) ?? null : null,
         points: (pointsByReport.get(r.id) ?? []).map(pointToDict),
       })),
   });

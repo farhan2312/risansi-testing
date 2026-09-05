@@ -25,3 +25,17 @@ export async function findRequisitionByIdOrNo(idOrNo: string): Promise<Requisiti
   const [byNo] = await db.select().from(testRequisitions).where(eq(testRequisitions.requisitionNo, idOrNo)).limit(1);
   return byNo ?? null;
 }
+
+/** A report/action-registry-entry only ever stores the requisition's real
+ * uuid FK, never its pretty number -- this is the small join anything
+ * displaying "which requisition is this linked to" needs. Null in, null out,
+ * so callers can pass a possibly-absent requisitionId straight through. */
+export async function requisitionNoFor(requisitionId: string | null): Promise<string | null> {
+  if (!requisitionId) return null;
+  const [row] = await db
+    .select({ requisitionNo: testRequisitions.requisitionNo })
+    .from(testRequisitions)
+    .where(eq(testRequisitions.id, requisitionId))
+    .limit(1);
+  return row?.requisitionNo ?? null;
+}

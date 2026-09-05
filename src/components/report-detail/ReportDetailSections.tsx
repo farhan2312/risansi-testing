@@ -255,8 +255,8 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
               <th>Linked Testing Summary</th>
               <td colSpan={5}>
                 {report.requisition_id ? (
-                  <Link href={`/requisitions/${report.requisition_id}`}>
-                    {report.requisition_id.slice(0, 8)}
+                  <Link href={`/requisitions/${report.requisition_no ?? report.requisition_id}`}>
+                    {report.requisition_no ?? report.requisition_id.slice(0, 8)}
                   </Link>
                 ) : (
                   "Historical (imported)"

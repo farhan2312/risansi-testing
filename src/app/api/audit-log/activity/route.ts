@@ -3,7 +3,7 @@ import { and, desc, eq, gt, ilike, inArray, or, sql } from "drizzle-orm";
 import { error, json } from "@/lib/api";
 import { AuthError, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { auditLogs, users } from "@/lib/db/schema";
+import { auditLogs, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +75,28 @@ export async function GET(req: Request) {
     db.select({ count: sql<number>`count(*)::int` }).from(auditLogs).where(where),
   ]);
 
+  // The "requisition"/"report" entity links should point at the pretty
+  // number, not the raw uuid audit_logs stores -- one batched lookup per
+  // entity type for whatever's actually referenced on this page of rows.
+  const requisitionIds = rows.filter((r) => r.entityType === "requisition" && r.entityId).map((r) => r.entityId!);
+  const reportIds = rows.filter((r) => r.entityType === "report" && r.entityId).map((r) => r.entityId!);
+  const [requisitionNoRows, reportNoRows] = await Promise.all([
+    requisitionIds.length
+      ? db
+          .select({ id: testRequisitions.id, requisitionNo: testRequisitions.requisitionNo })
+          .from(testRequisitions)
+          .where(inArray(testRequisitions.id, requisitionIds))
+      : Promise.resolve([]),
+    reportIds.length
+      ? db
+          .select({ id: pumpTestReports.id, reportNo: pumpTestReports.reportNo })
+          .from(pumpTestReports)
+          .where(inArray(pumpTestReports.id, reportIds))
+      : Promise.resolve([]),
+  ]);
+  const requisitionNoById = new Map(requisitionNoRows.map((r) => [r.id, r.requisitionNo]));
+  const reportNoById = new Map(reportNoRows.map((r) => [r.id, r.reportNo]));
+
   return json({
     entries: rows.map((r) => ({
       id: r.id,
@@ -84,6 +106,12 @@ export async function GET(req: Request) {
       event_type: r.eventType,
       entity_type: r.entityType,
       entity_id: r.entityId,
+      entity_no:
+        r.entityType === "requisition"
+          ? requisitionNoById.get(r.entityId ?? "") ?? null
+          : r.entityType === "report"
+            ? reportNoById.get(r.entityId ?? "") ?? null
+            : null,
       entity_label: r.entityLabel,
       details: r.details,
       ip_address: r.ipAddress,

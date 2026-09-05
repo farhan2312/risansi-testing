@@ -1,9 +1,9 @@
-import { desc } from "drizzle-orm";
+import { desc, inArray } from "drizzle-orm";
 
 import { actionRegistryToDict, error, json } from "@/lib/api";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { actionRegistry } from "@/lib/db/schema";
+import { actionRegistry, testRequisitions } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -22,5 +22,25 @@ export async function GET(req: Request) {
   }
 
   const rows = await db.select().from(actionRegistry).orderBy(desc(actionRegistry.createdAt));
-  return json(rows.map(actionRegistryToDict));
+
+  // "View requisition" links to the pretty number, not the raw uuid these
+  // rows store -- one batched lookup for every requisition referenced here.
+  const requisitionIds = [...new Set(rows.map((r) => r.requisitionId))];
+  const requisitionNoById = new Map(
+    requisitionIds.length
+      ? (
+          await db
+            .select({ id: testRequisitions.id, requisitionNo: testRequisitions.requisitionNo })
+            .from(testRequisitions)
+            .where(inArray(testRequisitions.id, requisitionIds))
+        ).map((r) => [r.id, r.requisitionNo])
+      : []
+  );
+
+  return json(
+    rows.map((r) => ({
+      ...actionRegistryToDict(r),
+      requisition_no: requisitionNoById.get(r.requisitionId) ?? null,
+    }))
+  );
 }

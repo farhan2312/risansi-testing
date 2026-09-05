@@ -189,6 +189,10 @@ export interface PumpTestReportPoint {
 export interface PumpTestReport {
   id: string;
   requisition_id: string | null;
+  /** The linked requisition's human-readable number ("REQ-000123") -- only
+   * present where the route actually joins for it (report detail, pump
+   * dashboard); use this, not requisition_id, when linking to it. */
+  requisition_no?: string | null;
   report_no: string | null;
   model: string;
   gearbox_no: string | null;
@@ -413,6 +417,11 @@ export interface AuditActivityEntry {
   event_type: "create" | "update" | "delete";
   entity_type: string | null;
   entity_id: string | null;
+  /** The entity's human-readable number (requisition_no/report_no) when
+   * entity_type is "requisition"/"report" -- use this, not entity_id, when
+   * linking to it. Null for every other entity type, or when the id no
+   * longer resolves to anything (the row was since deleted). */
+  entity_no: string | null;
   entity_label: string | null;
   details: string | null;
   ip_address: string | null;
@@ -432,6 +441,9 @@ export interface AuditActivityResult {
 export interface ActionRegistryEntry {
   id: string;
   requisition_id: string;
+  /** The requisition's human-readable number ("REQ-000123") -- use this, not
+   * requisition_id, when linking to it. */
+  requisition_no: string | null;
   report_id: string;
   model: string;
   report_no: string | null;

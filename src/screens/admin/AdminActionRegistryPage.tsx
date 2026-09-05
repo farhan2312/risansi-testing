@@ -119,7 +119,7 @@ const AdminActionRegistryPage = () => {
                       <div className="registry-person">{e.originally_raised_by ?? "-"}</div>
                     </td>
                     <td>
-                      <Link href={`/requisitions/${e.requisition_id}`} className="registry-link-btn">
+                      <Link href={`/requisitions/${e.requisition_no ?? e.requisition_id}`} className="registry-link-btn">
                         View requisition
                       </Link>
                     </td>

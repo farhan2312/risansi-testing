@@ -70,11 +70,15 @@ const eventLabel: Record<string, string> = {
 const eventClass = (eventType: string) => `audit-event audit-event-${eventType.replace(/_/g, "-")}`;
 
 /** Only requisitions and reports have their own detail page to link to --
- * everything else (attachments, users, bug reports) just shows as text. */
-const entityHref = (entityType: string | null, entityId: string | null): string | null => {
+ * everything else (attachments, users, bug reports) just shows as text.
+ * Links with the pretty number when it resolved (entity_no), falls back to
+ * the raw uuid otherwise (e.g. the row's since been deleted, so entity_no
+ * came back null -- the link still resolves via requisitionLookup's
+ * backward-compat uuid match, it just won't be pretty). */
+const entityHref = (entityType: string | null, entityId: string | null, entityNo: string | null): string | null => {
   if (!entityId) return null;
-  if (entityType === "requisition") return `/requisitions/${entityId}`;
-  if (entityType === "report") return `/reports/${entityId}`;
+  if (entityType === "requisition") return `/requisitions/${entityNo ?? entityId}`;
+  if (entityType === "report") return `/reports/${entityNo ?? entityId}`;
   return null;
 };
 
@@ -347,7 +351,7 @@ const AdminAuditLogPage = () => {
               </thead>
               <tbody>
                 {activity.map((a) => {
-                  const href = entityHref(a.entity_type, a.entity_id);
+                  const href = entityHref(a.entity_type, a.entity_id, a.entity_no);
                   const typeLabel = a.entity_type
                     ? a.entity_type.replace("_", " ").replace(/^./, (c) => c.toUpperCase())
                     : null;

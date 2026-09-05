@@ -8,6 +8,7 @@ import { pumpTestReportPoints, pumpTestReports, testRequisitions } from "@/lib/d
 import { isWithinReportEditWindow, REPORT_EDIT_WINDOW_DAYS } from "@/lib/reportEditWindow";
 import { POINT_FIELD_MAP, REPORT_FIELD_MAP } from "@/lib/reportFieldMaps";
 import { findReportByIdOrNo } from "@/lib/reportLookup";
+import { requisitionNoFor } from "@/lib/requisitionLookup";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const points = await db.select().from(pumpTestReportPoints).where(eq(pumpTestReportPoints.reportId, report.id));
 
-  return json({ ...reportToDict(report), points: points.map(pointToDict) });
+  // The "Linked Testing Summary" cell shows this instead of the requisition's
+  // raw uuid -- a report only ever carries the FK, never the pretty number.
+  const requisitionNo = await requisitionNoFor(report.requisitionId);
+
+  return json({ ...reportToDict(report), requisition_no: requisitionNo, points: points.map(pointToDict) });
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -103,11 +108,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ? await db.insert(pumpTestReportPoints).values(pointRows).returning()
       : [];
 
-    return json({ ...reportToDict(report), points: insertedPoints.map(pointToDict) });
+    return json({
+      ...reportToDict(report),
+      requisition_no: await requisitionNoFor(report.requisitionId),
+      points: insertedPoints.map(pointToDict),
+    });
   }
 
   const points = await db.select().from(pumpTestReportPoints).where(eq(pumpTestReportPoints.reportId, id));
-  return json({ ...reportToDict(report), points: points.map(pointToDict) });
+  return json({
+    ...reportToDict(report),
+    requisition_no: await requisitionNoFor(report.requisitionId),
+    points: points.map(pointToDict),
+  });
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
