@@ -111,7 +111,7 @@ const RequisitionDetailPage = () => {
         <div>
           <h1>{requisition.model}</h1>
           {requisition.status === "Closed" && submittedReport ? (
-            <Link href={`/reports/${submittedReport.id}`} className="status-pill status-view-report">
+            <Link href={`/reports/${submittedReport.report_no ?? submittedReport.id}`} className="status-pill status-view-report">
               View Report
             </Link>
           ) : (
@@ -286,7 +286,7 @@ const RequisitionDetailPage = () => {
                       <td>{formatNumber(r.rated_rpm)}</td>
                       <td>{r.points.length}</td>
                       <td>
-                        <Link href={`/reports/${r.id}`}>View Report</Link>
+                        <Link href={`/reports/${r.report_no ?? r.id}`}>View Report</Link>
                       </td>
                     </tr>
                   );
@@ -337,7 +337,7 @@ const RequisitionDetailPage = () => {
             {submittedReport && (
               <>
                 {" "}
-                <Link href={`/reports/${submittedReport.id}`}>View the full report &rarr;</Link>
+                <Link href={`/reports/${submittedReport.report_no ?? submittedReport.id}`}>View the full report &rarr;</Link>
               </>
             )}
           </p>
@@ -370,7 +370,7 @@ const RequisitionDetailPage = () => {
               <tbody>
                 <tr className={unmetTitle ? "requirement-row-not-met" : ""} title={unmetTitle || undefined}>
                   <td className="label">
-                    <Link href={`/reports/${r.id}`}>
+                    <Link href={`/reports/${r.report_no ?? r.id}`}>
                       {(r.report_format ?? "observation") === "viscosity-chart"
                         ? "Viscosity Correction Chart"
                         : "Observation Sheet"}

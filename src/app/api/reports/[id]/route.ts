@@ -7,18 +7,19 @@ import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports, testRequisitions } from "@/lib/db/schema";
 import { isWithinReportEditWindow, REPORT_EDIT_WINDOW_DAYS } from "@/lib/reportEditWindow";
 import { POINT_FIELD_MAP, REPORT_FIELD_MAP } from "@/lib/reportFieldMaps";
+import { findReportByIdOrNo } from "@/lib/reportLookup";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+  const { id: idOrNo } = await params;
 
-  const [report] = await db.select().from(pumpTestReports).where(eq(pumpTestReports.id, id)).limit(1);
+  const report = await findReportByIdOrNo(idOrNo);
   if (!report) {
     return error("Report not found", 404);
   }
 
-  const points = await db.select().from(pumpTestReportPoints).where(eq(pumpTestReportPoints.reportId, id));
+  const points = await db.select().from(pumpTestReportPoints).where(eq(pumpTestReportPoints.reportId, report.id));
 
   return json({ ...reportToDict(report), points: points.map(pointToDict) });
 }
@@ -35,15 +36,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return error("Only the testing team can edit reports.", 403);
   }
 
-  const { id } = await params;
+  const { id: idOrNo } = await params;
 
-  const [existing] = await db.select().from(pumpTestReports).where(eq(pumpTestReports.id, id)).limit(1);
+  const existing = await findReportByIdOrNo(idOrNo);
   if (!existing) {
     return error("Report not found", 404);
   }
   if (!isWithinReportEditWindow(existing.createdAt ?? new Date())) {
     return error(`Reports can only be edited within ${REPORT_EDIT_WINDOW_DAYS} days of submission.`, 403);
   }
+  const id = existing.id;
 
   let body: Record<string, unknown>;
   try {
@@ -120,12 +122,13 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     return error("Only the testing team can delete reports.", 403);
   }
 
-  const { id } = await params;
+  const { id: idOrNo } = await params;
 
-  const [report] = await db.select().from(pumpTestReports).where(eq(pumpTestReports.id, id)).limit(1);
+  const report = await findReportByIdOrNo(idOrNo);
   if (!report) {
     return error("Report not found", 404);
   }
+  const id = report.id;
 
   await db.delete(pumpTestReportPoints).where(eq(pumpTestReportPoints.reportId, id));
   await db.delete(pumpTestReports).where(eq(pumpTestReports.id, id));

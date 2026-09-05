@@ -197,7 +197,7 @@ const ReportArchivePage = () => {
                               return (
                                 <tr key={r.id} className={unmetTitle ? "requirement-row-not-met" : ""} title={unmetTitle || undefined}>
                                   <td>
-                                    <Link href={`/reports/${r.id}`}>{r.report_no ?? r.motor ?? "View report"}</Link>
+                                    <Link href={`/reports/${r.report_no ?? r.id}`}>{r.report_no ?? r.motor ?? "View report"}</Link>
                                     {unmetTitle && <span className="requirement-flag">⚠</span>}
                                   </td>
                                   <td>{motorWithKw(r.motor)}</td>
@@ -210,7 +210,7 @@ const ReportArchivePage = () => {
                                   <td>{r.max_ve !== null ? `${r.max_ve.toFixed(1)}%` : "-"}</td>
                                   <td>{r.max_me !== null ? `${r.max_me.toFixed(1)}%` : "-"}</td>
                                   <td>
-                                    <Link href={`/reports/${r.id}/curve`}>View Curve</Link>
+                                    <Link href={`/reports/${r.report_no ?? r.id}/curve`}>View Curve</Link>
                                   </td>
                                 </tr>
                               );

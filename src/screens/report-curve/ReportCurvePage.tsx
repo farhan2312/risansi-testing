@@ -69,7 +69,7 @@ const ReportCurvePage = () => {
           <button type="button" className="export-pdf-btn" onClick={() => window.print()}>
             Export PDF
           </button>
-          <Link href={`/reports/${report.id}`} className="back-link">
+          <Link href={`/reports/${report.report_no ?? report.id}`} className="back-link">
             View full report
           </Link>
           <Link href="/reports" className="back-link">

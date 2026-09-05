@@ -110,6 +110,9 @@ export interface TestRequisition {
 
   reports?: PumpTestReport[];
   report_id?: string | null;
+  /** The linked report's human-readable number ("TR-000159") -- use this,
+   * not report_id, when linking to /reports/[id]. */
+  report_no?: string | null;
   /** Which rated fields (Head/Capacity/Power) the linked report's test
    * points never reached -- empty when met or there's no report yet. */
   report_requirement_unmet_fields?: string[];

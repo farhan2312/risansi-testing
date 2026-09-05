@@ -4,7 +4,8 @@ import { actionRegistryToDict, error, json, requisitionToDict } from "@/lib/api"
 import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { actionRegistry, pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
+import { actionRegistry, pumpTestReportPoints, testRequisitions, users } from "@/lib/db/schema";
+import { findReportByIdOrNo } from "@/lib/reportLookup";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +44,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return error("Only Admin or Central Admin can assign a retest.", 403);
   }
 
-  const { id } = await params;
+  const { id: idOrNo } = await params;
 
   let body: Record<string, unknown> = {};
   try {
@@ -55,10 +56,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     ? (body.action_points as unknown[]).map((v) => String(v).trim()).filter((v) => v !== "")
     : [];
 
-  const [report] = await db.select().from(pumpTestReports).where(eq(pumpTestReports.id, id)).limit(1);
+  const report = await findReportByIdOrNo(idOrNo);
   if (!report) {
     return error("Report not found", 404);
   }
+  const id = report.id;
 
   const points = await db.select().from(pumpTestReportPoints).where(eq(pumpTestReportPoints.reportId, id));
   const measuredHeads = points.map((p) => (p.headKgcm2 === null ? null : Number(p.headKgcm2)));

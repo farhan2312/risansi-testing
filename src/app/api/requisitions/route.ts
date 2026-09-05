@@ -60,6 +60,7 @@ export async function GET(req: Request) {
     ? await db
         .select({
           id: pumpTestReports.id,
+          reportNo: pumpTestReports.reportNo,
           requisitionId: pumpTestReports.requisitionId,
           ratedHead: pumpTestReports.ratedHead,
           ratedCapacity: pumpTestReports.ratedCapacity,
@@ -69,6 +70,7 @@ export async function GET(req: Request) {
         .where(inArray(pumpTestReports.requisitionId, requisitionIds))
     : [];
   const reportIdByRequisition = new Map(reports.map((r) => [r.requisitionId, r.id]));
+  const reportNoByRequisition = new Map(reports.map((r) => [r.requisitionId, r.reportNo]));
 
   // Did the linked report reach its rated head/capacity/power? Only the max
   // across its points matters for that check, so aggregate in SQL rather
@@ -115,6 +117,7 @@ export async function GET(req: Request) {
     rows.map((r) => ({
       ...requisitionToDict(r),
       report_id: reportIdByRequisition.get(r.id) ?? null,
+      report_no: reportNoByRequisition.get(r.id) ?? null,
       report_requirement_unmet_fields: unmetByRequisition.get(r.id) ?? [],
     }))
   );

@@ -603,13 +603,13 @@ const PumpIndexPage = () => {
                                     <td>
                                       <span className="status-actions">
                                         <Link
-                                          href={`/reports/${r.id}`}
+                                          href={`/reports/${r.report_no ?? r.id}`}
                                           className={`status-pill ${unmetTitle ? "status-view-report-unmet" : "status-view-report"}`}
                                           title={unmetTitle || undefined}
                                         >
                                           View Report{unmetTitle && " ⚠"}
                                         </Link>
-                                        <Link href={`/reports/${r.id}/curve`} className="status-pill status-view-curve">
+                                        <Link href={`/reports/${r.report_no ?? r.id}/curve`} className="status-pill status-view-curve">
                                           View Curve
                                         </Link>
                                         {canAssignRetest && unmetTitle && (

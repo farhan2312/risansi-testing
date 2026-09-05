@@ -107,7 +107,7 @@ const ReportDetailPage = () => {
             Export PDF
           </button>
           {canEditOrDelete && isWithinReportEditWindow(report.created_at) && (
-            <Link href={`/reports/${report.id}/edit`} className="edit-report-btn">
+            <Link href={`/reports/${report.report_no ?? report.id}/edit`} className="edit-report-btn">
               Edit
             </Link>
           )}
