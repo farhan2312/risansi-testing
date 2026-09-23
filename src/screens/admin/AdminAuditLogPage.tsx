@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
-import "./AdminAccessRequestsPage.css";
+import "./AdminShared.css";
 import "./AdminBugReportsPage.css"; // reuses .bug-status-tab pill styling
 import "./AdminAuditLogPage.css";
 import {

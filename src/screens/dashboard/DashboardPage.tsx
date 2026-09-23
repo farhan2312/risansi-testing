@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import "./DashboardPage.css";
 import { formatDate, targetDateFor } from "@/lib/formUtils";
 import { listRequisitions, updateRequisition } from "@/services/testingService";
-import { getCurrentUser } from "@/services/session";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   REQUISITION_CATEGORIES,
   RESPONSIBLE_PERSONS,
@@ -37,7 +37,8 @@ const DashboardPage = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const canReassign = getCurrentUser()?.role === "testing";
+  const { user: loggedInUser } = useAuth();
+  const canReassign = loggedInUser?.role === "testing";
 
   const [modelFilter, setModelFilter] = useState(ALL);
   const [ecFilter, setEcFilter] = useState("");

@@ -4,11 +4,14 @@ import type { ReactNode } from "react";
 
 import AuthGuard from "@/components/auth/AuthGuard";
 import DashboardLayout from "@/layouts/DashboardLayout";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 export default function DashboardGroupLayout({ children }: { children: ReactNode }) {
   return (
-    <AuthGuard>
-      <DashboardLayout>{children}</DashboardLayout>
-    </AuthGuard>
+    <AuthProvider>
+      <AuthGuard>
+        <DashboardLayout>{children}</DashboardLayout>
+      </AuthGuard>
+    </AuthProvider>
   );
 }

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import "./LoginPage.css";
 import { login, requestAccess } from "@/services/authService";
-import { saveSession } from "@/services/session";
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@risansi\.com$/;
 const MIN_PASSWORD_LENGTH = 6;
@@ -81,8 +80,10 @@ const LoginPage = () => {
 
     setIsSubmitting(true);
     try {
-      const result = await login(email.trim(), password);
-      saveSession(result.token, result.user);
+      // Login sets the auth cookie server-side; AuthProvider fetches the
+      // verified session itself once we land inside the (dashboard) route
+      // group, so there's nothing to stash here.
+      await login(email.trim(), password);
       router.push("/overview");
     } catch (err) {
       setFormError(errorMessage(err, "Unable to sign in. Please try again."));

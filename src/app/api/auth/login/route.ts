@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 
 import { error, json } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
-import { createToken } from "@/lib/auth";
+import { authCookieOptions, AUTH_COOKIE_NAME, createToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { userSessions, users } from "@/lib/db/schema";
 
@@ -61,8 +61,7 @@ export async function POST(req: Request) {
   await db.insert(userSessions).values({ userId: user.id, userName: user.name, userEmail: user.email });
   await logAudit({ ipAddress: ip, userId: user.id, userName: user.name, userEmail: user.email, eventType: "login" });
 
-  return json({
-    token,
+  const response = json({
     user: {
       id: String(user.id),
       name: user.name,
@@ -71,4 +70,6 @@ export async function POST(req: Request) {
       must_change_password: user.mustChangePassword,
     },
   });
+  response.cookies.set(AUTH_COOKIE_NAME, token, authCookieOptions());
+  return response;
 }

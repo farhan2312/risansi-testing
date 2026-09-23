@@ -2,7 +2,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 
 import { error, json } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
-import { AuthError, decodeToken } from "@/lib/auth";
+import { authCookieOptions, AUTH_COOKIE_NAME, AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { userSessions } from "@/lib/db/schema";
 
@@ -34,5 +34,7 @@ export async function POST(req: Request) {
 
   await logAudit({ ipAddress: getClientIp(req), userId: claims.sub, userEmail: claims.email, eventType: "logout" });
 
-  return json({ success: true });
+  const response = json({ success: true });
+  response.cookies.set(AUTH_COOKIE_NAME, "", { ...authCookieOptions(), maxAge: 0 });
+  return response;
 }

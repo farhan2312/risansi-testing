@@ -4,7 +4,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import "./DashboardLayout.css";
-import { canAssignRetest, clearSession, getCurrentUser, isAdmin, updateCurrentUser } from "@/services/session";
+import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import EditPasswordModal from "@/components/ui/EditPasswordModal";
 import ReportBugModal from "@/components/ui/ReportBugModal";
@@ -114,8 +114,7 @@ const pageTrail = (pathname: string): Crumb[] => {
   if (/^\/requisitions\/[^/]+$/.test(pathname)) {
     return [{ label: "Testing Summary", href: "/dashboard" }, { label: "Requisition Detail" }];
   }
-  if (pathname === "/admin/access-requests") return [{ label: "Access Requests" }];
-  if (pathname === "/admin/users") return [{ label: "Manage Users" }];
+  if (pathname === "/admin/users") return [{ label: "Users & Access" }];
   if (pathname === "/admin/bug-reports") return [{ label: "Bug Reports" }];
   if (pathname === "/admin/audit-log") return [{ label: "Audit Log" }];
   if (pathname === "/admin/action-registry") return [{ label: "Action Registry" }];
@@ -125,22 +124,25 @@ const pageTrail = (pathname: string): Crumb[] => {
 const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const pathname = usePathname();
-  const user = getCurrentUser();
+  const { user, isAdmin, canAssignRetest, refresh, clear } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const role = user?.role ?? "testing";
   const navItems = NAV_ITEMS.filter((item) => !item.hideFor?.includes(role));
+  // Derived directly from context on every render rather than mirrored into
+  // local state -- there's nothing to go stale, since `user` is always the
+  // latest verified /auth/me result.
+  const mustChangePassword = user?.must_change_password ?? false;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [showReportBug, setShowReportBug] = useState(false);
-  const [mustChangePassword, setMustChangePassword] = useState(user?.must_change_password ?? false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Polls for pending access requests so admins see a live badge on the nav
   // item without having to open the Access Requests page to find out.
   useEffect(() => {
-    if (!isAdmin()) return;
+    if (!isAdmin) return;
 
     let cancelled = false;
     const poll = () => {
@@ -157,22 +159,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       cancelled = true;
       clearInterval(interval);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // The useState initializer above only runs on this component's very first
-  // render. AuthGuard (the parent) renders null until its own auth check
-  // resolves, and by the time DashboardLayout first mounts the session
-  // should already be in localStorage -- but re-checking explicitly on mount
-  // removes any dependency on exact render timing, so a stale/false initial
-  // value can never get permanently stuck.
-  useEffect(() => {
-    const current = getCurrentUser();
-    if (current && current.must_change_password && !mustChangePassword) {
-      setMustChangePassword(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -185,14 +172,16 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // Records a page view on every route change, for the Audit Log's Usage &
-  // Time tab -- fire-and-forget, never blocks navigation.
+  // Time tab -- fire-and-forget, never blocks navigation. Only fires once a
+  // user is actually known (AuthGuard guarantees this by the time this
+  // component is mounted, `user` is just defensive here).
   useEffect(() => {
-    if (pathname) recordPageView(pathname);
-  }, [pathname]);
+    if (pathname && user) recordPageView(pathname);
+  }, [pathname, user]);
 
   const handleLogout = async () => {
     await logoutRequest();
-    clearSession();
+    clear();
     router.push("/");
   };
 
@@ -222,7 +211,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
            * come out of Testing's own Assign Retest flow, and Central Admin
            * (who doesn't get the rest of the Admin section, see CLAUDE.md)
            * still needs a way in since they can Assign Retest too. */}
-          {canAssignRetest() && (
+          {canAssignRetest && (
             <Link
               href="/admin/action-registry"
               className={pathname === "/admin/action-registry" ? "active" : ""}
@@ -231,23 +220,17 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
             </Link>
           )}
 
-          {isAdmin() && (
+          {isAdmin && (
             <>
               <p className="testing-nav-group-label">Admin</p>
-              <Link
-                href="/admin/access-requests"
-                className={pathname === "/admin/access-requests" ? "active" : ""}
-              >
-                Access Requests
-                {pendingRequestCount > 0 && (
-                  <span className="nav-badge">{pendingRequestCount}</span>
-                )}
-              </Link>
               <Link
                 href="/admin/users"
                 className={pathname === "/admin/users" ? "active" : ""}
               >
-                Manage Users
+                Users &amp; Access
+                {pendingRequestCount > 0 && (
+                  <span className="nav-badge">{pendingRequestCount}</span>
+                )}
               </Link>
               <Link
                 href="/admin/bug-reports"
@@ -333,14 +316,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       {showReportBug && <ReportBugModal onClose={() => setShowReportBug(false)} />}
 
       {mustChangePassword ? (
-        <EditPasswordModal
-          mandatory
-          onClose={() => {}}
-          onSuccess={() => {
-            updateCurrentUser({ must_change_password: false });
-            setMustChangePassword(false);
-          }}
-        />
+        <EditPasswordModal mandatory onClose={() => {}} onSuccess={() => refresh()} />
       ) : (
         showEditPassword && <EditPasswordModal onClose={() => setShowEditPassword(false)} />
       )}

@@ -13,7 +13,7 @@ import {
   unmetRequirementLabels,
 } from "@/lib/requirementCheck";
 import { dedupCheck, getRequisition, openAttachment, updateRequisition } from "@/services/testingService";
-import { getCurrentUser } from "@/services/session";
+import { useAuth } from "@/contexts/AuthContext";
 import { ecQuotationLabel } from "@/types/testing";
 import type { DedupCheckResult, PumpTestReport, TestRequisition } from "@/types/testing";
 
@@ -28,7 +28,7 @@ const reportUnmetTitle = (r: PumpTestReport): string => {
 const RequisitionDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const currentUser = getCurrentUser();
+  const { user: currentUser } = useAuth();
   const canProcessTesting = currentUser?.role !== "source";
 
   const [requisition, setRequisition] = useState<TestRequisition | null>(null);

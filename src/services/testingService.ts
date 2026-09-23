@@ -1,5 +1,4 @@
 import apiClient from "./apiClient";
-import { getToken } from "./session";
 import type {
   ActionRegistryEntry,
   ArchiveReportSummary,
@@ -17,25 +16,20 @@ import type {
   TestRequisition,
 } from "../types/testing";
 
-const authHeader = () => ({
-  headers: { Authorization: `Bearer ${getToken()}` },
-});
-
 export const listRequisitions = async (status?: RequisitionStatus): Promise<TestRequisition[]> => {
   const { data } = await apiClient.get<TestRequisition[]>("/requisitions", {
-    ...authHeader(),
     params: status ? { status } : undefined,
   });
   return data;
 };
 
 export const getRequisition = async (id: string): Promise<TestRequisition> => {
-  const { data } = await apiClient.get<TestRequisition>(`/requisitions/${id}`, authHeader());
+  const { data } = await apiClient.get<TestRequisition>(`/requisitions/${id}`);
   return data;
 };
 
 export const createRequisition = async (input: NewRequisitionInput): Promise<TestRequisition> => {
-  const { data } = await apiClient.post<TestRequisition>("/requisitions", input, authHeader());
+  const { data } = await apiClient.post<TestRequisition>("/requisitions", input);
   return data;
 };
 
@@ -43,15 +37,12 @@ export const updateRequisition = async (
   id: string,
   patch: Partial<TestRequisition>
 ): Promise<TestRequisition> => {
-  const { data } = await apiClient.patch<TestRequisition>(`/requisitions/${id}`, patch, authHeader());
+  const { data } = await apiClient.patch<TestRequisition>(`/requisitions/${id}`, patch);
   return data;
 };
 
 export const listAttachments = async (requisitionId: string): Promise<RequisitionAttachment[]> => {
-  const { data } = await apiClient.get<RequisitionAttachment[]>(
-    `/requisitions/${requisitionId}/attachments`,
-    authHeader()
-  );
+  const { data } = await apiClient.get<RequisitionAttachment[]>(`/requisitions/${requisitionId}/attachments`);
   return data;
 };
 
@@ -66,22 +57,20 @@ export const uploadAttachment = async (
     form,
     // Content-Type: undefined overrides apiClient's default "application/json"
     // so the browser sets multipart/form-data with the correct boundary itself.
-    { headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": undefined } }
+    { headers: { "Content-Type": undefined } }
   );
   return data;
 };
 
 export const deleteAttachment = async (requisitionId: string, attachmentId: string): Promise<void> => {
-  await apiClient.delete(`/requisitions/${requisitionId}/attachments/${attachmentId}`, authHeader());
+  await apiClient.delete(`/requisitions/${requisitionId}/attachments/${attachmentId}`);
 };
 
-/** Opens an attachment in a new tab. Fetches it as a blob (with the auth
- * header) rather than a plain <a href> to the API route, since the JWT lives
- * in localStorage, not a cookie -- a bare link wouldn't carry it, and the
- * alternative (a token query param) would put a credential in the URL. */
+/** Opens an attachment in a new tab. Fetches it as a blob rather than a
+ * plain <a href> to the API route so the object URL (not the API route
+ * itself) is what ends up in browser history/tab. */
 export const openAttachment = async (requisitionId: string, attachmentId: string): Promise<void> => {
   const { data } = await apiClient.get(`/requisitions/${requisitionId}/attachments/${attachmentId}`, {
-    ...authHeader(),
     responseType: "blob",
   });
   const url = URL.createObjectURL(data as Blob);
@@ -104,7 +93,7 @@ export const listPumpModels = async (): Promise<string[]> => {
 
 /** Every requisition and report for one physical pump, matched by model. */
 export const getPumpDashboard = async (model: string): Promise<PumpDashboardData> => {
-  const { data } = await apiClient.get<PumpDashboardData>(`/pumps/${encodeURIComponent(model)}`, authHeader());
+  const { data } = await apiClient.get<PumpDashboardData>(`/pumps/${encodeURIComponent(model)}`);
   return data;
 };
 
@@ -112,15 +101,12 @@ export const getPumpDashboard = async (model: string): Promise<PumpDashboardData
  * ("YYYY-MM-DD") narrows every count to that window -- omit both for the
  * all-time snapshot. */
 export const getOverview = async (range?: { from?: string; to?: string }): Promise<PortalOverview> => {
-  const { data } = await apiClient.get<PortalOverview>("/overview", {
-    ...authHeader(),
-    params: range,
-  });
+  const { data } = await apiClient.get<PortalOverview>("/overview", { params: range });
   return data;
 };
 
 export const submitReport = async (input: NewReportInput): Promise<PumpTestReport> => {
-  const { data } = await apiClient.post<PumpTestReport>("/reports", input, authHeader());
+  const { data } = await apiClient.post<PumpTestReport>("/reports", input);
   return data;
 };
 
@@ -140,12 +126,12 @@ export const updateReport = async (
   id: string,
   input: Omit<NewReportInput, "requisitionId">
 ): Promise<PumpTestReport> => {
-  const { data } = await apiClient.patch<PumpTestReport>(`/reports/${id}`, input, authHeader());
+  const { data } = await apiClient.patch<PumpTestReport>(`/reports/${id}`, input);
   return data;
 };
 
 export const deleteReport = async (id: string): Promise<void> => {
-  await apiClient.delete(`/reports/${id}`, authHeader());
+  await apiClient.delete(`/reports/${id}`);
 };
 
 export interface AssignRetestResult {
@@ -158,11 +144,9 @@ export interface AssignRetestResult {
  * measured snapshot, the given action points) -- Admin / Central Admin
  * only. */
 export const assignRetest = async (reportId: string, actionPoints: string[] = []): Promise<AssignRetestResult> => {
-  const { data } = await apiClient.post<AssignRetestResult>(
-    `/reports/${reportId}/assign-retest`,
-    { action_points: actionPoints },
-    authHeader()
-  );
+  const { data } = await apiClient.post<AssignRetestResult>(`/reports/${reportId}/assign-retest`, {
+    action_points: actionPoints,
+  });
   return data;
 };
 
@@ -198,7 +182,7 @@ export const submitBugReport = async (input: NewBugReportInput): Promise<BugRepo
   if (input.page) form.append("page", input.page);
   if (input.screenshot) form.append("screenshot", input.screenshot);
   const { data } = await apiClient.post<BugReport>("/bug-reports", form, {
-    headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": undefined },
+    headers: { "Content-Type": undefined },
   });
   return data;
 };

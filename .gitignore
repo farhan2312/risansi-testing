@@ -1,5 +1,6 @@
 # dependencies
 /node_modules
+/doc
 
 # next.js
 /.next/
@@ -22,3 +23,4 @@ npm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+

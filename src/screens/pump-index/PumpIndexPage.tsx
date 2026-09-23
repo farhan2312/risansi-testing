@@ -7,7 +7,7 @@ import "../report-archive/ReportArchivePage.css"; // reuses .pump-row/.expand-to
 import "./PumpIndexPage.css";
 import { modelDisplayLabel, normalizeModelKey } from "@/lib/modelKey";
 import { listReports, listRequisitions } from "@/services/testingService";
-import { canAssignRetest as canAssignRetestRole } from "@/services/session";
+import { useAuth } from "@/contexts/AuthContext";
 import { buildUnmetRows } from "@/lib/requirementCheck";
 import AssignRetestModal from "@/components/ui/AssignRetestModal";
 import {
@@ -119,7 +119,7 @@ const PumpIndexPage = () => {
   // identical feature. Per-report state since this list can hold many
   // reports at once: which one has its modal open, and which have already
   // gotten a new requisition this session (report id -> its id).
-  const canAssignRetest = canAssignRetestRole();
+  const { canAssignRetest } = useAuth();
   const [assignRetestTarget, setAssignRetestTarget] = useState<ArchiveReportSummary | null>(null);
   const [assignedRetestByReport, setAssignedRetestByReport] = useState<Record<string, string>>({});
 

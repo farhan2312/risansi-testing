@@ -5,7 +5,7 @@ import Link from "next/link";
 import "../dashboard/DashboardPage.css"; // reuses .status-pill / .status-* colors
 import "./OverviewPage.css";
 import { getOverview } from "@/services/testingService";
-import { getCurrentUser } from "@/services/session";
+import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/formUtils";
 import type { PortalOverview } from "@/types/testing";
 
@@ -33,6 +33,7 @@ const TODAY_LABEL = new Intl.DateTimeFormat("en-GB", {
 }).format(new Date());
 
 const OverviewPage = () => {
+  const { user } = useAuth();
   const [data, setData] = useState<PortalOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -75,7 +76,6 @@ const OverviewPage = () => {
   const judgedTotal = data.requirement_met + data.requirement_unmet;
   const metPct = judgedTotal ? Math.round((data.requirement_met / judgedTotal) * 100) : null;
 
-  const user = getCurrentUser();
   const rawFirstName = (user?.name ?? user?.email ?? "there").trim().split(" ")[0];
   const firstName = rawFirstName.charAt(0).toUpperCase() + rawFirstName.slice(1);
   const pendingCount = data.requisitions_by_status.Pending ?? 0;

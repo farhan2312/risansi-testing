@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import "./ReportDetailPage.css";
 import { deleteReport, getReport } from "@/services/testingService";
-import { canAssignRetest as canAssignRetestRole, getCurrentUser } from "@/services/session";
+import { useAuth } from "@/contexts/AuthContext";
 import { reportExportFileName } from "@/lib/formUtils";
 import { isWithinReportEditWindow, REPORT_EDIT_WINDOW_DAYS } from "@/lib/reportEditWindow";
 import { buildUnmetRows, computeRequirementStatus, maxOf, unmetRequirementLabels } from "@/lib/requirementCheck";
@@ -26,8 +26,8 @@ const ReportDetailPage = () => {
   const [error, setError] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const canEditOrDelete = getCurrentUser()?.role === "testing";
-  const canAssignRetest = canAssignRetestRole();
+  const { user: loggedInUser, canAssignRetest } = useAuth();
+  const canEditOrDelete = loggedInUser?.role === "testing";
   const [showAssignRetest, setShowAssignRetest] = useState(false);
   const [assignedRetestId, setAssignedRetestId] = useState<string | null>(null);
 

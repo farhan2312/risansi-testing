@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import "./AdminAccessRequestsPage.css";
+import "./AdminShared.css";
 import "./AdminBugReportsPage.css";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import {

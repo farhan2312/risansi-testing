@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import "../styles/tailwind.css";
 import "../styles/theme.css";
 import "../index.css";
 import { ThemeProvider } from "../contexts/ThemeContext";

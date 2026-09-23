@@ -34,20 +34,63 @@ export async function PATCH(
     return error("Request body must be JSON", 400);
   }
 
-  if (body.role !== undefined) {
-    const newRole = body.role;
-    if (newRole !== "source" && newRole !== "testing" && newRole !== "central-admin" && newRole !== "admin") {
-      return error("'role' must be 'source', 'testing', 'central-admin', or 'admin'", 400);
-    }
-
+  // Combined details edit -- name / email / role, any subset, used by the
+  // Edit User modal. Kept as its own branch (rather than folding into the
+  // role-only branch below) so the existing role-only callers (the inline
+  // role <select> on the table) keep working unchanged.
+  if (body.name !== undefined || body.email !== undefined || body.role !== undefined) {
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) {
       return error("User not found", 404);
     }
 
+    const changes: string[] = [];
+    const updates: Partial<typeof users.$inferInsert> = {};
+
+    if (body.role !== undefined) {
+      const newRole = body.role;
+      if (newRole !== "source" && newRole !== "testing" && newRole !== "central-admin" && newRole !== "admin") {
+        return error("'role' must be 'source', 'testing', 'central-admin', or 'admin'", 400);
+      }
+      if (newRole !== user.role) {
+        updates.role = newRole;
+        changes.push(`Role changed from ${user.role} to ${newRole}`);
+      }
+    }
+
+    if (body.name !== undefined) {
+      const newName = String(body.name).trim();
+      if (!newName) return error("'name' cannot be empty", 400);
+      if (newName !== user.name) {
+        updates.name = newName;
+        changes.push(`Name changed to ${newName}`);
+      }
+    }
+
+    if (body.email !== undefined) {
+      const newEmail = String(body.email).trim().toLowerCase();
+      if (!newEmail) return error("'email' cannot be empty", 400);
+      if (newEmail !== user.email) {
+        const [emailTaken] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, newEmail))
+          .limit(1);
+        if (emailTaken && emailTaken.id !== user.id) {
+          return error("Another account already uses this email.", 409);
+        }
+        updates.email = newEmail;
+        changes.push(`Email changed to ${newEmail}`);
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return json(userToDict(user));
+    }
+
     const [updated] = await db
       .update(users)
-      .set({ role: newRole })
+      .set(updates)
       .where(eq(users.id, user.id))
       .returning();
 
@@ -59,7 +102,7 @@ export async function PATCH(
       entityType: "user",
       entityId: updated.id,
       entityLabel: updated.email,
-      details: `Role changed from ${user.role} to ${newRole}`,
+      details: changes.join("; "),
     });
 
     return json(userToDict(updated));

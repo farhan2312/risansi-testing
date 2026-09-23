@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
-import { isAdmin, isAuthenticated } from "../../services/session";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -12,27 +12,30 @@ interface AuthGuardProps {
 
 /**
  * Client-side route guard, replacing the old react-router ProtectedRoute /
- * AdminRoute. Auth state lives in localStorage (set at login), which is only
- * available in the browser — so we render nothing until mounted, then either
- * redirect or reveal the protected content.
+ * AdminRoute. Reads AuthProvider's in-memory user (populated by a verified
+ * GET /auth/me against the real httpOnly cookie -- see AuthContext.tsx) and
+ * either redirects or reveals the protected content once that check
+ * resolves. Renders nothing while loading or once a redirect has been
+ * kicked off, so protected content is never shown to a logged-out user
+ * even for a frame.
  */
 const AuthGuard = ({ children, adminOnly = false }: AuthGuardProps) => {
   const router = useRouter();
-  const [allowed, setAllowed] = useState(false);
+  const { user, isLoading } = useAuth();
+  const forbidden = adminOnly && user?.role !== "admin";
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    if (isLoading) return;
+    if (!user) {
       router.replace("/");
       return;
     }
-    if (adminOnly && !isAdmin()) {
+    if (forbidden) {
       router.replace("/dashboard");
-      return;
     }
-    setAllowed(true);
-  }, [router, adminOnly]);
+  }, [isLoading, user, forbidden, router]);
 
-  if (!allowed) return null;
+  if (isLoading || !user || forbidden) return null;
 
   return <>{children}</>;
 };
