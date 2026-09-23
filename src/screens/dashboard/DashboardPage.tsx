@@ -9,6 +9,7 @@ import { getRequisitionFilterOptions, listRequisitions, updateRequisition } from
 import { useAuth } from "@/contexts/AuthContext";
 import Pagination from "@/components/ui/Pagination";
 import { SkeletonTableRows } from "@/components/ui/Skeleton";
+import PageHeader, { pageHeaderButton } from "@/components/ui/PageHeader";
 import {
   REQUISITION_CATEGORIES,
   RESPONSIBLE_PERSONS,
@@ -225,12 +226,15 @@ const DashboardPage = () => {
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-header sticky-page-header">
-        <h1>Testing Summary</h1>
-        <Link href="/requisitions/new" className="new-requisition-btn">
-          + New Requisition
-        </Link>
-      </div>
+      <PageHeader
+        icon="📋"
+        title="Testing Summary"
+        actions={
+          <Link href="/requisitions/new" className={pageHeaderButton("primary")}>
+            <span aria-hidden="true">+</span> New Requisition
+          </Link>
+        }
+      />
 
       <div className="status-tabs">
         {STATUS_TABS.map((tab) => (
@@ -314,7 +318,7 @@ const DashboardPage = () => {
         </label>
         {hasActiveFilters && (
           <button type="button" className="clear-filters-btn" onClick={clearFilters}>
-            Clear Filters
+            ✕ Clear Filters
           </button>
         )}
       </div>

@@ -12,6 +12,7 @@ import { ratedPowerKwFromRequisition } from "@/lib/requirementCheck";
 import AttachmentsField from "@/components/ui/AttachmentsField";
 import { createRequisition, listPumpModels, uploadAttachment } from "@/services/testingService";
 import { SkeletonPage } from "@/components/ui/Skeleton";
+import PageHeader from "@/components/ui/PageHeader";
 import {
   CAPACITY_UNITS,
   ecQuotationFormatHint,
@@ -125,10 +126,7 @@ const NewRequisitionPage = () => {
 
   return (
     <div className="requisition-form-page">
-      <div className="sticky-page-header">
-        <h1>New Requisition</h1>
-        <p className="subtitle">Log a testing request as received from the source team.</p>
-      </div>
+      <PageHeader icon="📝" title="New Requisition" subtitle="Log a testing request as received from the source team." />
 
       {submitError && <div className="form-error-banner">{submitError}</div>}
 

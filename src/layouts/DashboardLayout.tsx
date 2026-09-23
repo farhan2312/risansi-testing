@@ -143,6 +143,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const [unreadBugCount, setUnreadBugCount] = useState(0);
   const [targetDateAlerts, setTargetDateAlerts] = useState<TargetDateAlertItem[]>([]);
   const [showAlertsPanel, setShowAlertsPanel] = useState(false);
+  const [isRefreshingAlerts, setIsRefreshingAlerts] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const alertsRef = useRef<HTMLDivElement>(null);
 
@@ -212,6 +213,24 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       clearInterval(interval);
     };
   }, []);
+
+  // Manual refresh for the notification icons -- the polls above already
+  // catch up within 30s on their own, this just lets someone force it
+  // immediately (e.g. right after raising or resolving something) rather
+  // than wait out the interval.
+  const handleRefreshAlerts = async () => {
+    setIsRefreshingAlerts(true);
+    try {
+      const [alerts, bugCount] = await Promise.all([
+        getTargetDateAlerts().catch(() => null),
+        isAdmin ? getUnreadBugReportCount().catch(() => null) : Promise.resolve(null),
+      ]);
+      if (alerts) setTargetDateAlerts(alerts.items);
+      if (bugCount !== null) setUnreadBugCount(bugCount);
+    } finally {
+      setIsRefreshingAlerts(false);
+    }
+  };
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -362,6 +381,26 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
             ))}
           </nav>
           <div className="topbar-actions">
+          <button
+  type="button"
+  className="topbar-report-bug-btn"
+  onClick={handleRefreshAlerts}
+  disabled={isRefreshingAlerts}
+  aria-label="Refresh notifications"
+  title="Refresh notifications"
+>
+  <span
+    className={`topbar-refresh-icon ${
+      isRefreshingAlerts ? "spinning" : ""
+    }`}
+  >
+    ↻
+  </span>
+
+  <span className="topbar-refresh-text pl-1">
+    {isRefreshingAlerts ? "Refreshing..." : "Refresh"}
+  </span>
+</button>
             <div className="topbar-alerts-wrap" ref={alertsRef}>
               <button
                 type="button"
@@ -399,6 +438,9 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                 </div>
               )}
             </div>
+            <button type="button" className="topbar-report-bug-btn" onClick={() => setShowReportBug(true)}>
+              🐛 Report a Bug
+            </button>
             {isAdmin && (
               <button
                 type="button"
@@ -413,9 +455,6 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                 )}
               </button>
             )}
-            <button type="button" className="topbar-report-bug-btn" onClick={() => setShowReportBug(true)}>
-              🐛 Report a Bug
-            </button>
           </div>
         </div>
         <main className="testing-main">{children}</main>

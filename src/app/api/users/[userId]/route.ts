@@ -109,7 +109,7 @@ export async function PATCH(
   }
 
   const newStatus = body.status;
-  if (newStatus !== "active" && newStatus !== "rejected") {
+  if (newStatus !== "active" && newStatus !== "rejected" && newStatus !== "inactive") {
     return error("'status' or 'role' is required", 400);
   }
 
@@ -117,8 +117,30 @@ export async function PATCH(
   if (!user) {
     return error("User not found", 404);
   }
-  if (user.status !== "pending") {
-    return error("This request has already been reviewed.", 409);
+
+  // Two different transitions share this one status field:
+  //  - Reviewing a pending signup (pending -> active/rejected).
+  //  - Suspending/restoring an existing account (active <-> inactive),
+  //    which doesn't touch role/password, just blocks login -- see
+  //    POST /api/auth/login's status check.
+  let details: string;
+  if (newStatus === "active" || newStatus === "rejected") {
+    if (user.status === "pending") {
+      details = `Access request ${newStatus}`;
+    } else if (user.status === "inactive" && newStatus === "active") {
+      details = "Reactivated";
+    } else {
+      return error("This request has already been reviewed.", 409);
+    }
+  } else {
+    // newStatus === "inactive"
+    if (user.status !== "active") {
+      return error("Only an active account can be deactivated.", 409);
+    }
+    if (userId === claims.sub) {
+      return error("You cannot deactivate your own account.", 400);
+    }
+    details = "Deactivated";
   }
 
   const [updated] = await db
@@ -135,7 +157,7 @@ export async function PATCH(
     entityType: "user",
     entityId: updated.id,
     entityLabel: updated.email,
-    details: `Access request ${newStatus}`,
+    details,
   });
 
   return json(userToDict(updated));

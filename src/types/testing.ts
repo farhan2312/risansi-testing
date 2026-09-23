@@ -39,7 +39,7 @@ export const ecQuotationFormatHint = (category?: string | null): string | undefi
 
 export const SOURCE_TEAMS = ["Research", "Proposal", "Testing"] as const;
 
-export const RESPONSIBLE_PERSONS = ["Sachin", "Vikas"] as const;
+export const RESPONSIBLE_PERSONS = ["Sachin", "Vikash"] as const;
 
 // The two standard motor synchronous speeds used across every requisition
 // and report form -- Motor RPM is a fixed-choice field, not free text.

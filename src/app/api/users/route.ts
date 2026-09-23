@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 
 import { error, json, userToDict } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
@@ -48,7 +48,15 @@ export async function GET(req: Request) {
   const isPendingQueueQuery = status === "pending" && !role && !search && !searchParams.has("page");
   if (isPendingQueueQuery) {
     const rows = await db.select().from(users).where(where).orderBy(asc(users.createdAt));
-    return json({ entries: rows.map(userToDict), total: rows.length, page: 1, page_size: rows.length });
+    // Pending rows are never reviewed yet (reviewed_by is always null here --
+    // a resubmitted "rejected" account gets reviewedBy reset to null too,
+    // see POST /api/access-requests), so no reviewer name lookup needed.
+    return json({
+      entries: rows.map((r) => ({ ...userToDict(r), reviewed_by_name: null })),
+      total: rows.length,
+      page: 1,
+      page_size: rows.length,
+    });
   }
 
   const [rows, [{ count }], [stats]] = await Promise.all([
@@ -64,8 +72,22 @@ export async function GET(req: Request) {
       .from(users),
   ]);
 
+  // "Reviewed" column needs the reviewer's name, not just reviewed_by's raw
+  // uuid -- one batched lookup for every distinct reviewer on this page.
+  const reviewerIds = [...new Set(rows.map((r) => r.reviewedBy).filter((id): id is string => Boolean(id)))];
+  const reviewerNameById = new Map(
+    reviewerIds.length
+      ? (await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, reviewerIds))).map(
+          (r) => [r.id, r.name]
+        )
+      : []
+  );
+
   return json({
-    entries: rows.map(userToDict),
+    entries: rows.map((r) => ({
+      ...userToDict(r),
+      reviewed_by_name: r.reviewedBy ? (reviewerNameById.get(r.reviewedBy) ?? null) : null,
+    })),
     total: count,
     page,
     page_size: PAGE_SIZE,

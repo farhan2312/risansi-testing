@@ -12,6 +12,7 @@ import { hasActiveRequisitionFilters, requisitionMatchesFilters, type Requisitio
 import AssignRetestModal from "@/components/ui/AssignRetestModal";
 import Pagination from "@/components/ui/Pagination";
 import { SkeletonStatTiles, SkeletonTableRows } from "@/components/ui/Skeleton";
+import PageHeader from "@/components/ui/PageHeader";
 import {
   REQUISITION_CATEGORIES,
   RESPONSIBLE_PERSONS,
@@ -249,16 +250,19 @@ const PumpIndexPage = () => {
 
   return (
     <div className="pump-index-page">
-      <div className="pump-index-header sticky-page-header">
-        <h1>Report Compilation</h1>
-        <input
-          type="text"
-          placeholder="Search by model..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          className="pump-index-search"
-        />
-      </div>
+      <PageHeader
+        icon="📊"
+        title="Report Compilation"
+        actions={
+          <input
+            type="text"
+            placeholder="Search by model..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="pump-index-search"
+          />
+        }
+      />
 
       {isLoading && !error && <SkeletonStatTiles count={5} />}
 
@@ -377,7 +381,7 @@ const PumpIndexPage = () => {
         </label>
         {hasAnyFilterActive && (
           <button type="button" className="clear-filters-btn" onClick={clearReqFilters}>
-            Clear Filters
+            ✕ Clear Filters
           </button>
         )}
       </div>

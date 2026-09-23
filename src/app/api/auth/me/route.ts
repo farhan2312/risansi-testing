@@ -26,6 +26,13 @@ export async function GET(req: Request) {
   if (!user) {
     return error("User not found", 404);
   }
+  // A still-valid 12h token doesn't stop mattering the instant an admin
+  // deactivates the account -- AuthGuard calls this on every mount, so
+  // treating "not active" as unauthenticated here revokes access on their
+  // very next navigation, not just their next fresh login attempt.
+  if (user.status !== "active") {
+    return error("Account is not active", 401);
+  }
 
   return json({
     id: String(user.id),

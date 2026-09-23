@@ -16,6 +16,7 @@ import {
   type SharedReportDraft,
 } from "@/lib/reportDraft";
 import { computeRequirementStatus } from "@/lib/requirementCheck";
+import PageHeader from "@/components/ui/PageHeader";
 import {
   MOTOR_RPM_OPTIONS,
   NPSHA_STATUSES,
@@ -597,10 +598,7 @@ const ViscosityChartForm = ({
 
   return (
     <div className="test-report-page">
-      <div className="sticky-page-header">
-        <h1>{heading}</h1>
-        <p className="subtitle">{subheading}</p>
-      </div>
+      <PageHeader icon="🧪" title={heading} subtitle={subheading} />
 
       {submitError && <div className="form-error-banner">{submitError}</div>}
       {autofillNotice && <div className="form-info-banner">{autofillNotice}</div>}

@@ -12,6 +12,7 @@ import { buildUnmetRows, computeRequirementStatus, maxOf, unmetRequirementLabels
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import AssignRetestModal from "@/components/ui/AssignRetestModal";
 import { SkeletonPage } from "@/components/ui/Skeleton";
+import PageHeader, { pageHeaderButton } from "@/components/ui/PageHeader";
 import ReportDetailSections from "@/components/report-detail/ReportDetailSections";
 import type { PumpTestReport } from "@/types/testing";
 
@@ -93,56 +94,57 @@ const ReportDetailPage = () => {
         </div>
       </div>
 
-      <div className="detail-header sticky-page-header">
-        <div>
-          <h1>
+      <PageHeader
+        icon="📄"
+        title={
+          <>
             {report.model}
             {report.report_no && <span className="report-no-pill">{report.report_no}</span>}
-          </h1>
-          <span className="format-pill">
-            {FORMAT_LABELS[report.report_format ?? ""] ?? "Observation Sheet"}
-          </span>
-        </div>
-        <div className="detail-header-actions">
-          <button type="button" className="export-pdf-btn" onClick={() => window.print()}>
-            Export PDF
-          </button>
-          {canEditOrDelete && isWithinReportEditWindow(report.created_at) && (
-            <Link href={`/reports/${report.report_no ?? report.id}/edit`} className="edit-report-btn">
-              Edit
-            </Link>
-          )}
-          {canEditOrDelete && (
-            <button
-              type="button"
-              className="delete-report-btn"
-              onClick={() => setShowDeleteConfirm(true)}
-              disabled={isDeleting}
-            >
-              {isDeleting ? "Deleting..." : "Delete"}
+          </>
+        }
+        subtitle={FORMAT_LABELS[report.report_format ?? ""] ?? "Observation Sheet"}
+        actions={
+          <>
+            <button type="button" className={pageHeaderButton("primary")} onClick={() => window.print()}>
+              🖨️ Export PDF
             </button>
-          )}
-          {canAssignRetest && unmetLabels.length > 0 && (
-            assignedRetestId ? (
-              <Link href={`/requisitions/${assignedRetestId}`} className="status-pill status-view-report">
-                Retest Assigned — View →
+            {canEditOrDelete && isWithinReportEditWindow(report.created_at) && (
+              <Link href={`/reports/${report.report_no ?? report.id}/edit`} className={pageHeaderButton("secondary")}>
+                ✏️ Edit
               </Link>
-            ) : (
+            )}
+            {canEditOrDelete && (
               <button
                 type="button"
-                className="assign-retest-btn"
-                onClick={() => setShowAssignRetest(true)}
-                title={`Outside rated ${unmetLabels.join(", ")}`}
+                className={pageHeaderButton("danger")}
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={isDeleting}
               >
-                Assign Retest
+                {isDeleting ? "Deleting..." : "🗑️ Delete"}
               </button>
-            )
-          )}
-          <Link href="/reports" className="back-link">
-            &larr; Back to archive
-          </Link>
-        </div>
-      </div>
+            )}
+            {canAssignRetest &&
+              unmetLabels.length > 0 &&
+              (assignedRetestId ? (
+                <Link href={`/requisitions/${assignedRetestId}`} className={pageHeaderButton("secondary")}>
+                  ✅ Retest Assigned — View →
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className={pageHeaderButton("secondary")}
+                  onClick={() => setShowAssignRetest(true)}
+                  title={`Outside rated ${unmetLabels.join(", ")}`}
+                >
+                  ⚠️ Assign Retest
+                </button>
+              ))}
+            <Link href="/reports" className={pageHeaderButton("secondary")}>
+              &larr; Back to archive
+            </Link>
+          </>
+        }
+      />
 
       <ReportDetailSections report={report} />
 

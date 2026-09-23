@@ -7,6 +7,7 @@ import "./OverviewPage.css";
 import { getOverview } from "@/services/testingService";
 import { useAuth } from "@/contexts/AuthContext";
 import { SkeletonPage } from "@/components/ui/Skeleton";
+import PageHeader from "@/components/ui/PageHeader";
 import { formatDate } from "@/lib/formUtils";
 import type { PortalOverview } from "@/types/testing";
 
@@ -83,14 +84,11 @@ const OverviewPage = () => {
 
   return (
     <div className="overview-page">
-      <div className="sticky-page-header">
-        <h1>
-          {timeOfDayGreeting()}, {firstName}.
-        </h1>
-        <p className="subtitle">
-          {TODAY_LABEL} &middot; {data.total_requisitions} requisitions raised &middot; {pendingCount} pending
-        </p>
-      </div>
+      <PageHeader
+        icon="👋"
+        title={`${timeOfDayGreeting()}, ${firstName}.`}
+        subtitle={`${TODAY_LABEL} · ${data.total_requisitions} requisitions raised · ${pendingCount} pending`}
+      />
 
       <div className="overview-filter-bar">
         <label className="overview-filter-date">
@@ -106,7 +104,7 @@ const OverviewPage = () => {
             Showing {dateFrom ? formatDate(dateFrom) : "the beginning"} &ndash;{" "}
             {dateTo ? formatDate(dateTo) : "now"}.{" "}
             <button type="button" className="overview-filter-clear" onClick={clearRange}>
-              Clear
+              ✕ Clear
             </button>
           </span>
         ) : (

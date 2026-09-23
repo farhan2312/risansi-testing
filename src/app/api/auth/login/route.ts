@@ -55,6 +55,17 @@ export async function POST(req: Request) {
     });
     return error("Your access request was rejected. Contact an administrator.", 403);
   }
+  if (user.status === "inactive") {
+    await logAudit({
+      ipAddress: ip,
+      userId: user.id,
+      userName: user.name,
+      userEmail: user.email,
+      eventType: "login_failed",
+      details: "Account deactivated",
+    });
+    return error("Your account has been deactivated. Contact an administrator.", 403);
+  }
 
   const token = createToken({ id: user.id, email: user.email, role: user.role });
 

@@ -7,6 +7,7 @@ import { listActionRegistry } from "@/services/adminService";
 import { formatDate, formatNumber } from "@/lib/formUtils";
 import Pagination from "@/components/ui/Pagination";
 import { SkeletonTableRows } from "@/components/ui/Skeleton";
+import PageHeader from "@/components/ui/PageHeader";
 import type { ActionRegistryEntry } from "@/types/testing";
 
 const PAGE_SIZE = 25;
@@ -63,13 +64,11 @@ const AdminActionRegistryPage = () => {
 
   return (
     <div className="registry-page">
-      <div className="registry-header sticky-page-header">
-        <h1>Action Registry</h1>
-        <p>
-          Every time a report missed a rated requirement and a retest was assigned, the unmet parameters, the
-          action points raised against them, and who raised/assigned them are logged here.
-        </p>
-      </div>
+      <PageHeader
+        icon="🛠️"
+        title="Action Registry"
+        subtitle="Every time a report missed a rated requirement and a retest was assigned, the unmet parameters, the action points raised against them, and who raised/assigned them are logged here."
+      />
 
       {error && <p className="registry-status registry-status-error">{error}</p>}
 

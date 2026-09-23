@@ -8,6 +8,7 @@ import { getReport } from "@/services/testingService";
 import { formatDate, reportExportFileName } from "@/lib/formUtils";
 import PerformanceCurve from "@/components/report-detail/PerformanceCurve";
 import { SkeletonPage } from "@/components/ui/Skeleton";
+import PageHeader, { pageHeaderButton } from "@/components/ui/PageHeader";
 import type { PumpTestReport } from "@/types/testing";
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -54,30 +55,29 @@ const ReportCurvePage = () => {
         </div>
       </div>
 
-      <div className="detail-header sticky-page-header">
-        <div>
-          <h1>
+      <PageHeader
+        icon="📈"
+        title={
+          <>
             {report.model}
             {report.report_no && <span className="report-no-pill">{report.report_no}</span>}
-          </h1>
-          <span className="format-pill">
-            {FORMAT_LABELS[report.report_format ?? ""] ?? "Observation Sheet"}
-            {" — "}
-            {formatDate(report.test_date ?? report.created_at)}
-          </span>
-        </div>
-        <div className="detail-header-actions">
-          <button type="button" className="export-pdf-btn" onClick={() => window.print()}>
-            Export PDF
-          </button>
-          <Link href={`/reports/${report.report_no ?? report.id}`} className="back-link">
-            View full report
-          </Link>
-          <Link href="/reports" className="back-link">
-            &larr; Back to archive
-          </Link>
-        </div>
-      </div>
+          </>
+        }
+        subtitle={`${FORMAT_LABELS[report.report_format ?? ""] ?? "Observation Sheet"} — ${formatDate(report.test_date ?? report.created_at)}`}
+        actions={
+          <>
+            <button type="button" className={pageHeaderButton("primary")} onClick={() => window.print()}>
+              🖨️ Export PDF
+            </button>
+            <Link href={`/reports/${report.report_no ?? report.id}`} className={pageHeaderButton("secondary")}>
+              View full report
+            </Link>
+            <Link href="/reports" className={pageHeaderButton("secondary")}>
+              &larr; Back to archive
+            </Link>
+          </>
+        }
+      />
 
       <section className="detail-card">
         <h2>Performance Curves</h2>

@@ -14,6 +14,7 @@ import {
 } from "@/services/adminService";
 import Pagination from "@/components/ui/Pagination";
 import { SkeletonTableRows } from "@/components/ui/Skeleton";
+import PageHeader from "@/components/ui/PageHeader";
 import type {
   AuditActivityEntry,
   AuditRange,
@@ -174,10 +175,7 @@ const AdminAuditLogPage = () => {
 
   return (
     <div className="admin-requests-page">
-      <div className="admin-requests-header sticky-page-header">
-        <h1>Audit Log</h1>
-        <p>Full activity trail — who signed in, when, and everything they did.</p>
-      </div>
+      <PageHeader icon="📜" title="Audit Log" subtitle="Full activity trail — who signed in, when, and everything they did." />
 
       <div className="audit-stats">
         <div className="audit-stat">

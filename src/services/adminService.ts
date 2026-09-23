@@ -18,8 +18,9 @@ export interface PendingUser {
   email: string;
   name: string | null;
   role: "source" | "testing" | "central-admin" | "admin";
-  status: "pending" | "active" | "rejected";
+  status: "pending" | "active" | "rejected" | "inactive";
   reviewed_by: string | null;
+  reviewed_by_name: string | null;
   reviewed_at: string | null;
   created_at: string;
 }
@@ -53,6 +54,16 @@ export const reviewUser = async (
   status: "active" | "rejected"
 ): Promise<PendingUser> => {
   const { data } = await apiClient.patch<PendingUser>(`/users/${userId}`, { status });
+  return data;
+};
+
+/** Suspends (or restores) an existing account without deleting it -- blocks
+ * login and, if they're already mid-session, revokes access on their next
+ * page load (see GET /api/auth/me). */
+export const setUserActive = async (userId: string, active: boolean): Promise<PendingUser> => {
+  const { data } = await apiClient.patch<PendingUser>(`/users/${userId}`, {
+    status: active ? "active" : "inactive",
+  });
   return data;
 };
 
@@ -93,14 +104,6 @@ export const updateUserDetails = async (
 
 export const setUserPassword = async (userId: string, newPassword: string) => {
   const { data } = await apiClient.patch(`/users/${userId}/password`, { newPassword });
-  return data;
-};
-
-export const setUserRole = async (
-  userId: string,
-  role: "source" | "testing" | "central-admin" | "admin"
-): Promise<PendingUser> => {
-  const { data } = await apiClient.patch<PendingUser>(`/users/${userId}`, { role });
   return data;
 };
 

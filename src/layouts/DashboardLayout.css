@@ -146,6 +146,25 @@
   box-shadow: var(--shadow);
 }
 
+.topbar-bell-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+@keyframes topbar-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.topbar-refresh-icon {
+  display: inline-block;
+}
+
+.topbar-refresh-icon.spinning {
+  animation: topbar-refresh-spin 0.7s linear infinite;
+}
+
 .topbar-bell-badge {
   position: absolute;
   top: -4px;
@@ -247,6 +266,11 @@
   box-shadow: var(--shadow);
 }
 
+.topbar-report-bug-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .topbar-breadcrumb {
   display: flex;
   align-items: center;
@@ -294,19 +318,6 @@
 .testing-main h1 {
   font-size: 20px;
   margin: 0;
-}
-
-/* Keeps each page's heading (and its action buttons, where the header row
- * has any) visible while scrolling long content instead of scrolling away
- * with it. Applied per-page since header markup/classes vary. A hairline
- * border + soft shadow give it a clean separation from content scrolling
- * underneath, rather than an abrupt hard edge. */
-.sticky-page-header {
-  background: var(--bg-app);
-  padding-top: 2px;
-  padding-bottom: 14px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--border-soft);
 }
 
 /* Sidebar profile card, replacing the old top navbar */
@@ -490,9 +501,5 @@
   .testing-main {
     padding: 0;
     overflow: visible;
-  }
-
-  .sticky-page-header {
-    position: static;
   }
 }

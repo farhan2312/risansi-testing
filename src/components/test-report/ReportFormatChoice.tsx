@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import "./ReportFormatChoice.css";
+import PageHeader, { pageHeaderButton } from "@/components/ui/PageHeader";
 
 interface ReportFormatChoiceProps {
   heading: string;
@@ -22,13 +23,16 @@ const ReportFormatChoice = ({
 }: ReportFormatChoiceProps) => {
   return (
     <div className="format-choice-page">
-      <div className="sticky-page-header">
-        <Link href={backHref} className="back-link">
-          &larr; {backLabel}
-        </Link>
-        <h1>{heading}</h1>
-        <p className="subtitle">{subheading}</p>
-      </div>
+      <PageHeader
+        icon="🧪"
+        title={heading}
+        subtitle={subheading}
+        actions={
+          <Link href={backHref} className={pageHeaderButton("secondary")}>
+            &larr; {backLabel}
+          </Link>
+        }
+      />
 
       <div className="format-choice-grid">
         <Link href={observationHref} className="format-card">

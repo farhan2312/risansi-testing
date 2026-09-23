@@ -8,6 +8,7 @@ import type { ArchivePumpGroup } from "@/types/testing";
 import { formatDate, formatNumber, motorWithKw } from "@/lib/formUtils";
 import Pagination from "@/components/ui/Pagination";
 import { SkeletonTableRows } from "@/components/ui/Skeleton";
+import PageHeader from "@/components/ui/PageHeader";
 
 const PAGE_SIZE = 50;
 
@@ -69,16 +70,20 @@ const ReportArchivePage = () => {
 
   return (
     <div className="archive-page">
-      <div className="archive-header sticky-page-header">
-        <h1>Report Archive</h1>
-        <input
-          type="text"
-          placeholder="Search by model or EC number..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          className="archive-search"
-        />
-      </div>
+      <PageHeader
+        icon="📄"
+        title="Report Archive"
+        subtitle="Every test report, grouped by pump · open a row to preview or download its reports."
+        actions={
+          <input
+            type="text"
+            placeholder="Search by model or EC number..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="archive-search"
+          />
+        }
+      />
 
       {error && <div className="archive-error">{error}</div>}
 

@@ -6,46 +6,79 @@ import {
   listAllUsers,
   listPendingUsers,
   reviewUser,
-  setUserRole,
+  setUserActive,
   type PendingUser,
   type UserStats,
 } from "@/services/adminService";
 import { useAuth } from "@/contexts/AuthContext";
+import { avatarColor, initialsOf } from "@/lib/avatar";
 import AddUserModal from "@/components/ui/AddUserModal";
 import EditUserModal from "@/components/ui/EditUserModal";
 import AdminSetPasswordModal from "@/components/ui/AdminSetPasswordModal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import Pagination from "@/components/ui/Pagination";
-import { SkeletonStatTiles, SkeletonTableRows } from "@/components/ui/Skeleton";
+import PageHeader, { pageHeaderButton } from "@/components/ui/PageHeader";
+import { SkeletonTableRows } from "@/components/ui/Skeleton";
 
 const PAGE_SIZE = 25;
 
-// "user" is a legacy/placeholder role, no longer assignable -- only shown
-// below if an existing account still has it, so it can be reassigned away.
 const ROLES = ["source", "testing", "central-admin", "admin"] as const;
 
 const ROLE_LABELS: Record<string, string> = {
   source: "Source",
   testing: "Testing",
   "central-admin": "Central Admin",
-  admin: "Admin",
+  admin: "System Admin",
 };
 
-const ROLE_BADGE_CLASSES: Record<string, string> = {
-  source: "text-text-muted border-text-muted",
-  testing: "text-info border-info",
-  "central-admin": "text-[#9a6b00] border-[#9a6b00]",
-  admin: "text-accent border-accent",
+const ROLE_PILL_CLASSES: Record<string, string> = {
+  source: "bg-surface-hover text-text-muted",
+  testing: "bg-info-soft text-info",
+  "central-admin": "bg-[#fef3c7] text-[#9a6b00]",
+  admin: "bg-[#ede9fe] text-[#7c3aed]",
 };
 
-const STATUS_BADGE_CLASSES: Record<string, string> = {
+const STATUS_LABELS: Record<string, string> = {
+  active: "Active",
+  pending: "Pending",
+  rejected: "Rejected",
+  inactive: "Inactive",
+};
+
+const STATUS_DOT_CLASSES: Record<string, string> = {
+  active: "bg-pos",
+  pending: "bg-warn",
+  rejected: "bg-neg",
+  inactive: "bg-text-faint",
+};
+
+const STATUS_PILL_CLASSES: Record<string, string> = {
   active: "bg-pos-soft text-pos-strong",
   pending: "bg-warn-soft text-warn",
   rejected: "bg-neg-soft text-neg-strong",
+  inactive: "bg-surface-hover text-text-muted",
 };
 
-const btnBase =
-  "inline-flex items-center rounded-md px-3.5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60";
+const smallBtnBase =
+  "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+const smallBtnSecondary = `${smallBtnBase} border border-border bg-surface text-text hover:bg-surface-hover`;
+const iconBtn =
+  "inline-flex h-7 w-7 items-center justify-center rounded-md text-sm transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-60";
+
+const formatShortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+/** "Added by" (admin-direct-creation, reviewed_at ~= created_at) vs
+ * "Approved by" (signed up, reviewed later) vs the terminal statuses --
+ * inferred from existing fields rather than a separate "what kind of
+ * review was this" column. */
+const reviewedLabel = (u: PendingUser): string => {
+  if (u.status === "rejected") return "Rejected by";
+  if (u.status === "inactive") return "Deactivated by";
+  const created = new Date(u.created_at).getTime();
+  const reviewed = u.reviewed_at ? new Date(u.reviewed_at).getTime() : created;
+  return reviewed - created < 5000 ? "Added by" : "Approved by";
+};
 
 const EMPTY_STATS: UserStats = { total: 0, pending: 0, active: 0, admins: 0 };
 
@@ -73,8 +106,8 @@ const AdminUsersPage = () => {
   const [passwordTarget, setPasswordTarget] = useState<PendingUser | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PendingUser | null>(null);
 
-  const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { user: loggedInUser } = useAuth();
@@ -134,17 +167,15 @@ const AdminUsersPage = () => {
     }
   };
 
-  const handleRoleChange = async (userId: string, role: (typeof ROLES)[number]) => {
-    setRoleUpdatingId(userId);
+  const handleToggleActive = async (u: PendingUser, active: boolean) => {
+    setTogglingId(u.id);
     try {
-      await setUserRole(userId, role);
-      // Full reload rather than an optimistic patch -- a role change can
-      // move the Admins & Central Admins KPI tile too.
+      await setUserActive(u.id, active);
       load();
     } catch {
-      setError("Couldn't update this user's role.");
+      setError(`Couldn't ${active ? "reactivate" : "deactivate"} this user.`);
     } finally {
-      setRoleUpdatingId(null);
+      setTogglingId(null);
     }
   };
 
@@ -167,48 +198,49 @@ const AdminUsersPage = () => {
 
   return (
     <div className="min-h-screen bg-bg-app p-10">
-      <div className="sticky-page-header flex flex-wrap items-start justify-between gap-5">
-        <div>
-          <h1 className="mb-1.5 text-xl font-semibold text-text-h">Users &amp; Access</h1>
-          <p className="text-sm text-text-muted">
-            Review access requests, manage every account, and control roles from one place.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowAddUser(true)}
-          className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-hover"
-        >
-          + Add User
-        </button>
-      </div>
-
-      {isLoading ? (
-        <SkeletonStatTiles count={4} />
-      ) : (
-        <div className="mb-6 grid grid-cols-2 gap-5 rounded-md border border-border bg-surface px-6 py-5 shadow-sm sm:grid-cols-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-2xl font-semibold tabular-nums text-text-h">{stats.total}</span>
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Total Users</span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className={`text-2xl font-semibold tabular-nums ${stats.pending > 0 ? "text-warn" : "text-text-h"}`}>
-              {stats.pending}
-            </span>
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Pending Requests</span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-2xl font-semibold tabular-nums text-pos">{stats.active}</span>
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Active Accounts</span>
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-2xl font-semibold tabular-nums text-text-h">{stats.admins}</span>
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-              Admins &amp; Central Admins
-            </span>
-          </div>
-        </div>
-      )}
+      <PageHeader
+        icon="👥"
+        title="Users & Access"
+        subtitle={isLoading ? "Loading…" : `${stats.total} users · ${stats.active} active${stats.pending > 0 ? ` · ${stats.pending} pending` : ""}`}
+        actions={
+          <>
+            <input
+              type="text"
+              placeholder="Search name, email, role..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitSearch()}
+              className="min-w-[220px] rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-text-h outline-none focus:border-accent focus:ring-2 focus:ring-accent-line"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => changeStatusFilter(e.target.value)}
+              className="rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text"
+            >
+              <option value="all">All status</option>
+              <option value="active">Active</option>
+              <option value="pending">Pending</option>
+              <option value="inactive">Inactive</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select
+              value={roleFilter}
+              onChange={(e) => changeRoleFilter(e.target.value)}
+              className="rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text"
+            >
+              <option value="all">All roles</option>
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABELS[r]}
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={() => setShowAddUser(true)} className={pageHeaderButton("primary")}>
+              <span aria-hidden="true">+</span> Add User
+            </button>
+          </>
+        }
+      />
 
       {error && <p className="mb-4 text-sm font-medium text-neg">{error}</p>}
 
@@ -237,26 +269,22 @@ const AdminUsersPage = () => {
                     <td className="px-4 py-3.5 text-sm text-text">{request.name}</td>
                     <td className="px-4 py-3.5 text-sm text-text">{request.email}</td>
                     <td className="px-4 py-3.5">
-                      <span
-                        className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold ${ROLE_BADGE_CLASSES[request.role] ?? "text-text-muted border-text-muted"}`}
-                      >
+                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_PILL_CLASSES[request.role] ?? "bg-surface-hover text-text-muted"}`}>
                         {ROLE_LABELS[request.role] ?? request.role}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 text-sm text-text-muted">
-                      {new Date(request.created_at).toLocaleString()}
-                    </td>
+                    <td className="px-4 py-3.5 text-sm text-text-muted">{formatShortDate(request.created_at)}</td>
                     <td className="px-4 py-3.5">
                       <div className="flex gap-2.5">
                         <button
-                          className={`${btnBase} bg-pos`}
+                          className={`${smallBtnBase} bg-pos text-white hover:opacity-90`}
                           disabled={reviewingId === request.id}
                           onClick={() => handleReview(request.id, "active")}
                         >
                           Approve
                         </button>
                         <button
-                          className={`${btnBase} bg-neg`}
+                          className={`${smallBtnBase} bg-neg text-white hover:opacity-90`}
                           disabled={reviewingId === request.id}
                           onClick={() => handleReview(request.id, "rejected")}
                         >
@@ -272,46 +300,6 @@ const AdminUsersPage = () => {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap gap-2.5">
-        <input
-          type="text"
-          placeholder="Search by name or email..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submitSearch()}
-          className="min-w-[220px] flex-1 rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-text-h outline-none focus:border-accent focus:ring-2 focus:ring-accent-line"
-        />
-        <button
-          type="button"
-          onClick={submitSearch}
-          className="rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text hover:bg-surface-hover"
-        >
-          Search
-        </button>
-        <select
-          value={roleFilter}
-          onChange={(e) => changeRoleFilter(e.target.value)}
-          className="rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text"
-        >
-          <option value="all">All roles</option>
-          {ROLES.map((r) => (
-            <option key={r} value={r}>
-              {ROLE_LABELS[r]}
-            </option>
-          ))}
-        </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => changeStatusFilter(e.target.value)}
-          className="rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text"
-        >
-          <option value="all">All statuses</option>
-          <option value="active">Active</option>
-          <option value="pending">Pending</option>
-          <option value="rejected">Rejected</option>
-        </select>
-      </div>
-
       {!isLoading && !error && users.length === 0 && (
         <p className="rounded-lg bg-surface p-8 text-center text-sm text-text-muted">No users match these filters.</p>
       )}
@@ -320,69 +308,122 @@ const AdminUsersPage = () => {
         <div className="overflow-hidden rounded-lg border border-border shadow-sm">
           <table className="w-full border-collapse">
             <thead>
-              <tr>
-                <th className="bg-accent px-4 py-3 text-left text-sm font-semibold text-white">Name</th>
-                <th className="bg-accent px-4 py-3 text-left text-sm font-semibold text-white">Email</th>
-                <th className="bg-accent px-4 py-3 text-left text-sm font-semibold text-white">Role</th>
-                <th className="bg-accent px-4 py-3 text-left text-sm font-semibold text-white">Status</th>
-                <th className="bg-accent px-4 py-3 text-left text-sm font-semibold text-white">Joined</th>
-                <th className="bg-accent px-4 py-3 text-left text-sm font-semibold text-white">Action</th>
+              <tr className="bg-bg-sunk">
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">User</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Role</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Status</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Requested</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Reviewed</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-surface">
               {isLoading && <SkeletonTableRows columns={6} cellClassName="px-4 py-3.5" />}
-              {!isLoading && users.map((u) => (
-                <tr key={u.id} className="border-t border-border transition-colors hover:bg-surface-hover">
-                  <td className="px-4 py-3.5 text-sm text-text">{u.name ?? "—"}</td>
-                  <td className="px-4 py-3.5 text-sm text-text">{u.email}</td>
-                  <td className="px-4 py-3.5">
-                    <select
-                      value={u.role}
-                      disabled={roleUpdatingId === u.id}
-                      onChange={(e) => handleRoleChange(u.id, e.target.value as (typeof ROLES)[number])}
-                      className="rounded-md border border-border bg-bg-app px-2.5 py-1.5 text-xs text-text capitalize disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {!(ROLES as readonly string[]).includes(u.role) && (
-                        <option value={u.role}>{u.role} (unassigned)</option>
-                      )}
-                      {ROLES.map((role) => (
-                        <option key={role} value={role}>
-                          {ROLE_LABELS[role]}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span
-                      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${STATUS_BADGE_CLASSES[u.status] ?? "bg-surface-hover text-text-muted"}`}
-                    >
-                      {u.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 text-sm text-text-muted">
-                    {new Date(u.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex flex-wrap gap-2.5">
-                      <button className={`${btnBase} bg-info`} onClick={() => setEditTarget(u)}>
-                        Edit
-                      </button>
-                      <button className={`${btnBase} bg-pos`} onClick={() => setPasswordTarget(u)}>
-                        Reset Password
-                      </button>
-                      {u.id !== currentUserId && (
-                        <button
-                          className={`${btnBase} bg-neg`}
-                          disabled={deletingId === u.id}
-                          onClick={() => setDeleteTarget(u)}
-                        >
-                          {deletingId === u.id ? "Deleting..." : "Delete"}
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {!isLoading &&
+                users.map((u) => {
+                  const displayName = u.name ?? u.email;
+                  return (
+                    <tr key={u.id} className="border-t border-border transition-colors hover:bg-surface-hover">
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <span
+                            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                            style={{ background: avatarColor(displayName) }}
+                          >
+                            {initialsOf(displayName)}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-text-h">{u.name ?? u.email}</div>
+                            <div className="truncate text-xs text-text-muted">{u.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_PILL_CLASSES[u.role] ?? "bg-surface-hover text-text-muted"}`}>
+                          {ROLE_LABELS[u.role] ?? u.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_PILL_CLASSES[u.status] ?? "bg-surface-hover text-text-muted"}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT_CLASSES[u.status] ?? "bg-text-faint"}`} />
+                          {STATUS_LABELS[u.status] ?? u.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-sm text-text-muted">{formatShortDate(u.created_at)}</td>
+                      <td className="px-4 py-3.5">
+                        {u.reviewed_at ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs text-text-muted">
+                              {reviewedLabel(u)} <strong className="font-semibold text-text-h">{u.reviewed_by_name ?? "someone"}</strong>
+                            </span>
+                            <span className="text-[11px] text-text-faint">{formatShortDate(u.reviewed_at)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-text-faint">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {u.status === "active" && u.id !== currentUserId && (
+                            <button
+                              className={smallBtnSecondary}
+                              disabled={togglingId === u.id}
+                              onClick={() => handleToggleActive(u, false)}
+                            >
+                              ⏸ Deactivate
+                            </button>
+                          )}
+                          {u.status === "inactive" && (
+                            <button
+                              className={smallBtnSecondary}
+                              disabled={togglingId === u.id}
+                              onClick={() => handleToggleActive(u, true)}
+                            >
+                              ▶ Activate
+                            </button>
+                          )}
+                          <button className={smallBtnSecondary} onClick={() => setEditTarget(u)}>
+                            ✏️ Edit
+                          </button>
+                          <button
+                            className={iconBtn}
+                            onClick={() => setPasswordTarget(u)}
+                            title="Reset Password"
+                            aria-label="Reset Password"
+                          >
+                            🔑
+                          </button>
+                          {u.id !== currentUserId && (
+                            <button
+                              className={`${iconBtn} text-neg`}
+                              disabled={deletingId === u.id}
+                              onClick={() => setDeleteTarget(u)}
+                              title="Delete"
+                              aria-label="Delete"
+                            >
+                              <svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  strokeWidth="2"
+  strokeLinecap="round"
+  strokeLinejoin="round"
+  className="w-5 h-5 text-red-500 hover:text-red-700 cursor-pointer transition-colors"
+>
+  <path d="M3 6h18" />
+  <path d="M8 6V4h8v2" />
+  <path d="M19 6l-1 14H6L5 6" />
+  <path d="M10 11v5" />
+  <path d="M14 11v5" />
+</svg>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>

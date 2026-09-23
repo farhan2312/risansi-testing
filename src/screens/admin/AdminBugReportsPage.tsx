@@ -6,7 +6,9 @@ import "./AdminBugReportsPage.css";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import BugReportDetailModal from "@/components/ui/BugReportDetailModal";
 import { Skeleton } from "@/components/ui/Skeleton";
+import PageHeader from "@/components/ui/PageHeader";
 import { timeAgo } from "@/lib/formUtils";
+import { avatarColor, initialsOf } from "@/lib/avatar";
 import {
   deleteBugReport,
   listBugReports,
@@ -29,19 +31,6 @@ const DOT_COLORS: Record<string, string> = {
 };
 
 const severityPillClass = (severity: string) => `bug-severity-pill bug-severity-pill-${severity.toLowerCase()}`;
-
-const AVATAR_COLORS = ["#f97066", "#f79009", "#2e90fa", "#7a5af8", "#ee46bc", "#0ba5ec", "#84cc16", "#fb7185"];
-const avatarColor = (name: string) => {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-};
-const initialsOf = (name: string) => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-};
 
 interface ColumnState {
   cards: BugReport[];
@@ -398,22 +387,23 @@ const AdminBugReportsPage = () => {
 
   return (
     <div className="admin-requests-page">
-      <div className="admin-requests-header sticky-page-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <h1>Bug Reports</h1>
-          <p>Reports filed from the "Report a Bug" widget · drag a card to change its status.</p>
-        </div>
-        {!anyLoading && (
-          <div className="bug-header-stats">
-            <span className="bug-header-stat">
-              <strong>{openCount}</strong> open
-            </span>
-            <span className="bug-header-stat">
-              <strong>{totalCount}</strong> total
-            </span>
-          </div>
-        )}
-      </div>
+      <PageHeader
+        icon="🐛"
+        title="Bug Reports"
+        subtitle='Reports filed from the "Report a Bug" widget · drag a card to change its status.'
+        actions={
+          !anyLoading && (
+            <div className="bug-header-stats">
+              <span className="bug-header-stat">
+                <strong>{openCount}</strong> open
+              </span>
+              <span className="bug-header-stat">
+                <strong>{totalCount}</strong> total
+              </span>
+            </div>
+          )
+        }
+      />
 
       <div className="bug-toolbar">
         <input

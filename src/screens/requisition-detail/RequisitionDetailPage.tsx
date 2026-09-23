@@ -15,6 +15,7 @@ import {
 import { dedupCheck, getRequisition, openAttachment, updateRequisition } from "@/services/testingService";
 import { useAuth } from "@/contexts/AuthContext";
 import { SkeletonPage } from "@/components/ui/Skeleton";
+import PageHeader, { pageHeaderButton } from "@/components/ui/PageHeader";
 import { ecQuotationLabel } from "@/types/testing";
 import type { DedupCheckResult, PumpTestReport, TestRequisition } from "@/types/testing";
 
@@ -108,10 +109,11 @@ const RequisitionDetailPage = () => {
 
   return (
     <div className="requisition-detail-page">
-      <div className="detail-header sticky-page-header">
-        <div>
-          <h1>{requisition.model}</h1>
-          {requisition.status === "Closed" && submittedReport ? (
+      <PageHeader
+        icon="📋"
+        title={requisition.model}
+        subtitle={
+          requisition.status === "Closed" && submittedReport ? (
             <Link href={`/reports/${submittedReport.report_no ?? submittedReport.id}`} className="status-pill status-view-report">
               View Report
             </Link>
@@ -119,19 +121,24 @@ const RequisitionDetailPage = () => {
             <span className={`status-pill status-${requisition.status.replace(/\s+/g, "-").toLowerCase()}`}>
               {requisition.status}
             </span>
-          )}
-        </div>
-        <div className="detail-header-actions">
-          {canEditRequisition && (
-            <Link href={`/requisitions/${requisition.requisition_no ?? requisition.id}/edit`} className="edit-report-btn">
-              Edit
+          )
+        }
+        actions={
+          <>
+            {canEditRequisition && (
+              <Link
+                href={`/requisitions/${requisition.requisition_no ?? requisition.id}/edit`}
+                className={pageHeaderButton("secondary")}
+              >
+                ✏️ Edit
+              </Link>
+            )}
+            <Link href="/dashboard" className={pageHeaderButton("secondary")}>
+              &larr; Back to testing summaries
             </Link>
-          )}
-          <Link href="/dashboard" className="back-link">
-            &larr; Back to testing summaries
-          </Link>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <section className="detail-card">
         <h2>Testing Summary Details</h2>

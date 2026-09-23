@@ -10,6 +10,7 @@ import { POINT_ROWS } from "@/components/report-detail/ReportDetailSections";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 import { getPumpDashboard } from "@/services/testingService";
 import { SkeletonPage } from "@/components/ui/Skeleton";
+import PageHeader, { pageHeaderButton } from "@/components/ui/PageHeader";
 import type { PumpDashboardData, PumpTestReport } from "@/types/testing";
 import { formatDate, formatNumber, installedPowerLabel, motorWithKw } from "@/lib/formUtils";
 
@@ -143,12 +144,16 @@ const PumpDashboardPage = () => {
 
   return (
     <div className="pump-dashboard-page">
-      <div className="pump-dashboard-header sticky-page-header">
-        <h1>{data.model}</h1>
-        <Link href="/pumps" className="back-link">
-          &larr; Back to report compilation
-        </Link>
-      </div>
+      <PageHeader
+        icon="⚙️"
+        title={data.model}
+        subtitle="Every requisition and report for this pump, aligned over time."
+        actions={
+          <Link href="/pumps" className={pageHeaderButton("secondary")}>
+            &larr; Back to Report Compilation
+          </Link>
+        }
+      />
 
       <div className="pump-summary-stats">
         <div className="pump-summary-stat">

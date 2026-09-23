@@ -12,6 +12,7 @@ import { ratedPowerKwFromRequisition } from "@/lib/requirementCheck";
 import AttachmentsField from "@/components/ui/AttachmentsField";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { SkeletonPage } from "@/components/ui/Skeleton";
+import PageHeader from "@/components/ui/PageHeader";
 import {
   deleteAttachment,
   getRequisition,
@@ -169,10 +170,7 @@ const EditRequisitionPage = () => {
 
   return (
     <div className="requisition-form-page">
-      <div className="sticky-page-header">
-        <h1>Edit Testing Summary</h1>
-        <p className="subtitle">Correct the intake details for this testing summary.</p>
-      </div>
+      <PageHeader icon="✏️" title="Edit Testing Summary" subtitle="Correct the intake details for this testing summary." />
 
       {submitError && <div className="form-error-banner">{submitError}</div>}
 
