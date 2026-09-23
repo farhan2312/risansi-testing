@@ -1,52 +1,374 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./AdminShared.css";
 import "./AdminBugReportsPage.css";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import BugReportDetailModal from "@/components/ui/BugReportDetailModal";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { timeAgo } from "@/lib/formUtils";
 import {
   deleteBugReport,
   listBugReports,
   openBugReportScreenshot,
   setBugReportStatus,
+  type BugReportFilters,
 } from "@/services/adminService";
 import type { BugReport, BugReportStatus } from "@/types/testing";
 
-const STATUS_TABS: (BugReportStatus | "All")[] = ["All", "Open", "In Progress", "Resolved"];
-const STATUSES: BugReportStatus[] = ["Open", "In Progress", "Resolved"];
+const PAGE_SIZE = 10;
+const COLUMNS: { status: BugReportStatus; title: string; dotClass: string }[] = [
+  { status: "Open", title: "Open", dotClass: "status-open" },
+  { status: "In Progress", title: "In Progress", dotClass: "status-in-progress" },
+  { status: "Resolved", title: "Resolved", dotClass: "status-resolved" },
+];
+const DOT_COLORS: Record<string, string> = {
+  "status-open": "var(--info)",
+  "status-in-progress": "var(--warn)",
+  "status-resolved": "var(--pos)",
+};
 
-const severityClass = (severity: string) => `bug-severity bug-severity-${severity.toLowerCase()}`;
+const severityPillClass = (severity: string) => `bug-severity-pill bug-severity-pill-${severity.toLowerCase()}`;
+
+const AVATAR_COLORS = ["#f97066", "#f79009", "#2e90fa", "#7a5af8", "#ee46bc", "#0ba5ec", "#84cc16", "#fb7185"];
+const avatarColor = (name: string) => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+};
+const initialsOf = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+interface ColumnState {
+  cards: BugReport[];
+  page: number;
+  total: number;
+  isLoading: boolean;
+  isLoadingMore: boolean;
+}
+
+const emptyColumn = (): ColumnState => ({ cards: [], page: 0, total: 0, isLoading: true, isLoadingMore: false });
+
+interface DraggedCard {
+  id: string;
+  from: BugReportStatus;
+}
+
+interface BugCardProps {
+  report: BugReport;
+  isDragging: boolean;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onDelete: () => void;
+  onOpen: () => void;
+}
+
+const BugCard = ({ report: r, isDragging, onDragStart, onDragEnd, onDelete, onOpen }: BugCardProps) => {
+  const reporterName = r.reported_by_name ?? "Unknown";
+  return (
+    <div
+      className={`bug-card ${isDragging ? "dragging" : ""} ${!r.is_read ? "unread" : ""}`}
+      draggable
+      onClick={onOpen}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", r.id);
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
+    >
+      <div className="bug-card-top">
+        <span className={`bug-card-icon ${r.type === "bug" ? "bug-card-icon-bug" : "bug-card-icon-feature"}`}>
+          {r.type === "bug" ? "🐛" : "✨"}
+        </span>
+        <span className="bug-card-title">
+          {!r.is_read && <span className="bug-unread-dot" aria-label="Unread" />}
+          {r.title}
+        </span>
+      </div>
+      {r.description && <div className="bug-card-description">{r.description}</div>}
+      <div className="bug-card-tags">
+        <span className={severityPillClass(r.severity)}>{r.severity}</span>
+        {r.page && <span className="bug-page-tag">{r.page}</span>}
+        {r.has_screenshot && <span className="bug-attachment-icon">📎</span>}
+      </div>
+      <div className="bug-card-footer">
+        <div className="bug-card-reporter">
+          <span className="bug-avatar" style={{ background: avatarColor(reporterName) }}>
+            {initialsOf(reporterName)}
+          </span>
+          <span className="bug-card-reporter-name">{reporterName}</span>
+        </div>
+        <div className="bug-card-footer-actions">
+          {r.has_screenshot && (
+            <button
+              type="button"
+              className="bug-link-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                openBugReportScreenshot(r.id);
+              }}
+            >
+              View
+            </button>
+          )}
+          <button
+            type="button"
+            className="bug-card-delete-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >
+            Delete
+          </button>
+          <span className="bug-card-time">{timeAgo(r.created_at)}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface KanbanColumnProps {
+  status: BugReportStatus;
+  title: string;
+  dotClass: string;
+  column: ColumnState;
+  draggingId: string | null;
+  isDragOver: boolean;
+  onLoadMore: () => void;
+  onDragStartCard: (id: string) => void;
+  onDragEndCard: () => void;
+  onDragOverColumn: () => void;
+  onDragLeaveColumn: () => void;
+  onDropColumn: () => void;
+  onDeleteCard: (report: BugReport) => void;
+  onOpenCard: (report: BugReport) => void;
+}
+
+const KanbanColumn = ({
+  status,
+  title,
+  dotClass,
+  column,
+  draggingId,
+  isDragOver,
+  onLoadMore,
+  onDragStartCard,
+  onDragEndCard,
+  onDragOverColumn,
+  onDragLeaveColumn,
+  onDropColumn,
+  onDeleteCard,
+  onOpenCard,
+}: KanbanColumnProps) => {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const onLoadMoreRef = useRef(onLoadMore);
+  onLoadMoreRef.current = onLoadMore;
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    const root = bodyRef.current;
+    if (!sentinel || !root) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) onLoadMoreRef.current();
+      },
+      { root, rootMargin: "80px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      className={`bug-kanban-column ${isDragOver ? "drag-over" : ""}`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        onDragOverColumn();
+      }}
+      onDragLeave={onDragLeaveColumn}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDropColumn();
+      }}
+    >
+      <div className="bug-kanban-column-header">
+        <span className="bug-kanban-column-dot" style={{ background: DOT_COLORS[dotClass] }} />
+        <span className="bug-kanban-column-title">{title}</span>
+        <span className="bug-kanban-column-count">{column.isLoading ? "-" : column.total}</span>
+      </div>
+      <div className="bug-kanban-column-body" ref={bodyRef}>
+        {column.isLoading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="skeleton-card">
+              <Skeleton height={14} width="60%" />
+              <Skeleton height={11} width="90%" />
+              <Skeleton height={11} width="75%" />
+            </div>
+          ))
+        ) : column.cards.length === 0 ? (
+          <p className="bug-kanban-empty">Nothing here</p>
+        ) : (
+          <>
+            {column.cards.map((r) => (
+              <BugCard
+                key={r.id}
+                report={r}
+                isDragging={draggingId === r.id}
+                onDragStart={() => onDragStartCard(r.id)}
+                onDragEnd={onDragEndCard}
+                onDelete={() => onDeleteCard(r)}
+                onOpen={() => onOpenCard(r)}
+              />
+            ))}
+            {column.cards.length < column.total && <div ref={sentinelRef} className="bug-kanban-sentinel" />}
+            {column.isLoadingMore && <p className="bug-kanban-loading-more">Loading more...</p>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const AdminBugReportsPage = () => {
-  const [reports, setReports] = useState<BugReport[]>([]);
-  const [activeTab, setActiveTab] = useState<BugReportStatus | "All">("All");
-  const [isLoading, setIsLoading] = useState(true);
+  const [columns, setColumns] = useState<Record<BugReportStatus, ColumnState>>({
+    Open: emptyColumn(),
+    "In Progress": emptyColumn(),
+    Resolved: emptyColumn(),
+  });
   const [error, setError] = useState("");
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<BugReport | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [draggedCard, setDraggedCard] = useState<DraggedCard | null>(null);
+  const [dragOverStatus, setDragOverStatus] = useState<BugReportStatus | null>(null);
+  const [viewingReport, setViewingReport] = useState<BugReport | null>(null);
 
-  const load = () => {
-    setIsLoading(true);
-    setError("");
-    listBugReports()
-      .then(setReports)
-      .catch(() => setError("Could not load bug reports."))
-      .finally(() => setIsLoading(false));
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"" | "bug" | "feature">("");
+  const [severityFilter, setSeverityFilter] = useState<"" | "Low" | "Medium" | "High" | "Critical">("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const filters: BugReportFilters = {
+    search: search || undefined,
+    type: typeFilter || undefined,
+    severity: severityFilter || undefined,
+  };
+  const filtersKey = JSON.stringify(filters);
+
+  // Whenever the search/type/severity filter changes, every column starts
+  // over at page 1 against the new filtered set -- an in-flight load for
+  // the old filter (loadMore or the initial load) is ignored if it lands
+  // after a newer filter has already taken over.
+  useEffect(() => {
+    let cancelled = false;
+    setColumns({ Open: emptyColumn(), "In Progress": emptyColumn(), Resolved: emptyColumn() });
+    for (const { status } of COLUMNS) {
+      listBugReports(status, 1, PAGE_SIZE, filters)
+        .then((result) => {
+          if (cancelled) return;
+          setColumns((prev) => ({
+            ...prev,
+            [status]: { cards: result.entries, page: 1, total: result.total, isLoading: false, isLoadingMore: false },
+          }));
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setError("Could not load bug reports.");
+          setColumns((prev) => ({ ...prev, [status]: { ...prev[status], isLoading: false } }));
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersKey]);
+
+  const loadMore = async (status: BugReportStatus) => {
+    const col = columns[status];
+    if (col.isLoading || col.isLoadingMore || col.cards.length >= col.total) return;
+    const nextPage = col.page + 1;
+    setColumns((prev) => ({ ...prev, [status]: { ...prev[status], isLoadingMore: true } }));
+    try {
+      const result = await listBugReports(status, nextPage, PAGE_SIZE, filters);
+      setColumns((prev) => ({
+        ...prev,
+        [status]: {
+          cards: [...prev[status].cards, ...result.entries],
+          page: nextPage,
+          total: result.total,
+          isLoading: false,
+          isLoadingMore: false,
+        },
+      }));
+    } catch {
+      setError("Could not load more bug reports.");
+      setColumns((prev) => ({ ...prev, [status]: { ...prev[status], isLoadingMore: false } }));
+    }
   };
 
-  useEffect(load, []);
+  const handleDrop = async (targetStatus: BugReportStatus) => {
+    setDragOverStatus(null);
+    const dragged = draggedCard;
+    setDraggedCard(null);
+    if (!dragged || dragged.from === targetStatus) return;
 
-  const handleStatusChange = async (report: BugReport, status: BugReportStatus) => {
-    setUpdatingId(report.id);
+    const { id, from } = dragged;
+    const card = columns[from].cards.find((c) => c.id === id);
+    if (!card) return;
+
+    setColumns((prev) => ({
+      ...prev,
+      [from]: {
+        ...prev[from],
+        cards: prev[from].cards.filter((c) => c.id !== id),
+        total: Math.max(0, prev[from].total - 1),
+      },
+      [targetStatus]: {
+        ...prev[targetStatus],
+        cards: [{ ...card, status: targetStatus }, ...prev[targetStatus].cards],
+        total: prev[targetStatus].total + 1,
+      },
+    }));
+
     try {
-      const updated = await setBugReportStatus(report.id, status);
-      setReports((prev) => prev.map((r) => (r.id === report.id ? updated : r)));
+      await setBugReportStatus(id, targetStatus);
     } catch {
       setError("Could not update status. Please try again.");
-    } finally {
-      setUpdatingId(null);
+      setColumns((prev) => ({
+        ...prev,
+        [from]: { ...prev[from], cards: [card, ...prev[from].cards], total: prev[from].total + 1 },
+        [targetStatus]: {
+          ...prev[targetStatus],
+          cards: prev[targetStatus].cards.filter((c) => c.id !== id),
+          total: Math.max(0, prev[targetStatus].total - 1),
+        },
+      }));
     }
+  };
+
+  // The modal's own fetch is what actually marks the report read
+  // server-side -- this just reflects that back into the card so its
+  // unread dot disappears without waiting on a full column reload.
+  const handleReportRead = (updated: BugReport) => {
+    setColumns((prev) => ({
+      ...prev,
+      [updated.status]: {
+        ...prev[updated.status],
+        cards: prev[updated.status].cards.map((c) => (c.id === updated.id ? updated : c)),
+      },
+    }));
   };
 
   const handleDelete = async () => {
@@ -54,7 +376,14 @@ const AdminBugReportsPage = () => {
     setIsDeleting(true);
     try {
       await deleteBugReport(pendingDelete.id);
-      setReports((prev) => prev.filter((r) => r.id !== pendingDelete.id));
+      setColumns((prev) => ({
+        ...prev,
+        [pendingDelete.status]: {
+          ...prev[pendingDelete.status],
+          cards: prev[pendingDelete.status].cards.filter((c) => c.id !== pendingDelete.id),
+          total: Math.max(0, prev[pendingDelete.status].total - 1),
+        },
+      }));
       setPendingDelete(null);
     } catch {
       setError("Could not delete this report. Please try again.");
@@ -63,101 +392,83 @@ const AdminBugReportsPage = () => {
     }
   };
 
-  const filtered = activeTab === "All" ? reports : reports.filter((r) => r.status === activeTab);
+  const anyLoading = COLUMNS.some(({ status }) => columns[status].isLoading);
+  const openCount = columns.Open.total + columns["In Progress"].total;
+  const totalCount = COLUMNS.reduce((sum, { status }) => sum + columns[status].total, 0);
 
   return (
     <div className="admin-requests-page">
-      <div className="admin-requests-header sticky-page-header">
-        <h1>Bug Reports</h1>
-        <p>Issues and feature requests submitted from the "Report a Bug" widget.</p>
+      <div className="admin-requests-header sticky-page-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <h1>Bug Reports</h1>
+          <p>Reports filed from the "Report a Bug" widget · drag a card to change its status.</p>
+        </div>
+        {!anyLoading && (
+          <div className="bug-header-stats">
+            <span className="bug-header-stat">
+              <strong>{openCount}</strong> open
+            </span>
+            <span className="bug-header-stat">
+              <strong>{totalCount}</strong> total
+            </span>
+          </div>
+        )}
       </div>
 
-      <div className="bug-status-tabs">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            className={activeTab === tab ? "bug-status-tab active" : "bug-status-tab"}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-            {tab !== "All" && (
-              <span className="bug-status-tab-count">{reports.filter((r) => r.status === tab).length}</span>
-            )}
-          </button>
+      <div className="bug-toolbar">
+        <input
+          type="text"
+          placeholder="Search title, description, reporter, page..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+        />
+        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}>
+          <option value="">All types</option>
+          <option value="bug">Bug</option>
+          <option value="feature">Feature</option>
+        </select>
+        <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value as typeof severityFilter)}>
+          <option value="">All severities</option>
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+          <option value="Critical">Critical</option>
+        </select>
+      </div>
+
+      {error && <p className="error-message">{error}</p>}
+
+      <div className="bug-kanban">
+        {COLUMNS.map(({ status, title, dotClass }) => (
+          <KanbanColumn
+            key={status}
+            status={status}
+            title={title}
+            dotClass={dotClass}
+            column={columns[status]}
+            draggingId={draggedCard?.id ?? null}
+            isDragOver={dragOverStatus === status}
+            onLoadMore={() => loadMore(status)}
+            onDragStartCard={(id) => setDraggedCard({ id, from: status })}
+            onDragEndCard={() => {
+              setDraggedCard(null);
+              setDragOverStatus(null);
+            }}
+            onDragOverColumn={() => setDragOverStatus(status)}
+            onDragLeaveColumn={() => setDragOverStatus((s) => (s === status ? null : s))}
+            onDropColumn={() => handleDrop(status)}
+            onDeleteCard={setPendingDelete}
+            onOpenCard={setViewingReport}
+          />
         ))}
       </div>
 
-      {isLoading && <p>Loading...</p>}
-      {error && <p className="error-message">{error}</p>}
-
-      {!isLoading && !error && filtered.length === 0 && <p className="empty-state">Nothing here.</p>}
-
-      {!isLoading && !error && filtered.length > 0 && (
-        <table className="admin-requests-table">
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Title</th>
-              <th>Severity</th>
-              <th>Page</th>
-              <th>Reported By</th>
-              <th>Date</th>
-              <th>Status</th>
-              <th>Screenshot</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((r) => (
-              <tr key={r.id}>
-                <td>
-                  <span className={r.type === "bug" ? "bug-type-badge bug-type-badge-bug" : "bug-type-badge bug-type-badge-feature"}>
-                    {r.type === "bug" ? "Bug" : "Feature"}
-                  </span>
-                </td>
-                <td>
-                  <strong>{r.title}</strong>
-                  {r.description && <div className="bug-description">{r.description}</div>}
-                </td>
-                <td>
-                  <span className={severityClass(r.severity)}>{r.severity}</span>
-                </td>
-                <td>{r.page ?? "-"}</td>
-                <td>{r.reported_by_name ?? "-"}</td>
-                <td>{new Date(r.created_at).toLocaleString()}</td>
-                <td>
-                  <select
-                    className="role-select"
-                    value={r.status}
-                    disabled={updatingId === r.id}
-                    onChange={(e) => handleStatusChange(r, e.target.value as BugReportStatus)}
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  {r.has_screenshot ? (
-                    <button type="button" className="bug-link-btn" onClick={() => openBugReportScreenshot(r.id)}>
-                      View
-                    </button>
-                  ) : (
-                    "-"
-                  )}
-                </td>
-                <td>
-                  <button type="button" className="reject-btn" onClick={() => setPendingDelete(r)}>
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {viewingReport && (
+        <BugReportDetailModal
+          reportId={viewingReport.id}
+          onClose={() => setViewingReport(null)}
+          onRead={handleReportRead}
+        />
       )}
 
       {pendingDelete && (

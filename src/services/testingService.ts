@@ -1,6 +1,7 @@
 import apiClient from "./apiClient";
 import type {
   ActionRegistryEntry,
+  ArchivePumpGroup,
   ArchiveReportSummary,
   BugReport,
   BugReportSeverity,
@@ -8,18 +9,62 @@ import type {
   DedupCheckResult,
   NewReportInput,
   NewRequisitionInput,
+  PaginatedResult,
   PortalOverview,
   PumpDashboardData,
+  PumpIndexListResult,
   PumpTestReport,
   RequisitionAttachment,
+  RequisitionFilterOptions,
+  RequisitionListResult,
   RequisitionStatus,
+  TargetDateAlertResult,
   TestRequisition,
 } from "../types/testing";
 
-export const listRequisitions = async (status?: RequisitionStatus): Promise<TestRequisition[]> => {
-  const { data } = await apiClient.get<TestRequisition[]>("/requisitions", {
+export interface RequisitionFilters {
+  model?: string;
+  ec_quotation_no?: string;
+  category?: string;
+  source_team?: string;
+  responsible_person?: string;
+  submitted_by?: string;
+  retest_needed?: "true" | "false";
+  month?: string;
+  date_from?: string;
+  date_to?: string;
+  report_result?: "green" | "red";
+}
+
+/** Server-paginated, 25/page, with the Testing Summary filter bar's full
+ * filter set applied server-side. */
+export const listRequisitions = async (
+  status?: RequisitionStatus,
+  page = 1,
+  filters?: RequisitionFilters
+): Promise<RequisitionListResult> => {
+  const { data } = await apiClient.get<RequisitionListResult>("/requisitions", {
+    params: { ...(status ? { status } : {}), page, ...filters },
+  });
+  return data;
+};
+
+/** Distinct Model / Submitted By / month values for the filter bar's
+ * dropdowns, scoped to the given status tab -- see that route for why this
+ * can't just be derived from the (now paginated) row list. */
+export const getRequisitionFilterOptions = async (
+  status?: RequisitionStatus
+): Promise<RequisitionFilterOptions> => {
+  const { data } = await apiClient.get<RequisitionFilterOptions>("/requisitions/filter-options", {
     params: status ? { status } : undefined,
   });
+  return data;
+};
+
+/** Pending/Retest Needed requisitions due within 5 days whose Responsible
+ * Person matches the logged-in user -- backs the sidebar target-date bell. */
+export const getTargetDateAlerts = async (): Promise<TargetDateAlertResult> => {
+  const { data } = await apiClient.get<TargetDateAlertResult>("/requisitions/target-date-alerts");
   return data;
 };
 
@@ -97,6 +142,30 @@ export const getPumpDashboard = async (model: string): Promise<PumpDashboardData
   return data;
 };
 
+export interface PumpIndexFilters {
+  model?: string;
+  ec_quotation_no?: string;
+  category?: string;
+  source_team?: string;
+  responsible_person?: string;
+  submitted_by?: string;
+  retest_needed?: "Yes" | "No";
+  month?: string;
+  date_from?: string;
+  date_to?: string;
+  stat_filter?: "historical" | "met" | "unmet";
+  search?: string;
+}
+
+/** Report Compilation, server-paginated 50 pump-groups/page (see
+ * GET /api/pumps for why this paginates groups rather than rows). */
+export const listGroupedPumps = async (page = 1, filters?: PumpIndexFilters): Promise<PumpIndexListResult> => {
+  const { data } = await apiClient.get<PumpIndexListResult>("/pumps", {
+    params: { page, ...filters },
+  });
+  return data;
+};
+
 /** Portal-wide counts for the landing overview page. Optional from/to
  * ("YYYY-MM-DD") narrows every count to that window -- omit both for the
  * all-time snapshot. */
@@ -113,6 +182,18 @@ export const submitReport = async (input: NewReportInput): Promise<PumpTestRepor
 export const listReports = async (model?: string): Promise<ArchiveReportSummary[]> => {
   const { data } = await apiClient.get<ArchiveReportSummary[]>("/reports", {
     params: { limit: 500, ...(model ? { model } : {}) },
+  });
+  return data;
+};
+
+/** Report Archive, server-paginated 50 pump-groups/page (see
+ * /api/reports/grouped for why this paginates groups rather than rows). */
+export const listGroupedReports = async (
+  page = 1,
+  search?: string
+): Promise<PaginatedResult<ArchivePumpGroup>> => {
+  const { data } = await apiClient.get<PaginatedResult<ArchivePumpGroup>>("/reports/grouped", {
+    params: { page, ...(search ? { search } : {}) },
   });
   return data;
 };

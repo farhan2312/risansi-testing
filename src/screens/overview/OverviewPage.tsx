@@ -6,6 +6,7 @@ import "../dashboard/DashboardPage.css"; // reuses .status-pill / .status-* colo
 import "./OverviewPage.css";
 import { getOverview } from "@/services/testingService";
 import { useAuth } from "@/contexts/AuthContext";
+import { SkeletonPage } from "@/components/ui/Skeleton";
 import { formatDate } from "@/lib/formUtils";
 import type { PortalOverview } from "@/types/testing";
 
@@ -70,7 +71,7 @@ const OverviewPage = () => {
     };
   }, [dateFrom, dateTo]);
 
-  if (isLoading && !data) return <p className="detail-empty">Loading...</p>;
+  if (isLoading && !data) return <SkeletonPage cards={3} />;
   if (loadError || !data) return <p className="detail-empty">{loadError || "Nothing to show."}</p>;
 
   const judgedTotal = data.requirement_met + data.requirement_unmet;

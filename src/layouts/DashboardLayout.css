@@ -120,6 +120,116 @@
   border-bottom: 1px solid var(--border);
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-bell-btn {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  font-size: 15px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.topbar-bell-btn:hover {
+  background: var(--surface-hover);
+  box-shadow: var(--shadow);
+}
+
+.topbar-bell-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--neg);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--surface);
+}
+
+.topbar-alerts-wrap {
+  position: relative;
+}
+
+.topbar-alerts-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 300px;
+  max-height: 360px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  z-index: 20;
+}
+
+.topbar-alerts-panel-header {
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-h);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-alerts-empty {
+  padding: 20px 14px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0;
+}
+
+.topbar-alerts-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+}
+
+.topbar-alerts-list li a {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+.topbar-alerts-list li a:hover {
+  background: var(--surface-hover);
+}
+
+.topbar-alerts-model {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.topbar-alerts-meta {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
 .topbar-report-bug-btn {
   padding: 6px 14px;
   border-radius: 999px;
@@ -177,25 +287,26 @@
   overflow-x: hidden;
 }
 
+/* Default page-title size -- low specificity (one class + element) so any
+ * page with its own more-specific h1 rule (.dashboard-header h1, etc.)
+ * still wins; this only fills in for pages that never set one (several
+ * Admin screens were relying on the browser's much larger default h1). */
+.testing-main h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
 /* Keeps each page's heading (and its action buttons, where the header row
  * has any) visible while scrolling long content instead of scrolling away
  * with it. Applied per-page since header markup/classes vary. A hairline
  * border + soft shadow give it a clean separation from content scrolling
  * underneath, rather than an abrupt hard edge. */
 .sticky-page-header {
-  position: sticky;
-  top: 0;
-  z-index: 5;
   background: var(--bg-app);
   padding-top: 2px;
   padding-bottom: 14px;
   margin-bottom: 4px;
   border-bottom: 1px solid var(--border-soft);
-  box-shadow: 0 4px 10px -6px rgba(10, 22, 40, 0.12);
-}
-
-[data-theme="dark"] .sticky-page-header {
-  box-shadow: 0 4px 10px -6px rgba(0, 0, 0, 0.35);
 }
 
 /* Sidebar profile card, replacing the old top navbar */

@@ -7,6 +7,7 @@ import "../report-detail/ReportDetailPage.css";
 import { getReport } from "@/services/testingService";
 import { formatDate, reportExportFileName } from "@/lib/formUtils";
 import PerformanceCurve from "@/components/report-detail/PerformanceCurve";
+import { SkeletonPage } from "@/components/ui/Skeleton";
 import type { PumpTestReport } from "@/types/testing";
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -38,7 +39,7 @@ const ReportCurvePage = () => {
   }, [report]);
 
   if (error) return <div className="form-error-banner">{error}</div>;
-  if (!report) return <p className="detail-empty">Loading...</p>;
+  if (!report) return <SkeletonPage />;
 
   return (
     <div className="report-detail-page">

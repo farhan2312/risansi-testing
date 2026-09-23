@@ -14,6 +14,7 @@ import {
 } from "@/lib/requirementCheck";
 import { dedupCheck, getRequisition, openAttachment, updateRequisition } from "@/services/testingService";
 import { useAuth } from "@/contexts/AuthContext";
+import { SkeletonPage } from "@/components/ui/Skeleton";
 import { ecQuotationLabel } from "@/types/testing";
 import type { DedupCheckResult, PumpTestReport, TestRequisition } from "@/types/testing";
 
@@ -88,7 +89,7 @@ const RequisitionDetailPage = () => {
     }
   };
 
-  if (isLoading) return <p className="detail-empty">Loading...</p>;
+  if (isLoading) return <SkeletonPage />;
   if (error) return <div className="form-error-banner">{error}</div>;
   if (!requisition) return <p className="detail-empty">Testing summary not found.</p>;
 

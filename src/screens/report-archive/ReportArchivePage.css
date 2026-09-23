@@ -2,6 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* Matches the Admin section's page padding convention -- see
+   * DashboardPage.css's identical comment. */
+  padding: 40px;
 }
 
 .archive-header {
@@ -161,50 +164,4 @@
 .nested-report-table .requirement-flag {
   margin-left: 4px;
   cursor: help;
-}
-
-.archive-pagination {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.archive-pagination button {
-  min-width: 34px;
-  height: 34px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.archive-pagination button:hover:not(:disabled) {
-  background: var(--surface-hover);
-}
-
-.archive-pagination button.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-  font-weight: 600;
-}
-
-.archive-pagination button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.archive-pagination-ellipsis {
-  color: var(--text-muted);
-  padding: 0 4px;
-}
-
-.archive-pagination-status {
-  margin-left: 10px;
-  font-size: 13px;
-  color: var(--text-muted);
 }

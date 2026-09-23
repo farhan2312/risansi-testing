@@ -11,6 +11,7 @@ import { capacityToM3hr, headToKgcm2 } from "@/lib/unitConversion";
 import { ratedPowerKwFromRequisition } from "@/lib/requirementCheck";
 import AttachmentsField from "@/components/ui/AttachmentsField";
 import { createRequisition, listPumpModels, uploadAttachment } from "@/services/testingService";
+import { SkeletonPage } from "@/components/ui/Skeleton";
 import {
   CAPACITY_UNITS,
   ecQuotationFormatHint,
@@ -120,7 +121,7 @@ const NewRequisitionPage = () => {
     }
   };
 
-  if (isLoadingModels) return <p className="detail-empty">Loading...</p>;
+  if (isLoadingModels) return <SkeletonPage />;
 
   return (
     <div className="requisition-form-page">

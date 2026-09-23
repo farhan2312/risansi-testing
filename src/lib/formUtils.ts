@@ -86,6 +86,22 @@ export const formatDate = (value: string | null | undefined): string => {
   return `${d}/${m}/${y.slice(2)}`;
 };
 
+/** "3d ago" / "5h ago" / "12m ago" / "just now" -- for compact card
+ * timestamps (Bug Reports Kanban) where a full date/time is more detail
+ * than the space allows. Falls back to a short date once it's over a week
+ * old, rather than "52w ago". */
+export const timeAgo = (value: string): string => {
+  const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return formatDate(value);
+};
+
 const addDays = (dateStr: string, days: number): string => {
   const d = new Date(`${dateStr}T00:00:00`);
   d.setDate(d.getDate() + days);

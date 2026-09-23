@@ -1,18 +1,24 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   deleteUser,
   listAllUsers,
+  listPendingUsers,
   reviewUser,
   setUserRole,
   type PendingUser,
+  type UserStats,
 } from "@/services/adminService";
 import { useAuth } from "@/contexts/AuthContext";
 import AddUserModal from "@/components/ui/AddUserModal";
 import EditUserModal from "@/components/ui/EditUserModal";
 import AdminSetPasswordModal from "@/components/ui/AdminSetPasswordModal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import Pagination from "@/components/ui/Pagination";
+import { SkeletonStatTiles, SkeletonTableRows } from "@/components/ui/Skeleton";
+
+const PAGE_SIZE = 25;
 
 // "user" is a legacy/placeholder role, no longer assignable -- only shown
 // below if an existing account still has it, so it can be reassigned away.
@@ -41,12 +47,24 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
 const btnBase =
   "inline-flex items-center rounded-md px-3.5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60";
 
+const EMPTY_STATS: UserStats = { total: 0, pending: 0, active: 0, admins: 0 };
+
 const AdminUsersPage = () => {
   const [users, setUsers] = useState<PendingUser[]>([]);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<UserStats>(EMPTY_STATS);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [search, setSearch] = useState("");
+  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
+
+  const [page, setPage] = useState(1);
+  // searchInput is the live textbox value, appliedSearch is what was
+  // actually submitted (Search button or Enter) -- matches the Audit Log
+  // Activity tab's search convention elsewhere in this app, rather than
+  // firing a request on every keystroke.
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -62,46 +80,53 @@ const AdminUsersPage = () => {
   const { user: loggedInUser } = useAuth();
   const currentUserId = loggedInUser?.id;
 
+  const loadPending = () => {
+    listPendingUsers()
+      .then(setPendingUsers)
+      .catch(() => {});
+  };
+
   const load = () => {
     setIsLoading(true);
     setError(null);
-    listAllUsers()
-      .then(setUsers)
+    listAllUsers(page, {
+      search: appliedSearch || undefined,
+      role: roleFilter === "all" ? undefined : roleFilter,
+      status: statusFilter === "all" ? undefined : statusFilter,
+    })
+      .then((result) => {
+        setUsers(result.entries);
+        setTotal(result.total);
+        setStats(result.stats);
+      })
       .catch(() => setError("Couldn't load users."))
       .finally(() => setIsLoading(false));
   };
 
-  useEffect(load, []);
+  useEffect(load, [page, appliedSearch, roleFilter, statusFilter]);
+  useEffect(loadPending, []);
 
-  const pendingUsers = useMemo(() => users.filter((u) => u.status === "pending"), [users]);
+  const submitSearch = () => {
+    setPage(1);
+    setAppliedSearch(searchInput.trim());
+  };
 
-  const stats = useMemo(
-    () => ({
-      total: users.length,
-      pending: pendingUsers.length,
-      active: users.filter((u) => u.status === "active").length,
-      admins: users.filter((u) => u.role === "admin" || u.role === "central-admin").length,
-    }),
-    [users, pendingUsers]
-  );
+  const changeRoleFilter = (value: string) => {
+    setRoleFilter(value);
+    setPage(1);
+  };
 
-  const filteredUsers = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return users.filter((u) => {
-      if (roleFilter !== "all" && u.role !== roleFilter) return false;
-      if (statusFilter !== "all" && u.status !== statusFilter) return false;
-      if (term && !(u.name ?? "").toLowerCase().includes(term) && !u.email.toLowerCase().includes(term)) {
-        return false;
-      }
-      return true;
-    });
-  }, [users, search, roleFilter, statusFilter]);
+  const changeStatusFilter = (value: string) => {
+    setStatusFilter(value);
+    setPage(1);
+  };
 
   const handleReview = async (id: string, status: "active" | "rejected") => {
     setReviewingId(id);
     try {
-      const updated = await reviewUser(id, status);
-      setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
+      await reviewUser(id, status);
+      loadPending();
+      load();
     } catch {
       setError("Couldn't update this request. Please try again.");
     } finally {
@@ -112,8 +137,10 @@ const AdminUsersPage = () => {
   const handleRoleChange = async (userId: string, role: (typeof ROLES)[number]) => {
     setRoleUpdatingId(userId);
     try {
-      const updated = await setUserRole(userId, role);
-      setUsers((prev) => prev.map((u) => (u.id === userId ? updated : u)));
+      await setUserRole(userId, role);
+      // Full reload rather than an optimistic patch -- a role change can
+      // move the Admins & Central Admins KPI tile too.
+      load();
     } catch {
       setError("Couldn't update this user's role.");
     } finally {
@@ -127,8 +154,8 @@ const AdminUsersPage = () => {
     setDeletingId(user.id);
     try {
       await deleteUser(user.id);
-      setUsers((prev) => prev.filter((u) => u.id !== user.id));
       setDeleteTarget(null);
+      load();
     } catch {
       setError("Couldn't delete this user.");
     } finally {
@@ -136,11 +163,13 @@ const AdminUsersPage = () => {
     }
   };
 
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
   return (
     <div className="min-h-screen bg-bg-app p-10">
       <div className="sticky-page-header flex flex-wrap items-start justify-between gap-5">
         <div>
-          <h1 className="mb-1.5 text-2xl font-semibold text-text-h">Users &amp; Access</h1>
+          <h1 className="mb-1.5 text-xl font-semibold text-text-h">Users &amp; Access</h1>
           <p className="text-sm text-text-muted">
             Review access requests, manage every account, and control roles from one place.
           </p>
@@ -154,32 +183,36 @@ const AdminUsersPage = () => {
         </button>
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-5 rounded-md border border-border bg-surface px-6 py-5 shadow-sm sm:grid-cols-4">
-        <div className="flex flex-col gap-1">
-          <span className="text-2xl font-semibold tabular-nums text-text-h">{stats.total}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Total Users</span>
+      {isLoading ? (
+        <SkeletonStatTiles count={4} />
+      ) : (
+        <div className="mb-6 grid grid-cols-2 gap-5 rounded-md border border-border bg-surface px-6 py-5 shadow-sm sm:grid-cols-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-2xl font-semibold tabular-nums text-text-h">{stats.total}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Total Users</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className={`text-2xl font-semibold tabular-nums ${stats.pending > 0 ? "text-warn" : "text-text-h"}`}>
+              {stats.pending}
+            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Pending Requests</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-2xl font-semibold tabular-nums text-pos">{stats.active}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Active Accounts</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-2xl font-semibold tabular-nums text-text-h">{stats.admins}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+              Admins &amp; Central Admins
+            </span>
+          </div>
         </div>
-        <div className="flex flex-col gap-1">
-          <span className={`text-2xl font-semibold tabular-nums ${stats.pending > 0 ? "text-warn" : "text-text-h"}`}>
-            {stats.pending}
-          </span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Pending Requests</span>
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-2xl font-semibold tabular-nums text-pos">{stats.active}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">Active Accounts</span>
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-2xl font-semibold tabular-nums text-text-h">{stats.admins}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-            Admins &amp; Central Admins
-          </span>
-        </div>
-      </div>
+      )}
 
       {error && <p className="mb-4 text-sm font-medium text-neg">{error}</p>}
 
-      {!isLoading && pendingUsers.length > 0 && (
+      {pendingUsers.length > 0 && (
         <div className="mb-6 rounded-md border border-warn bg-warn-soft px-5 py-5">
           <div className="mb-3.5 flex items-center gap-2.5">
             <h2 className="m-0 text-base font-semibold text-text-h">Pending Requests</h2>
@@ -243,13 +276,21 @@ const AdminUsersPage = () => {
         <input
           type="text"
           placeholder="Search by name or email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && submitSearch()}
           className="min-w-[220px] flex-1 rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-text-h outline-none focus:border-accent focus:ring-2 focus:ring-accent-line"
         />
+        <button
+          type="button"
+          onClick={submitSearch}
+          className="rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-text hover:bg-surface-hover"
+        >
+          Search
+        </button>
         <select
           value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
+          onChange={(e) => changeRoleFilter(e.target.value)}
           className="rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text"
         >
           <option value="all">All roles</option>
@@ -261,7 +302,7 @@ const AdminUsersPage = () => {
         </select>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => changeStatusFilter(e.target.value)}
           className="rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text"
         >
           <option value="all">All statuses</option>
@@ -271,13 +312,11 @@ const AdminUsersPage = () => {
         </select>
       </div>
 
-      {isLoading && <p className="text-sm text-text-muted">Loading users...</p>}
-
-      {!isLoading && !error && filteredUsers.length === 0 && (
+      {!isLoading && !error && users.length === 0 && (
         <p className="rounded-lg bg-surface p-8 text-center text-sm text-text-muted">No users match these filters.</p>
       )}
 
-      {!isLoading && !error && filteredUsers.length > 0 && (
+      {(isLoading || (!error && users.length > 0)) && (
         <div className="overflow-hidden rounded-lg border border-border shadow-sm">
           <table className="w-full border-collapse">
             <thead>
@@ -291,7 +330,8 @@ const AdminUsersPage = () => {
               </tr>
             </thead>
             <tbody className="bg-surface">
-              {filteredUsers.map((u) => (
+              {isLoading && <SkeletonTableRows columns={6} cellClassName="px-4 py-3.5" />}
+              {!isLoading && users.map((u) => (
                 <tr key={u.id} className="border-t border-border transition-colors hover:bg-surface-hover">
                   <td className="px-4 py-3.5 text-sm text-text">{u.name ?? "—"}</td>
                   <td className="px-4 py-3.5 text-sm text-text">{u.email}</td>
@@ -348,12 +388,14 @@ const AdminUsersPage = () => {
         </div>
       )}
 
+      <Pagination page={page} totalPages={totalPages} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />
+
       {showAddUser && (
         <AddUserModal
           onClose={() => setShowAddUser(false)}
-          onCreated={(user) => {
-            setUsers((prev) => [...prev, user]);
+          onCreated={() => {
             setShowAddUser(false);
+            load();
           }}
         />
       )}
@@ -362,9 +404,9 @@ const AdminUsersPage = () => {
         <EditUserModal
           user={editTarget}
           onClose={() => setEditTarget(null)}
-          onSaved={(updated) => {
-            setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+          onSaved={() => {
             setEditTarget(null);
+            load();
           }}
         />
       )}

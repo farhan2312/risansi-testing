@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import "./DashboardPage.css";
 import { formatDate, targetDateFor } from "@/lib/formUtils";
-import { listRequisitions, updateRequisition } from "@/services/testingService";
+import { getRequisitionFilterOptions, listRequisitions, updateRequisition } from "@/services/testingService";
 import { useAuth } from "@/contexts/AuthContext";
+import Pagination from "@/components/ui/Pagination";
+import { SkeletonTableRows } from "@/components/ui/Skeleton";
 import {
   REQUISITION_CATEGORIES,
   RESPONSIBLE_PERSONS,
@@ -16,6 +18,7 @@ import {
 } from "@/types/testing";
 
 const ALL = "All";
+const PAGE_SIZE = 25;
 
 const STATUS_TABS: { label: string; value: RequisitionStatus | "All" }[] = [
   { label: "All", value: "All" },
@@ -28,6 +31,9 @@ const STATUS_TABS: { label: string; value: RequisitionStatus | "All" }[] = [
 const DashboardPage = () => {
   const searchParams = useSearchParams();
   const [requisitions, setRequisitions] = useState<TestRequisition[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [reportResultCounts, setReportResultCounts] = useState({ green: 0, red: 0 });
   // Lets a link like /dashboard?status=Pending (the Overview page's
   // Requisitions by Status card) land here pre-filtered, instead of always
   // opening on "All" and making the user click the tab themselves.
@@ -41,6 +47,10 @@ const DashboardPage = () => {
   const canReassign = loggedInUser?.role === "testing";
 
   const [modelFilter, setModelFilter] = useState(ALL);
+  // ecInput is the live textbox value; ecFilter is the debounced value that
+  // actually drives the server fetch, so typing doesn't fire a request per
+  // keystroke.
+  const [ecInput, setEcInput] = useState("");
   const [ecFilter, setEcFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(ALL);
   const [sourceTeamFilter, setSourceTeamFilter] = useState(ALL);
@@ -59,35 +69,9 @@ const DashboardPage = () => {
   // requirements vs didn't ("Red").
   const [reportResultFilter, setReportResultFilter] = useState<"All" | "Green" | "Red">("All");
 
-  const modelOptions = useMemo(
-    () => [...new Set(requisitions.map((r) => r.model))].sort((a, b) => a.localeCompare(b)),
-    [requisitions]
-  );
-
-  const submittedByOptions = useMemo(
-    () =>
-      [...new Set(requisitions.map((r) => r.submitted_by).filter((v): v is string => Boolean(v)))].sort((a, b) =>
-        a.localeCompare(b)
-      ),
-    [requisitions]
-  );
-
-  // Every distinct calendar month a requisition was raised in, newest first
-  // ("2026-08" -> "August 2026") -- populates the Month quick-filter.
-  const monthOptions = useMemo(() => {
-    const months = new Set<string>();
-    for (const r of requisitions) {
-      if (r.date_of_requisition) months.add(r.date_of_requisition.slice(0, 7));
-    }
-    return [...months].sort().reverse();
-  }, [requisitions]);
-
-  const monthLabel = (ym: string) => {
-    const [y, m] = ym.split("-");
-    return new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(
-      new Date(Number(y), Number(m) - 1, 1)
-    );
-  };
+  const [modelOptions, setModelOptions] = useState<string[]>([]);
+  const [submittedByOptions, setSubmittedByOptions] = useState<string[]>([]);
+  const [monthOptions, setMonthOptions] = useState<string[]>([]);
 
   const hasActiveFilters =
     modelFilter !== ALL ||
@@ -104,6 +88,7 @@ const DashboardPage = () => {
 
   const clearFilters = () => {
     setModelFilter(ALL);
+    setEcInput("");
     setEcFilter("");
     setCategoryFilter(ALL);
     setSourceTeamFilter(ALL);
@@ -121,28 +106,29 @@ const DashboardPage = () => {
     setReportResultFilter("All");
   };
 
-  // Every other filter applied, before the Green/Red report-result filter --
-  // this is the scope the "reports filled" breakdown counts against.
-  const categoryScopedRequisitions = useMemo(() => {
-    const ec = ecFilter.trim().toLowerCase();
-    return requisitions.filter((r) => {
-      if (modelFilter !== ALL && r.model !== modelFilter) return false;
-      if (ec && !(r.ec_quotation_no ?? "").toLowerCase().includes(ec)) return false;
-      if (categoryFilter !== ALL && r.category !== categoryFilter) return false;
-      if (sourceTeamFilter !== ALL && r.source_team !== sourceTeamFilter) return false;
-      if (responsiblePersonFilter !== ALL && r.responsible_person !== responsiblePersonFilter) return false;
-      if (submittedByFilter !== ALL && r.submitted_by !== submittedByFilter) return false;
-      if (retestFilter !== ALL) {
-        if (retestFilter === "Yes" && r.retest_needed !== true) return false;
-        if (retestFilter === "No" && r.retest_needed !== false) return false;
-      }
-      if (monthFilter !== ALL && r.date_of_requisition?.slice(0, 7) !== monthFilter) return false;
-      if (dateFrom && (!r.date_of_requisition || r.date_of_requisition < dateFrom)) return false;
-      if (dateTo && (!r.date_of_requisition || r.date_of_requisition > dateTo)) return false;
-      return true;
-    });
+  const handleReassign = async (id: string, responsiblePerson: string) => {
+    try {
+      const updated = await updateRequisition(id, { responsible_person: responsiblePerson });
+      setRequisitions((prev) => prev.map((r) => (r.id === id ? updated : r)));
+    } catch {
+      setError("Could not update responsible person. Please try again.");
+    }
+  };
+
+  // Debounces the free-text EC/Quotation No. field -- everything else
+  // (dropdowns, dates) applies immediately on change, same as before.
+  useEffect(() => {
+    const t = setTimeout(() => setEcFilter(ecInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [ecInput]);
+
+  // Any filter (or the status tab) changing invalidates whatever page we
+  // were on -- always land back on page 1 rather than a now-meaningless
+  // page number against the new, narrower result set.
+  useEffect(() => {
+    setPage(1);
   }, [
-    requisitions,
+    activeStatus,
     modelFilter,
     ecFilter,
     categoryFilter,
@@ -153,47 +139,33 @@ const DashboardPage = () => {
     monthFilter,
     dateFrom,
     dateTo,
+    reportResultFilter,
   ]);
-
-  // Of that scope, how many actually have a filled-in report, split by
-  // whether it met its rated head/capacity/power ("Green") or not ("Red").
-  const reportResultCounts = useMemo(() => {
-    let green = 0;
-    let red = 0;
-    for (const r of categoryScopedRequisitions) {
-      if (r.status !== "Closed" || !r.report_id) continue;
-      if ((r.report_requirement_unmet_fields ?? []).length > 0) red += 1;
-      else green += 1;
-    }
-    return { green, red, total: green + red };
-  }, [categoryScopedRequisitions]);
-
-  const filteredRequisitions = useMemo(() => {
-    if (reportResultFilter === "All") return categoryScopedRequisitions;
-    return categoryScopedRequisitions.filter((r) => {
-      if (r.status !== "Closed" || !r.report_id) return false;
-      const unmet = (r.report_requirement_unmet_fields ?? []).length > 0;
-      return reportResultFilter === "Red" ? unmet : !unmet;
-    });
-  }, [categoryScopedRequisitions, reportResultFilter]);
-
-  const handleReassign = async (id: string, responsiblePerson: string) => {
-    try {
-      const updated = await updateRequisition(id, { responsible_person: responsiblePerson });
-      setRequisitions((prev) => prev.map((r) => (r.id === id ? updated : r)));
-    } catch {
-      setError("Could not update responsible person. Please try again.");
-    }
-  };
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
     setError("");
 
-    listRequisitions(activeStatus === "All" ? undefined : activeStatus)
-      .then((rows) => {
-        if (!cancelled) setRequisitions(rows);
+    listRequisitions(activeStatus === "All" ? undefined : activeStatus, page, {
+      model: modelFilter === ALL ? undefined : modelFilter,
+      ec_quotation_no: ecFilter || undefined,
+      category: categoryFilter === ALL ? undefined : categoryFilter,
+      source_team: sourceTeamFilter === ALL ? undefined : sourceTeamFilter,
+      responsible_person: responsiblePersonFilter === ALL ? undefined : responsiblePersonFilter,
+      submitted_by: submittedByFilter === ALL ? undefined : submittedByFilter,
+      retest_needed: retestFilter === ALL ? undefined : retestFilter === "Yes" ? "true" : "false",
+      month: monthFilter === ALL ? undefined : monthFilter,
+      date_from: dateFrom || undefined,
+      date_to: dateTo || undefined,
+      report_result:
+        reportResultFilter === "All" ? undefined : reportResultFilter === "Green" ? "green" : "red",
+    })
+      .then((result) => {
+        if (cancelled) return;
+        setRequisitions(result.entries);
+        setTotal(result.total);
+        if (result.report_result_counts) setReportResultCounts(result.report_result_counts);
       })
       .catch(() => {
         if (!cancelled) setError("Could not load testing summaries.");
@@ -205,7 +177,51 @@ const DashboardPage = () => {
     return () => {
       cancelled = true;
     };
+  }, [
+    activeStatus,
+    page,
+    modelFilter,
+    ecFilter,
+    categoryFilter,
+    sourceTeamFilter,
+    responsiblePersonFilter,
+    submittedByFilter,
+    retestFilter,
+    monthFilter,
+    dateFrom,
+    dateTo,
+    reportResultFilter,
+  ]);
+
+  // Filter-bar dropdown options depend only on the status tab, not the
+  // other filters (matches the pre-pagination behavior) -- fetched
+  // separately since the row list itself is now just one page of 25.
+  useEffect(() => {
+    let cancelled = false;
+    getRequisitionFilterOptions(activeStatus === "All" ? undefined : activeStatus)
+      .then((opts) => {
+        if (cancelled) return;
+        setModelOptions(opts.models);
+        setSubmittedByOptions(opts.submitted_by);
+        setMonthOptions(opts.months);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [activeStatus]);
+
+  const monthLabel = (ym: string) => {
+    const [y, m] = ym.split("-");
+    return new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(
+      new Date(Number(y), Number(m) - 1, 1)
+    );
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const emptyMessage = hasActiveFilters
+    ? "No testing summaries match these filters."
+    : "No testing summaries in this status.";
 
   return (
     <div className="dashboard-page">
@@ -240,8 +256,8 @@ const DashboardPage = () => {
         <input
           type="text"
           placeholder="Filter by EC/Quotation No..."
-          value={ecFilter}
-          onChange={(e) => setEcFilter(e.target.value)}
+          value={ecInput}
+          onChange={(e) => setEcInput(e.target.value)}
         />
         <select value={categoryFilter} onChange={(e) => handleCategoryChange(e.target.value)}>
           <option value={ALL}>All Categories</option>
@@ -306,14 +322,14 @@ const DashboardPage = () => {
       {categoryFilter !== ALL && (
         <div className="report-result-filter">
           <span className="report-result-label">
-            Reports filled for &quot;{categoryFilter}&quot;: {reportResultCounts.total}
+            Reports filled for &quot;{categoryFilter}&quot;: {reportResultCounts.green + reportResultCounts.red}
           </span>
           <button
             type="button"
             className={`report-result-pill ${reportResultFilter === "All" ? "active" : ""}`}
             onClick={() => setReportResultFilter("All")}
           >
-            All ({reportResultCounts.total})
+            All ({reportResultCounts.green + reportResultCounts.red})
           </button>
           <button
             type="button"
@@ -334,12 +350,8 @@ const DashboardPage = () => {
 
       {error && <div className="dashboard-error">{error}</div>}
 
-      {isLoading ? (
-        <p className="dashboard-empty">Loading...</p>
-      ) : filteredRequisitions.length === 0 ? (
-        <p className="dashboard-empty">
-          {requisitions.length === 0 ? "No testing summaries in this status." : "No testing summaries match these filters."}
-        </p>
+      {!isLoading && requisitions.length === 0 ? (
+        <p className="dashboard-empty">{emptyMessage}</p>
       ) : (
         <table className="requisition-table">
           <thead>
@@ -357,7 +369,8 @@ const DashboardPage = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredRequisitions.map((r) => (
+            {isLoading && <SkeletonTableRows columns={10} />}
+            {!isLoading && requisitions.map((r) => (
               <tr key={r.id}>
                 <td>
                   <Link href={`/requisitions/${r.requisition_no ?? r.id}`}>{r.model}</Link>
@@ -433,6 +446,8 @@ const DashboardPage = () => {
           </tbody>
         </table>
       )}
+
+      <Pagination page={page} totalPages={totalPages} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />
     </div>
   );
 };

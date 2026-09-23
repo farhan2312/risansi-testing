@@ -8,9 +8,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import EditPasswordModal from "@/components/ui/EditPasswordModal";
 import ReportBugModal from "@/components/ui/ReportBugModal";
-import { listPendingUsers } from "@/services/adminService";
+import { getUnreadBugReportCount, listPendingUsers } from "@/services/adminService";
 import { logout as logoutRequest } from "@/services/authService";
 import { recordPageView } from "@/services/auditService";
+import { getTargetDateAlerts } from "@/services/testingService";
+import { formatDate } from "@/lib/formUtils";
+import type { TargetDateAlertItem } from "@/types/testing";
 
 const PENDING_REQUESTS_POLL_MS = 30000;
 
@@ -137,7 +140,11 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [showReportBug, setShowReportBug] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  const [unreadBugCount, setUnreadBugCount] = useState(0);
+  const [targetDateAlerts, setTargetDateAlerts] = useState<TargetDateAlertItem[]>([]);
+  const [showAlertsPanel, setShowAlertsPanel] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const alertsRef = useRef<HTMLDivElement>(null);
 
   // Polls for pending access requests so admins see a live badge on the nav
   // item without having to open the Access Requests page to find out.
@@ -161,10 +168,58 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     };
   }, [isAdmin]);
 
+  // Same polling pattern, for the topbar notification bell -- counts bug
+  // reports nobody's opened yet. Drops as reports get visited (see
+  // GET /api/bug-reports/[id]), climbs as new ones come in.
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    let cancelled = false;
+    const poll = () => {
+      getUnreadBugReportCount()
+        .then((count) => {
+          if (!cancelled) setUnreadBugCount(count);
+        })
+        .catch(() => {});
+    };
+
+    poll();
+    const interval = setInterval(poll, PENDING_REQUESTS_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [isAdmin]);
+
+  // Same polling pattern again, for the target-date bell -- open to every
+  // role (not just admins), since Responsible Person can be anyone on the
+  // testing team. Naturally comes back empty for anyone whose name doesn't
+  // match a requisition's Responsible Person.
+  useEffect(() => {
+    let cancelled = false;
+    const poll = () => {
+      getTargetDateAlerts()
+        .then((result) => {
+          if (!cancelled) setTargetDateAlerts(result.items);
+        })
+        .catch(() => {});
+    };
+
+    poll();
+    const interval = setInterval(poll, PENDING_REQUESTS_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
+      }
+      if (alertsRef.current && !alertsRef.current.contains(e.target as Node)) {
+        setShowAlertsPanel(false);
       }
     };
     document.addEventListener("mousedown", onClickOutside);
@@ -306,9 +361,62 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
               </Fragment>
             ))}
           </nav>
-          <button type="button" className="topbar-report-bug-btn" onClick={() => setShowReportBug(true)}>
-            🐛 Report a Bug
-          </button>
+          <div className="topbar-actions">
+            <div className="topbar-alerts-wrap" ref={alertsRef}>
+              <button
+                type="button"
+                className="topbar-bell-btn"
+                onClick={() => setShowAlertsPanel((v) => !v)}
+                aria-label={`Target date alerts${targetDateAlerts.length > 0 ? ` (${targetDateAlerts.length})` : ""}`}
+                title="Requisitions approaching their target date"
+              >
+                ⏰
+                {targetDateAlerts.length > 0 && (
+                  <span className="topbar-bell-badge">
+                    {targetDateAlerts.length > 99 ? "99+" : targetDateAlerts.length}
+                  </span>
+                )}
+              </button>
+              {showAlertsPanel && (
+                <div className="topbar-alerts-panel">
+                  <div className="topbar-alerts-panel-header">Approaching target date</div>
+                  {targetDateAlerts.length === 0 ? (
+                    <p className="topbar-alerts-empty">Nothing due in the next 5 days.</p>
+                  ) : (
+                    <ul className="topbar-alerts-list">
+                      {targetDateAlerts.map((item) => (
+                        <li key={item.id}>
+                          <Link href={`/requisitions/${item.requisition_no ?? item.id}`} onClick={() => setShowAlertsPanel(false)}>
+                            <span className="topbar-alerts-model">{item.model}</span>
+                            <span className="topbar-alerts-meta">
+                              {item.status} &middot; due {formatDate(item.target_date)}
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+            {isAdmin && (
+              <button
+                type="button"
+                className="topbar-bell-btn"
+                onClick={() => router.push("/admin/bug-reports")}
+                aria-label={`Bug report notifications${unreadBugCount > 0 ? ` (${unreadBugCount} unread)` : ""}`}
+                title="Bug report notifications"
+              >
+                🔔
+                {unreadBugCount > 0 && (
+                  <span className="topbar-bell-badge">{unreadBugCount > 99 ? "99+" : unreadBugCount}</span>
+                )}
+              </button>
+            )}
+            <button type="button" className="topbar-report-bug-btn" onClick={() => setShowReportBug(true)}>
+              🐛 Report a Bug
+            </button>
+          </div>
         </div>
         <main className="testing-main">{children}</main>
       </div>

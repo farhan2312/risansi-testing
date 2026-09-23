@@ -4,6 +4,7 @@ import { error, json } from "@/lib/api";
 import { AuthError, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { auditLogs, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
+import { offsetFor, PAGE_SIZE, parsePage } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const cutoff = cutoffFor(searchParams.get("range"));
-  const limit = Math.min(Number(searchParams.get("limit") ?? 200), 500);
+  const page = parsePage(req);
   const action = searchParams.get("action");
   const search = searchParams.get("search")?.trim();
 
@@ -71,7 +72,8 @@ export async function GET(req: Request) {
       .leftJoin(users, eq(users.id, auditLogs.userId))
       .where(where)
       .orderBy(desc(auditLogs.createdAt))
-      .limit(limit),
+      .limit(PAGE_SIZE)
+      .offset(offsetFor(page)),
     db.select({ count: sql<number>`count(*)::int` }).from(auditLogs).where(where),
   ]);
 
@@ -118,5 +120,7 @@ export async function GET(req: Request) {
       created_at: r.createdAt,
     })),
     total: count,
+    page,
+    page_size: PAGE_SIZE,
   });
 }

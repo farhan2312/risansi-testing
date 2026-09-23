@@ -1,10 +1,11 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 
 import { error, json, requisitionToDict } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
+import { offsetFor, PAGE_SIZE, parsePage } from "@/lib/pagination";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 
 export const dynamic = "force-dynamic";
@@ -33,28 +34,13 @@ const CAMEL_BY_SNAKE = {
   general_remarks: "generalRemarks",
 };
 
-export async function GET(req: Request) {
-  let claims;
-  try {
-    claims = decodeToken(req);
-  } catch (e) {
-    if (e instanceof AuthError) return error(e.message, e.statusCode);
-    throw e;
-  }
+type RequisitionRow = typeof testRequisitions.$inferSelect;
 
-  const { searchParams } = new URL(req.url);
-  const status = searchParams.get("status");
-
-  const conditions = [];
-  if (status) conditions.push(eq(testRequisitions.status, status));
-  // Source teams only see the requisitions they personally raised — testing
-  // team and admins still see everything, since they process all of them.
-  if (claims.role === "source") conditions.push(eq(testRequisitions.createdBy, claims.sub));
-
-  const rows = conditions.length
-    ? await db.select().from(testRequisitions).where(and(...conditions)).orderBy(desc(testRequisitions.createdAt))
-    : await db.select().from(testRequisitions).orderBy(desc(testRequisitions.createdAt));
-
+/** Attaches report_id/report_no/report_requirement_unmet_fields to a set of
+ * requisition rows -- whether the linked report (if any) reached its rated
+ * head/capacity/power, aggregated in SQL from its points rather than
+ * shipped down to compute in the list view. Shared by every path below. */
+async function reportStatusFor(rows: RequisitionRow[]) {
   const requisitionIds = rows.map((r) => r.id);
   const reports = requisitionIds.length
     ? await db
@@ -72,9 +58,6 @@ export async function GET(req: Request) {
   const reportIdByRequisition = new Map(reports.map((r) => [r.requisitionId, r.id]));
   const reportNoByRequisition = new Map(reports.map((r) => [r.requisitionId, r.reportNo]));
 
-  // Did the linked report reach its rated head/capacity/power? Only the max
-  // across its points matters for that check, so aggregate in SQL rather
-  // than shipping every point down just to compute this in the list view.
   const reportIds = reports.map((r) => r.id);
   const maxes = reportIds.length
     ? await db
@@ -113,14 +96,123 @@ export async function GET(req: Request) {
     })
   );
 
-  return json(
-    rows.map((r) => ({
-      ...requisitionToDict(r),
-      report_id: reportIdByRequisition.get(r.id) ?? null,
-      report_no: reportNoByRequisition.get(r.id) ?? null,
-      report_requirement_unmet_fields: unmetByRequisition.get(r.id) ?? [],
-    }))
-  );
+  return { reportIdByRequisition, reportNoByRequisition, unmetByRequisition };
+}
+
+function dictify(
+  rows: RequisitionRow[],
+  status: Awaited<ReturnType<typeof reportStatusFor>>
+) {
+  return rows.map((r) => ({
+    ...requisitionToDict(r),
+    report_id: status.reportIdByRequisition.get(r.id) ?? null,
+    report_no: status.reportNoByRequisition.get(r.id) ?? null,
+    report_requirement_unmet_fields: status.unmetByRequisition.get(r.id) ?? [],
+  }));
+}
+
+/** Server-paginated, 25/page, with the Testing Summary filter bar's full
+ * filter set applied as SQL WHERE clauses. The one exception is
+ * `report_result` (Green/Met vs Red/Not-Met) -- it depends on a computed
+ * aggregate (see reportStatusFor above), not a plain column, so it can't be
+ * pushed into SQL. It's only ever used already narrowed to one Category
+ * (see the frontend), so that path fetches every row matching the other
+ * filters, computes status, filters and paginates in memory instead. */
+export async function GET(req: Request) {
+  let claims;
+  try {
+    claims = decodeToken(req);
+  } catch (e) {
+    if (e instanceof AuthError) return error(e.message, e.statusCode);
+    throw e;
+  }
+
+  const { searchParams } = new URL(req.url);
+  const status = searchParams.get("status");
+  const model = searchParams.get("model");
+  const ecQuotationNo = searchParams.get("ec_quotation_no");
+  const category = searchParams.get("category");
+  const sourceTeam = searchParams.get("source_team");
+  const responsiblePerson = searchParams.get("responsible_person");
+  const submittedBy = searchParams.get("submitted_by");
+  const retestNeeded = searchParams.get("retest_needed");
+  const month = searchParams.get("month");
+  const dateFrom = searchParams.get("date_from");
+  const dateTo = searchParams.get("date_to");
+  const reportResult = searchParams.get("report_result");
+  const page = parsePage(req);
+
+  const conditions = [];
+  if (status) conditions.push(eq(testRequisitions.status, status));
+  // Source teams only see the requisitions they personally raised — testing
+  // team and admins still see everything, since they process all of them.
+  if (claims.role === "source") conditions.push(eq(testRequisitions.createdBy, claims.sub));
+  if (model) conditions.push(eq(testRequisitions.model, model));
+  if (ecQuotationNo) conditions.push(ilike(testRequisitions.ecQuotationNo, `%${ecQuotationNo}%`));
+  if (category) conditions.push(eq(testRequisitions.category, category));
+  if (sourceTeam) conditions.push(eq(testRequisitions.sourceTeam, sourceTeam));
+  if (responsiblePerson) conditions.push(eq(testRequisitions.responsiblePerson, responsiblePerson));
+  if (submittedBy) conditions.push(eq(testRequisitions.submittedBy, submittedBy));
+  if (retestNeeded === "true") conditions.push(eq(testRequisitions.retestNeeded, true));
+  if (retestNeeded === "false") conditions.push(eq(testRequisitions.retestNeeded, false));
+  if (month) conditions.push(sql`substring(${testRequisitions.dateOfRequisition}::text, 1, 7) = ${month}`);
+  if (dateFrom) conditions.push(gte(testRequisitions.dateOfRequisition, dateFrom));
+  if (dateTo) conditions.push(lte(testRequisitions.dateOfRequisition, dateTo));
+  const where = conditions.length ? and(...conditions) : undefined;
+
+  // Every-other-filter-but-report_result scope -- backs the Green/Not Met
+  // pill counts shown once a Category is picked, regardless of which pill
+  // (if any) is currently selected.
+  let reportResultCounts: { green: number; red: number } | null = null;
+  if (category) {
+    const scopedRows = await db.select().from(testRequisitions).where(where).orderBy(desc(testRequisitions.createdAt));
+    const scopedStatus = await reportStatusFor(scopedRows);
+    let green = 0;
+    let red = 0;
+    for (const r of scopedRows) {
+      if (r.status !== "Closed" || !scopedStatus.reportIdByRequisition.get(r.id)) continue;
+      const unmet = (scopedStatus.unmetByRequisition.get(r.id) ?? []).length > 0;
+      if (unmet) red += 1;
+      else green += 1;
+    }
+    reportResultCounts = { green, red };
+
+    if (reportResult === "green" || reportResult === "red") {
+      const filtered = scopedRows.filter((r) => {
+        if (r.status !== "Closed" || !scopedStatus.reportIdByRequisition.get(r.id)) return false;
+        const unmet = (scopedStatus.unmetByRequisition.get(r.id) ?? []).length > 0;
+        return reportResult === "red" ? unmet : !unmet;
+      });
+      const pageRows = filtered.slice(offsetFor(page), offsetFor(page) + PAGE_SIZE);
+      return json({
+        entries: dictify(pageRows, scopedStatus),
+        total: filtered.length,
+        page,
+        page_size: PAGE_SIZE,
+        report_result_counts: reportResultCounts,
+      });
+    }
+  }
+
+  const [rows, [{ count }]] = await Promise.all([
+    db
+      .select()
+      .from(testRequisitions)
+      .where(where)
+      .orderBy(desc(testRequisitions.createdAt))
+      .limit(PAGE_SIZE)
+      .offset(offsetFor(page)),
+    db.select({ count: sql<number>`count(*)::int` }).from(testRequisitions).where(where),
+  ]);
+  const rowStatus = await reportStatusFor(rows);
+
+  return json({
+    entries: dictify(rows, rowStatus),
+    total: count,
+    page,
+    page_size: PAGE_SIZE,
+    report_result_counts: reportResultCounts,
+  });
 }
 
 export async function POST(req: Request) {

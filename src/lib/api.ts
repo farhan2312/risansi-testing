@@ -212,6 +212,7 @@ export function bugReportToDict(b: Omit<BugReportRow, "screenshotData">) {
     reported_by: b.reportedBy,
     reported_by_name: b.reportedByName,
     created_at: b.createdAt,
+    is_read: b.isRead,
   };
 }
 

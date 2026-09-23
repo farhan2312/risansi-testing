@@ -12,6 +12,8 @@ import {
   getAuditUsage,
   getAuditUserPages,
 } from "@/services/adminService";
+import Pagination from "@/components/ui/Pagination";
+import { SkeletonTableRows } from "@/components/ui/Skeleton";
 import type {
   AuditActivityEntry,
   AuditRange,
@@ -20,6 +22,8 @@ import type {
   AuditUsageRow,
   AuditUserPageRow,
 } from "@/types/testing";
+
+const PAGE_SIZE = 25;
 
 type Tab = "usage" | "sessions" | "activity";
 type ActionFilter = "all" | "create" | "update" | "delete";
@@ -88,10 +92,15 @@ const AdminAuditLogPage = () => {
   const [range, setRange] = useState<AuditRange>("7days");
   const [usage, setUsage] = useState<AuditUsageRow[]>([]);
   const [sessions, setSessions] = useState<AuditSessionEntry[]>([]);
+  const [sessionsTotal, setSessionsTotal] = useState(0);
   const [activity, setActivity] = useState<AuditActivityEntry[]>([]);
   const [activityTotal, setActivityTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Shared across the Sessions/Activity tabs -- reset to 1 whenever the tab,
+  // range, or (for Activity) search/action filter changes below.
+  const [page, setPage] = useState(1);
 
   // Activity tab search/filter -- searchInput is the live textbox value,
   // appliedSearch is what was actually last submitted (Search button or
@@ -114,6 +123,13 @@ const AdminAuditLogPage = () => {
       .catch(() => setError("Could not load the summary."));
   }, []);
 
+  // Changing the tab, range, or (Activity's) search/action filter always
+  // starts back at page 1 -- the previous page number rarely still makes
+  // sense against a different result set.
+  useEffect(() => {
+    setPage(1);
+  }, [tab, range, appliedSearch, actionFilter]);
+
   useEffect(() => {
     setIsLoading(true);
     setError("");
@@ -122,8 +138,11 @@ const AdminAuditLogPage = () => {
       tab === "usage"
         ? getAuditUsage(range).then(setUsage)
         : tab === "sessions"
-        ? getAuditSessions(range).then(setSessions)
-        : getAuditActivity(range, {
+        ? getAuditSessions(range, page).then((r) => {
+            setSessions(r.entries);
+            setSessionsTotal(r.total);
+          })
+        : getAuditActivity(range, page, {
             search: appliedSearch || undefined,
             action: actionFilter === "all" ? undefined : actionFilter,
           }).then((r) => {
@@ -132,7 +151,7 @@ const AdminAuditLogPage = () => {
           });
     loader.catch(() => setError("Could not load this tab.")).finally(() => setIsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, range, appliedSearch, actionFilter]);
+  }, [tab, range, appliedSearch, actionFilter, page]);
 
   const totalActiveTime = usage.reduce((sum, r) => sum + r.active_seconds, 0);
 
@@ -204,7 +223,13 @@ const AdminAuditLogPage = () => {
         ))}
       </div>
 
-      {isLoading && <p>Loading...</p>}
+      {isLoading && (
+        <table className="admin-requests-table">
+          <tbody>
+            <SkeletonTableRows columns={tab === "usage" ? 5 : tab === "sessions" ? 4 : 6} />
+          </tbody>
+        </table>
+      )}
       {error && <p className="error-message">{error}</p>}
 
       {!isLoading && !error && tab === "usage" && (
@@ -306,6 +331,13 @@ const AdminAuditLogPage = () => {
               </tbody>
             </table>
           )}
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(sessionsTotal / PAGE_SIZE))}
+            total={sessionsTotal}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
         </>
       )}
 
@@ -330,10 +362,7 @@ const AdminAuditLogPage = () => {
               Search
             </button>
           </div>
-          <p className="audit-tab-subline">
-            {activityTotal.toLocaleString()} entries · newest first
-            {activity.length < activityTotal ? ` (showing latest ${activity.length})` : ""}
-          </p>
+          <p className="audit-tab-subline">{activityTotal.toLocaleString()} entries · newest first</p>
 
           {activity.length === 0 ? (
             <p className="empty-state">No data changes match this filter.</p>
@@ -383,6 +412,13 @@ const AdminAuditLogPage = () => {
               </tbody>
             </table>
           )}
+          <Pagination
+            page={page}
+            totalPages={Math.max(1, Math.ceil(activityTotal / PAGE_SIZE))}
+            total={activityTotal}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
         </>
       )}
     </div>

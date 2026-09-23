@@ -10,6 +10,27 @@ export const dynamic = "force-dynamic";
 
 const STATUSES = new Set(["Open", "In Progress", "Resolved"]);
 
+/** Opening a report's detail is what "visiting" it means for the sidebar
+ * notification bell -- flips is_read true (if it wasn't already) and the
+ * report drops out of the unread count on the bell's next poll. */
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    requireAdmin(req);
+  } catch (e) {
+    if (e instanceof AuthError) return error(e.message, e.statusCode);
+    throw e;
+  }
+
+  const { id } = await params;
+  const [existing] = await db.select().from(bugReports).where(eq(bugReports.id, id)).limit(1);
+  if (!existing) return error("Bug report not found", 404);
+
+  if (existing.isRead) return json(bugReportToDict(existing));
+
+  const [report] = await db.update(bugReports).set({ isRead: true }).where(eq(bugReports.id, id)).returning();
+  return json(bugReportToDict(report));
+}
+
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   let claims;
   try {

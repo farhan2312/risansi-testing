@@ -11,6 +11,7 @@ import { capacityToM3hr, headToKgcm2 } from "@/lib/unitConversion";
 import { ratedPowerKwFromRequisition } from "@/lib/requirementCheck";
 import AttachmentsField from "@/components/ui/AttachmentsField";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { SkeletonPage } from "@/components/ui/Skeleton";
 import {
   deleteAttachment,
   getRequisition,
@@ -164,7 +165,7 @@ const EditRequisitionPage = () => {
     }
   };
 
-  if (isLoading) return <p className="detail-empty">Loading...</p>;
+  if (isLoading) return <SkeletonPage />;
 
   return (
     <div className="requisition-form-page">

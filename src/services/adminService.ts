@@ -3,12 +3,14 @@ import type {
   ActionRegistryEntry,
   AuditActivityResult,
   AuditRange,
-  AuditSessionEntry,
+  AuditSessionListResult,
   AuditSummary,
   AuditUsageRow,
   AuditUserPageRow,
   BugReport,
+  BugReportListResult,
   BugReportStatus,
+  PaginatedResult,
 } from "@/types/testing";
 
 export interface PendingUser {
@@ -22,11 +24,28 @@ export interface PendingUser {
   created_at: string;
 }
 
+/** Unfiltered counts across the whole `users` table, for the Users & Access
+ * page's KPI tiles -- always reflects everyone, regardless of the current
+ * page/search/role/status filter. */
+export interface UserStats {
+  total: number;
+  pending: number;
+  active: number;
+  admins: number;
+}
+
+export interface UserListResult extends PaginatedResult<PendingUser> {
+  stats: UserStats;
+}
+
+/** Every pending access request, unpaginated -- the queue is inherently
+ * small, and both the sidebar's pending-badge poll and the Pending Requests
+ * panel need the complete set, not one page of it. */
 export const listPendingUsers = async (): Promise<PendingUser[]> => {
-  const { data } = await apiClient.get<PendingUser[]>("/users", {
+  const { data } = await apiClient.get<UserListResult>("/users", {
     params: { status: "pending" },
   });
-  return data;
+  return data.entries;
 };
 
 export const reviewUser = async (
@@ -37,8 +56,20 @@ export const reviewUser = async (
   return data;
 };
 
-export const listAllUsers = async (): Promise<PendingUser[]> => {
-  const { data } = await apiClient.get<PendingUser[]>("/users");
+/** Server-paginated, 25/page, with optional search (name/email), role, and
+ * status filters. */
+export const listAllUsers = async (
+  page = 1,
+  filters?: { search?: string; role?: string; status?: string }
+): Promise<UserListResult> => {
+  const { data } = await apiClient.get<UserListResult>("/users", {
+    params: {
+      page,
+      ...(filters?.search ? { search: filters.search } : {}),
+      ...(filters?.role ? { role: filters.role } : {}),
+      ...(filters?.status ? { status: filters.status } : {}),
+    },
+  });
   return data;
 };
 
@@ -77,10 +108,29 @@ export const deleteUser = async (userId: string): Promise<void> => {
   await apiClient.delete(`/users/${userId}`);
 };
 
-/** Admin-only (role === "admin"), matching Manage Users / Access Requests. */
-export const listBugReports = async (status?: BugReportStatus): Promise<BugReport[]> => {
-  const { data } = await apiClient.get<BugReport[]>("/bug-reports", {
-    params: status ? { status } : undefined,
+export interface BugReportFilters {
+  search?: string;
+  type?: "bug" | "feature";
+  severity?: "Low" | "Medium" | "High" | "Critical";
+}
+
+/** Admin-only (role === "admin"), matching Manage Users / Access Requests.
+ * Server-paginated, 25/page. */
+export const listBugReports = async (
+  status?: BugReportStatus,
+  page = 1,
+  pageSize?: number,
+  filters?: BugReportFilters
+): Promise<BugReportListResult> => {
+  const { data } = await apiClient.get<BugReportListResult>("/bug-reports", {
+    params: {
+      ...(status ? { status } : {}),
+      page,
+      ...(pageSize ? { page_size: pageSize } : {}),
+      ...(filters?.search ? { search: filters.search } : {}),
+      ...(filters?.type ? { type: filters.type } : {}),
+      ...(filters?.severity ? { severity: filters.severity } : {}),
+    },
   });
   return data;
 };
@@ -92,6 +142,19 @@ export const setBugReportStatus = async (id: string, status: BugReportStatus): P
 
 export const deleteBugReport = async (id: string): Promise<void> => {
   await apiClient.delete(`/bug-reports/${id}`);
+};
+
+/** "Visiting" a report -- fetching its detail also marks it read
+ * server-side, dropping it out of the sidebar bell's unread count. */
+export const getBugReport = async (id: string): Promise<BugReport> => {
+  const { data } = await apiClient.get<BugReport>(`/bug-reports/${id}`);
+  return data;
+};
+
+/** Lightweight count-only poll for the sidebar notification bell. */
+export const getUnreadBugReportCount = async (): Promise<number> => {
+  const { data } = await apiClient.get<{ count: number }>("/bug-reports/unread-count");
+  return data.count;
 };
 
 /** Fetched as a blob (rather than a bare <a href>) so it can be opened in a
@@ -117,20 +180,22 @@ export const getAuditUsage = async (range: AuditRange): Promise<AuditUsageRow[]>
   return data;
 };
 
-export const getAuditSessions = async (range: AuditRange): Promise<AuditSessionEntry[]> => {
-  const { data } = await apiClient.get<AuditSessionEntry[]>("/audit-log/sessions", {
-    params: { range },
+export const getAuditSessions = async (range: AuditRange, page = 1): Promise<AuditSessionListResult> => {
+  const { data } = await apiClient.get<AuditSessionListResult>("/audit-log/sessions", {
+    params: { range, page },
   });
   return data;
 };
 
 export const getAuditActivity = async (
   range: AuditRange,
+  page = 1,
   filters?: { search?: string; action?: "create" | "update" | "delete" }
 ): Promise<AuditActivityResult> => {
   const { data } = await apiClient.get<AuditActivityResult>("/audit-log/activity", {
     params: {
       range,
+      page,
       ...(filters?.search ? { search: filters.search } : {}),
       ...(filters?.action ? { action: filters.action } : {}),
     },
@@ -147,8 +212,11 @@ export const getAuditUserPages = async (userId: string, range: AuditRange): Prom
   return data;
 };
 
-/** Admin / Central Admin only, matching who can Assign Retest. */
-export const listActionRegistry = async (): Promise<ActionRegistryEntry[]> => {
-  const { data } = await apiClient.get<ActionRegistryEntry[]>("/action-registry");
+/** Admin / Central Admin only, matching who can Assign Retest. Server-paginated,
+ * 25/page. */
+export const listActionRegistry = async (page = 1): Promise<PaginatedResult<ActionRegistryEntry>> => {
+  const { data } = await apiClient.get<PaginatedResult<ActionRegistryEntry>>("/action-registry", {
+    params: { page },
+  });
   return data;
 };

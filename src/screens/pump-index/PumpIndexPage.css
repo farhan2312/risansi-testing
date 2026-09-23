@@ -2,6 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* Matches the Admin section's page padding convention -- see
+   * DashboardPage.css's identical comment. */
+  padding: 40px;
 }
 
 .pump-index-header {

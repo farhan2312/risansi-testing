@@ -9,6 +9,7 @@ import "./PumpDashboardPage.css";
 import { POINT_ROWS } from "@/components/report-detail/ReportDetailSections";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 import { getPumpDashboard } from "@/services/testingService";
+import { SkeletonPage } from "@/components/ui/Skeleton";
 import type { PumpDashboardData, PumpTestReport } from "@/types/testing";
 import { formatDate, formatNumber, installedPowerLabel, motorWithKw } from "@/lib/formUtils";
 
@@ -104,7 +105,7 @@ const PumpDashboardPage = () => {
     };
   }, [model]);
 
-  if (isLoading) return <p className="dashboard-empty">Loading...</p>;
+  if (isLoading) return <SkeletonPage cards={3} />;
   if (error) return <div className="dashboard-error">{error}</div>;
   if (!data) return null;
 

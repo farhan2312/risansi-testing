@@ -8,6 +8,7 @@ import { getReport } from "@/services/testingService";
 import { isWithinReportEditWindow, REPORT_EDIT_WINDOW_DAYS } from "@/lib/reportEditWindow";
 import TestReportForm from "@/components/test-report/TestReportForm";
 import ViscosityChartForm from "@/components/test-report/ViscosityChartForm";
+import { SkeletonPage } from "@/components/ui/Skeleton";
 import type { PumpTestReport } from "@/types/testing";
 
 const EditReportPage = () => {
@@ -22,7 +23,7 @@ const EditReportPage = () => {
   }, [id]);
 
   if (error) return <div className="form-error-banner">{error}</div>;
-  if (!report) return <p className="edit-report-empty">Loading...</p>;
+  if (!report) return <SkeletonPage />;
 
   if (!isWithinReportEditWindow(report.created_at)) {
     return (

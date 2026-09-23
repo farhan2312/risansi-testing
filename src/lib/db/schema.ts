@@ -280,6 +280,12 @@ export const bugReports = pgTable("bug_reports", {
   // Name snapshot, same convention as requisitionAttachments.uploadedByName.
   reportedByName: varchar("reported_by_name", { length: 100 }),
   createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
+  // Backs the sidebar notification bell -- false until an admin opens this
+  // report's detail (GET /api/bug-reports/[id]), at which point it flips
+  // true and drops out of the unread count. Not per-admin (one shared flag,
+  // not a per-user read receipt) -- deliberately simple for this app's
+  // small admin headcount.
+  isRead: boolean("is_read").notNull().default(false),
 });
 
 // Audit Log: append-only trail of logins and every data-changing action,

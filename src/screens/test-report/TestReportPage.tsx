@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import TestReportForm from "@/components/test-report/TestReportForm";
 import { getRequisition } from "@/services/testingService";
+import { SkeletonPage } from "@/components/ui/Skeleton";
 import type { TestRequisition } from "@/types/testing";
 
 const TestReportPage = () => {
@@ -19,7 +20,7 @@ const TestReportPage = () => {
   }, [id]);
 
   if (error) return <div className="form-error-banner">{error}</div>;
-  if (!requisition) return <p className="detail-empty">Loading...</p>;
+  if (!requisition) return <SkeletonPage />;
 
   return (
     <TestReportForm

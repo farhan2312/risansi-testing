@@ -11,6 +11,7 @@ import { isWithinReportEditWindow, REPORT_EDIT_WINDOW_DAYS } from "@/lib/reportE
 import { buildUnmetRows, computeRequirementStatus, maxOf, unmetRequirementLabels } from "@/lib/requirementCheck";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import AssignRetestModal from "@/components/ui/AssignRetestModal";
+import { SkeletonPage } from "@/components/ui/Skeleton";
 import ReportDetailSections from "@/components/report-detail/ReportDetailSections";
 import type { PumpTestReport } from "@/types/testing";
 
@@ -61,7 +62,7 @@ const ReportDetailPage = () => {
   };
 
   if (error) return <div className="form-error-banner">{error}</div>;
-  if (!report) return <p className="detail-empty">Loading...</p>;
+  if (!report) return <SkeletonPage />;
 
   // Did testing actually satisfy the rated requirements? Same rule every
   // other "outside rated requirement" flag in the app uses -- Assign Retest

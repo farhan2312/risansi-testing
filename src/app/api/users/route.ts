@@ -1,16 +1,27 @@
 import bcrypt from "bcryptjs";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
 
 import { error, json, userToDict } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { offsetFor, PAGE_SIZE, parsePage } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
 
 const ROLES = ["source", "testing", "central-admin", "admin"];
 
+/** Server-paginated, 25/page, with optional `search` (name/email),
+ * `role`, and `status` filters. Also returns `stats` -- unfiltered counts
+ * (total/pending/active/admins) for the Users & Access page's KPI tiles,
+ * which must reflect the whole table regardless of the current filter/page.
+ *
+ * Exception: a bare `status=pending` query (no search/role/page) -- the
+ * shape DashboardLayout's pending-badge poll and the Pending Requests panel
+ * both rely on -- returns every pending row unpaginated. That queue is
+ * inherently small (bounded by how often admins review it), and both of
+ * those callers need the complete set, not one page of it. */
 export async function GET(req: Request) {
   try {
     requireAdmin(req);
@@ -19,12 +30,47 @@ export async function GET(req: Request) {
     throw e;
   }
 
-  const status = new URL(req.url).searchParams.get("status");
-  const rows = status
-    ? await db.select().from(users).where(eq(users.status, status)).orderBy(asc(users.createdAt))
-    : await db.select().from(users).orderBy(asc(users.createdAt));
+  const { searchParams } = new URL(req.url);
+  const status = searchParams.get("status");
+  const role = searchParams.get("role");
+  const search = searchParams.get("search")?.trim();
+  const page = parsePage(req);
 
-  return json(rows.map(userToDict));
+  const conditions = [];
+  if (status) conditions.push(eq(users.status, status));
+  if (role) conditions.push(eq(users.role, role));
+  if (search) {
+    const like = `%${search}%`;
+    conditions.push(or(ilike(users.name, like), ilike(users.email, like))!);
+  }
+  const where = conditions.length ? and(...conditions) : undefined;
+
+  const isPendingQueueQuery = status === "pending" && !role && !search && !searchParams.has("page");
+  if (isPendingQueueQuery) {
+    const rows = await db.select().from(users).where(where).orderBy(asc(users.createdAt));
+    return json({ entries: rows.map(userToDict), total: rows.length, page: 1, page_size: rows.length });
+  }
+
+  const [rows, [{ count }], [stats]] = await Promise.all([
+    db.select().from(users).where(where).orderBy(asc(users.createdAt)).limit(PAGE_SIZE).offset(offsetFor(page)),
+    db.select({ count: sql<number>`count(*)::int` }).from(users).where(where),
+    db
+      .select({
+        total: sql<number>`count(*)::int`,
+        pending: sql<number>`count(*) filter (where status = 'pending')::int`,
+        active: sql<number>`count(*) filter (where status = 'active')::int`,
+        admins: sql<number>`count(*) filter (where role in ('admin', 'central-admin'))::int`,
+      })
+      .from(users),
+  ]);
+
+  return json({
+    entries: rows.map(userToDict),
+    total: count,
+    page,
+    page_size: PAGE_SIZE,
+    stats,
+  });
 }
 
 /** Admin-only direct account creation -- unlike the public /access-requests

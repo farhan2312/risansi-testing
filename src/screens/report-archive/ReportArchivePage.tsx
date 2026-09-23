@@ -1,68 +1,47 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import "./ReportArchivePage.css";
-import { normalizeModelKey, modelDisplayLabel } from "@/lib/modelKey";
-import { listReports } from "@/services/testingService";
-import type { ArchiveReportSummary } from "@/types/testing";
+import { listGroupedReports } from "@/services/testingService";
+import type { ArchivePumpGroup } from "@/types/testing";
 import { formatDate, formatNumber, motorWithKw } from "@/lib/formUtils";
+import Pagination from "@/components/ui/Pagination";
+import { SkeletonTableRows } from "@/components/ui/Skeleton";
 
-const PAGE_SIZE = 20;
-
-interface PumpGroup {
-  model: string;
-  reportCount: number;
-  totalPoints: number;
-  latestTestDate: string;
-  hasObservation: boolean;
-  hasViscosityChart: boolean;
-  reports: ArchiveReportSummary[];
-}
-
-const groupByPump = (reports: ArchiveReportSummary[]): PumpGroup[] => {
-  const groups = new Map<string, ArchiveReportSummary[]>();
-  for (const r of reports) {
-    const key = normalizeModelKey(r.model);
-    const list = groups.get(key) ?? [];
-    list.push(r);
-    groups.set(key, list);
-  }
-
-  return [...groups.values()]
-    .map((reports) => {
-      const dates = reports.map((r) => r.test_date ?? r.created_at.slice(0, 10));
-      return {
-        model: modelDisplayLabel(reports),
-        reportCount: reports.length,
-        totalPoints: reports.reduce((sum, r) => sum + r.pointCount, 0),
-        latestTestDate: dates.sort().at(-1) ?? "-",
-        hasObservation: reports.some((r) => (r.report_format ?? "observation") === "observation"),
-        hasViscosityChart: reports.some((r) => r.report_format === "viscosity-chart"),
-        reports: [...reports].sort((a, b) =>
-          (b.test_date ?? b.created_at).localeCompare(a.test_date ?? a.created_at)
-        ),
-      };
-    })
-    .sort((a, b) => a.model.localeCompare(b.model));
-};
+const PAGE_SIZE = 50;
 
 const ReportArchivePage = () => {
-  const [reports, setReports] = useState<ArchiveReportSummary[]>([]);
+  const [pumpGroups, setPumpGroups] = useState<ArchivePumpGroup[]>([]);
+  const [total, setTotal] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
 
+  // Debounces the search box -- server-side now, so typing shouldn't fire a
+  // request per keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
     setError("");
 
-    listReports()
-      .then((rows) => {
-        if (!cancelled) setReports(rows);
+    listGroupedReports(page, search || undefined)
+      .then((result) => {
+        if (cancelled) return;
+        setPumpGroups(result.entries);
+        setTotal(result.total);
       })
       .catch(() => {
         if (!cancelled) setError("Could not load reports.");
@@ -74,39 +53,10 @@ const ReportArchivePage = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [page, search]);
 
-  const pumpGroups = useMemo(() => groupByPump(reports), [reports]);
-  const isSearching = search.trim().length > 0;
-
-  const filteredPumps = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return pumpGroups;
-    return pumpGroups.filter(
-      (g) =>
-        g.model.toLowerCase().includes(q) ||
-        g.reports.some((r) => r.ec_no?.toLowerCase().includes(q))
-    );
-  }, [pumpGroups, search]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [search]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredPumps.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pagedPumps = filteredPumps.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  );
-
-  const pageNumbers = useMemo(() => {
-    const pages: number[] = [];
-    const start = Math.max(1, currentPage - 2);
-    const end = Math.min(totalPages, start + 4);
-    for (let p = Math.max(1, end - 4); p <= end; p++) pages.push(p);
-    return pages;
-  }, [currentPage, totalPages]);
+  const isSearching = search.length > 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const toggleExpanded = (model: string) => {
     setExpanded((prev) => {
@@ -124,17 +74,15 @@ const ReportArchivePage = () => {
         <input
           type="text"
           placeholder="Search by model or EC number..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           className="archive-search"
         />
       </div>
 
       {error && <div className="archive-error">{error}</div>}
 
-      {isLoading ? (
-        <p className="archive-empty">Loading...</p>
-      ) : filteredPumps.length === 0 ? (
+      {!isLoading && pumpGroups.length === 0 ? (
         <p className="archive-empty">No pumps found.</p>
       ) : (
         <table className="archive-table">
@@ -149,7 +97,8 @@ const ReportArchivePage = () => {
             </tr>
           </thead>
           <tbody>
-            {pagedPumps.map((g) => {
+            {isLoading && <SkeletonTableRows columns={6} />}
+            {!isLoading && pumpGroups.map((g) => {
               const isOpen = isSearching || expanded.has(g.model);
               return (
                 <Fragment key={g.model}>
@@ -160,13 +109,13 @@ const ReportArchivePage = () => {
                         {g.model}
                       </Link>
                     </td>
-                    <td>{g.reportCount}</td>
+                    <td>{g.report_count}</td>
                     <td>
-                      <span className={`format-badge ${g.hasObservation ? "present" : "missing"}`}>Obs</span>
-                      <span className={`format-badge ${g.hasViscosityChart ? "present" : "missing"}`}>VC</span>
+                      <span className={`format-badge ${g.has_observation ? "present" : "missing"}`}>Obs</span>
+                      <span className={`format-badge ${g.has_viscosity_chart ? "present" : "missing"}`}>VC</span>
                     </td>
-                    <td>{g.totalPoints}</td>
-                    <td>{formatDate(g.latestTestDate)}</td>
+                    <td>{g.total_points}</td>
+                    <td>{formatDate(g.latest_test_date)}</td>
                   </tr>
                   {isOpen && (
                     <tr className="pump-detail-row">
@@ -227,60 +176,7 @@ const ReportArchivePage = () => {
         </table>
       )}
 
-      {!isLoading && filteredPumps.length > 0 && totalPages > 1 && (
-        <div className="archive-pagination">
-          <button
-            type="button"
-            disabled={currentPage === 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            Prev
-          </button>
-
-          {pageNumbers[0] > 1 && (
-            <>
-              <button type="button" onClick={() => setPage(1)}>
-                1
-              </button>
-              {pageNumbers[0] > 2 && <span className="archive-pagination-ellipsis">…</span>}
-            </>
-          )}
-
-          {pageNumbers.map((p) => (
-            <button
-              key={p}
-              type="button"
-              className={p === currentPage ? "active" : ""}
-              onClick={() => setPage(p)}
-            >
-              {p}
-            </button>
-          ))}
-
-          {pageNumbers.at(-1)! < totalPages && (
-            <>
-              {pageNumbers.at(-1)! < totalPages - 1 && (
-                <span className="archive-pagination-ellipsis">…</span>
-              )}
-              <button type="button" onClick={() => setPage(totalPages)}>
-                {totalPages}
-              </button>
-            </>
-          )}
-
-          <button
-            type="button"
-            disabled={currentPage === totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-          </button>
-
-          <span className="archive-pagination-status">
-            Page {currentPage} of {totalPages}
-          </span>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />
     </div>
   );
 };

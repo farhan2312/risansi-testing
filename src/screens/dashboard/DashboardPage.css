@@ -2,6 +2,11 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* Matches the Admin section's page padding convention (24px from the
+   * shared .testing-main wrapper + 40px here = 64px, same as
+   * .admin-requests-page) -- this page previously only got the 24px,
+   * noticeably tighter than every Admin screen for no functional reason. */
+  padding: 40px;
 }
 
 .dashboard-header {

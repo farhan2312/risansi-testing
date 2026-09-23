@@ -5,7 +5,11 @@ import Link from "next/link";
 import "./AdminActionRegistryPage.css";
 import { listActionRegistry } from "@/services/adminService";
 import { formatDate, formatNumber } from "@/lib/formUtils";
+import Pagination from "@/components/ui/Pagination";
+import { SkeletonTableRows } from "@/components/ui/Skeleton";
 import type { ActionRegistryEntry } from "@/types/testing";
+
+const PAGE_SIZE = 25;
 
 interface UnmetField {
   label: string;
@@ -39,15 +43,23 @@ const unmetFieldsOf = (e: ActionRegistryEntry): UnmetField[] => {
 
 const AdminActionRegistryPage = () => {
   const [entries, setEntries] = useState<ActionRegistryEntry[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    listActionRegistry()
-      .then(setEntries)
+    setIsLoading(true);
+    listActionRegistry(page)
+      .then((result) => {
+        setEntries(result.entries);
+        setTotal(result.total);
+      })
       .catch(() => setError("Could not load the Action Registry."))
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [page]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="registry-page">
@@ -59,14 +71,13 @@ const AdminActionRegistryPage = () => {
         </p>
       </div>
 
-      {isLoading && <p className="registry-status">Loading...</p>}
       {error && <p className="registry-status registry-status-error">{error}</p>}
 
       {!isLoading && !error && entries.length === 0 && (
         <p className="registry-empty">Nothing here yet.</p>
       )}
 
-      {!isLoading && !error && entries.length > 0 && (
+      {(isLoading || (!error && entries.length > 0)) && (
         <div className="registry-table-card">
           <div className="registry-table-scroll">
             <table className="registry-table">
@@ -81,7 +92,8 @@ const AdminActionRegistryPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {entries.map((e) => (
+                {isLoading && <SkeletonTableRows columns={6} />}
+                {!isLoading && entries.map((e) => (
                   <tr key={e.id}>
                     <td>
                       <div className="registry-model">{e.model}</div>
@@ -130,6 +142,8 @@ const AdminActionRegistryPage = () => {
           </div>
         </div>
       )}
+
+      <Pagination page={page} totalPages={totalPages} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />
     </div>
   );
 };

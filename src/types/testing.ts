@@ -1,6 +1,15 @@
 // Field names are snake_case to match the Next.js API route responses
 // (src/lib/api.ts serializers, mirroring the old function_app.py convention).
 
+/** Shape every server-paginated list endpoint returns (see src/lib/pagination.ts
+ * -- fixed 25 rows/page). */
+export interface PaginatedResult<T> {
+  entries: T[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 export type RequisitionStatus = "Pending" | "In Testing" | "Retest Needed" | "Closed";
 
 export const REQUISITION_CATEGORIES = [
@@ -117,6 +126,42 @@ export interface TestRequisition {
    * points never reached -- empty when met or there's no report yet. */
   report_requirement_unmet_fields?: string[];
   attachments?: RequisitionAttachment[];
+}
+
+/** GET /api/requisitions's response -- a paginated page of rows, the
+ * Testing Summary filter bar's full filter set applied server-side, plus
+ * `report_result_counts` (Green/Met vs Red/Not-Met, only computed once a
+ * Category filter narrows the scope -- see that route for why). */
+export interface RequisitionListResult extends PaginatedResult<TestRequisition> {
+  report_result_counts: { green: number; red: number } | null;
+}
+
+/** GET /api/requisitions/target-date-alerts's response -- backs the
+ * sidebar target-date bell. Every Pending/Retest Needed requisition due
+ * within 5 days (or overdue) whose Responsible Person matches the
+ * logged-in user. */
+export interface TargetDateAlertItem {
+  id: string;
+  requisition_no: string | null;
+  model: string;
+  status: RequisitionStatus;
+  target_date: string | null;
+}
+
+export interface TargetDateAlertResult {
+  count: number;
+  items: TargetDateAlertItem[];
+}
+
+/** GET /api/requisitions/filter-options's response -- every distinct
+ * Model / Submitted By / calendar-month value in the current status tab
+ * (and, for the "source" role, only that user's own requisitions), backing
+ * the Testing Summary filter bar's dropdowns. Computed server-side since
+ * the row list itself is now paginated and can't be used to derive them. */
+export interface RequisitionFilterOptions {
+  models: string[];
+  submitted_by: string[];
+  months: string[];
 }
 
 /** Metadata only -- file_data is never sent down with the list, only via the
@@ -318,6 +363,54 @@ export interface ArchiveReportSummary extends Omit<PumpTestReport, "points"> {
   points_power_kw: (number | null)[];
 }
 
+/** One row of GET /api/reports/grouped's paginated (50/page) response --
+ * Report Archive groups reports by physical pump, so it paginates pump
+ * groups rather than raw report rows. */
+export interface ArchivePumpGroup {
+  model: string;
+  report_count: number;
+  total_points: number;
+  latest_test_date: string;
+  has_observation: boolean;
+  has_viscosity_chart: boolean;
+  reports: ArchiveReportSummary[];
+}
+
+/** One row of GET /api/pumps's paginated (50/page) response -- Report
+ * Compilation, same as Report Archive, paginates pump groups rather than
+ * raw rows. Carries its own full (unfiltered) reports/requisitions so the
+ * client's existing per-row "which of this pump's rows match" display
+ * logic (see requisitionFilters.ts) keeps working unchanged. */
+export interface PumpIndexGroup {
+  model: string;
+  report_count: number;
+  requisition_count: number;
+  latest_date: string;
+  reports: ArchiveReportSummary[];
+  requisitions: TestRequisition[];
+}
+
+/** Portal-wide totals (role-scoped only, not filtered) backing the Report
+ * Compilation KPI tiles. */
+export interface PumpIndexSummary {
+  total_reports: number;
+  historical: number;
+  met: number;
+  unmet: number;
+  pump_count: number;
+}
+
+export interface PumpIndexFilterOptions {
+  models: string[];
+  submitted_by: string[];
+  months: string[];
+}
+
+export interface PumpIndexListResult extends PaginatedResult<PumpIndexGroup> {
+  summary: PumpIndexSummary;
+  filter_options: PumpIndexFilterOptions;
+}
+
 export interface DedupCheckResult {
   model: string;
   priorReports: PumpTestReport[];
@@ -365,6 +458,15 @@ export interface BugReport {
   reported_by: string | null;
   reported_by_name: string | null;
   created_at: string;
+  is_read: boolean;
+}
+
+/** GET /api/bug-reports's response -- a paginated page of rows (optionally
+ * narrowed by `status`) plus `status_counts`, which is always unfiltered so
+ * the admin page's status-tab pill counts reflect the whole table
+ * regardless of which tab/page is currently selected. */
+export interface BugReportListResult extends PaginatedResult<BugReport> {
+  status_counts: Partial<Record<BugReportStatus, number>>;
 }
 
 // ----- Audit Log (admin-only) -----
@@ -428,10 +530,9 @@ export interface AuditActivityEntry {
   created_at: string;
 }
 
-export interface AuditActivityResult {
-  entries: AuditActivityEntry[];
-  total: number;
-}
+export interface AuditActivityResult extends PaginatedResult<AuditActivityEntry> {}
+
+export interface AuditSessionListResult extends PaginatedResult<AuditSessionEntry> {}
 
 // ----- Action Registry (Admin / Central Admin only) -----
 

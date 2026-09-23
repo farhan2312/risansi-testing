@@ -1,4 +1,4 @@
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { error, json, pointToDict, reportToDict, requisitionToDict } from "@/lib/api";
 import { AuthError, decodeToken } from "@/lib/auth";
@@ -27,19 +27,22 @@ export async function GET(req: Request, { params }: { params: Promise<{ model: s
     return error("Model is required", 400);
   }
 
-  const [allRequisitions, allReports] = await Promise.all([
-    db.select().from(testRequisitions),
-    db.select().from(pumpTestReports),
-  ]);
+  // normalizeModelKey is just upper() + strip-non-alphanumeric -- pushed
+  // into SQL here instead of fetching every requisition/report into memory
+  // to filter in JS (this route used to do exactly that, unconditionally).
+  const normalizedModelSql = <T extends { model: unknown }>(table: T) =>
+    sql`upper(regexp_replace(${table.model}, '[^A-Za-z0-9]', '', 'g'))`;
 
-  let requisitions = allRequisitions.filter((r) => normalizeModelKey(r.model) === target);
+  const requisitionMatch = eq(normalizedModelSql(testRequisitions), target);
   // Source teams only see the requisitions they personally raised -- testing
   // team and admins still see everything, matching GET /api/requisitions.
-  if (claims.role === "source") {
-    requisitions = requisitions.filter((r) => r.createdBy === claims.sub);
-  }
+  const requisitionsWhere =
+    claims.role === "source" ? and(requisitionMatch, eq(testRequisitions.createdBy, claims.sub)) : requisitionMatch;
 
-  const reports = allReports.filter((r) => normalizeModelKey(r.model) === target);
+  const [requisitions, reports] = await Promise.all([
+    db.select().from(testRequisitions).where(requisitionsWhere),
+    db.select().from(pumpTestReports).where(eq(normalizedModelSql(pumpTestReports), target)),
+  ]);
 
   if (requisitions.length === 0 && reports.length === 0) {
     return error("Pump not found", 404);
@@ -58,10 +61,21 @@ export async function GET(req: Request, { params }: { params: Promise<{ model: s
 
   const displayModel = modelDisplayLabel([...reports, ...requisitions]);
 
-  // Every requisition for this model is already in memory (allRequisitions
-  // above) -- reuse it rather than a fresh query, same "which requisition is
-  // this report linked to" join reports/[id] does, just batched.
-  const requisitionNoById = new Map(allRequisitions.map((r) => [r.id, r.requisitionNo]));
+  // Which requisition each report is linked to, for requisitions this
+  // pump's reports reference -- almost always the same set already fetched
+  // above, but a report can in principle link to a requisition under a
+  // slightly different raw model spelling, so resolve properly rather than
+  // assuming it's always in the `requisitions` map.
+  const linkedRequisitionIds = [...new Set(reports.map((r) => r.requisitionId).filter((id): id is string => Boolean(id)))];
+  const requisitionNoById = new Map(requisitions.map((r) => [r.id, r.requisitionNo]));
+  const missingIds = linkedRequisitionIds.filter((id) => !requisitionNoById.has(id));
+  if (missingIds.length) {
+    const extra = await db
+      .select({ id: testRequisitions.id, requisitionNo: testRequisitions.requisitionNo })
+      .from(testRequisitions)
+      .where(inArray(testRequisitions.id, missingIds));
+    for (const r of extra) requisitionNoById.set(r.id, r.requisitionNo);
+  }
 
   return json({
     model: displayModel,
