@@ -45,6 +45,11 @@ const BarList = ({ items, color = "var(--series-1)", emptyText = "Nothing in thi
               <span className="w-8 flex-shrink-0 text-right text-[13px] font-semibold text-text-h" style={{ fontVariantNumeric: "tabular-nums" }}>
                 {item.value}
               </span>
+              {item.href && (
+                <span className="w-3 flex-shrink-0 text-xs text-text-faint opacity-40 transition-all group-hover/row:translate-x-0.5 group-hover/row:text-accent group-hover/row:opacity-100" aria-hidden="true">
+                  &rarr;
+                </span>
+              )}
             </div>
           </>
         );
@@ -52,7 +57,7 @@ const BarList = ({ items, color = "var(--series-1)", emptyText = "Nothing in thi
         return (
           <li key={item.key} title={item.detail}>
             {item.href ? (
-              <Link href={item.href} className={`${cls} hover:bg-surface-hover focus-visible:bg-surface-hover`}>
+              <Link href={item.href} className={`${cls} group/row hover:bg-surface-hover focus-visible:bg-surface-hover`}>
                 {content}
               </Link>
             ) : (

@@ -195,7 +195,7 @@ export const listReports = async (model?: string): Promise<ArchiveReportSummary[
 export const listGroupedReports = async (
   page = 1,
   search?: string,
-  range?: { from?: string; to?: string }
+  range?: { from?: string; to?: string; category?: string }
 ): Promise<ArchiveListResult> => {
   const { data } = await apiClient.get<ArchiveListResult>("/reports/grouped", {
     params: {
@@ -203,6 +203,7 @@ export const listGroupedReports = async (
       ...(search ? { search } : {}),
       ...(range?.from ? { from: range.from } : {}),
       ...(range?.to ? { to: range.to } : {}),
+      ...(range?.category ? { category: range.category } : {}),
     },
   });
   return data;

@@ -5,6 +5,7 @@ import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
 import { RAISED_BY_GROUPS, RAISED_BY_LABELS, raisedByGroup } from "@/lib/raisedBy";
+import { buildReportCategoryResolver, REPORT_CATEGORY_ORDER, reportCategoryLabel } from "@/lib/reportCategory";
 import { enrichReports } from "@/lib/reportEnrichment";
 import { computeRequirementStatus } from "@/lib/requirementCheck";
 
@@ -129,6 +130,9 @@ export async function GET(req: Request) {
     turnaround,
     latestReports,
     raiserRows,
+    reportsInRange,
+    requisitionsForCategory,
+    [allTimeReports],
   ] = await Promise.all([
     db
       .select({ status: testRequisitions.status, n: sql<number>`count(*)::int` })
@@ -242,6 +246,13 @@ export async function GET(req: Request) {
       .leftJoin(users, sql`${users.id} = ${testRequisitions.createdBy}`)
       .where(reqDateCondition)
       .groupBy(users.role),
+    // Category-wise reports: which reports are in range, and every requisition to take a category from.
+    db
+      .select({ model: pumpTestReports.model, requisitionId: pumpTestReports.requisitionId })
+      .from(pumpTestReports)
+      .where(reportDateCondition),
+    db.select({ id: testRequisitions.id, model: testRequisitions.model, category: testRequisitions.category }).from(testRequisitions),
+    db.select({ n: sql<number>`count(*)::int` }).from(pumpTestReports),
   ]);
 
   // ---- Pass/fail -- same rule as the Testing Summary's Green/Red filter ----
@@ -321,6 +332,19 @@ export async function GET(req: Request) {
 
   const enrichedLatest = await enrichReports(latestReports);
 
+  // Reports by category (see lib/reportCategory.ts for how a report gets one).
+  const categoryOfReport = buildReportCategoryResolver(requisitionsForCategory);
+  const reportCategoryCounts = new Map<string, number>();
+  for (const r of reportsInRange) {
+    const key = categoryOfReport(r);
+    reportCategoryCounts.set(key, (reportCategoryCounts.get(key) ?? 0) + 1);
+  }
+  const reportsByCategory = REPORT_CATEGORY_ORDER.filter((key) => (reportCategoryCounts.get(key) ?? 0) > 0).map((key) => ({
+    key,
+    label: reportCategoryLabel(key),
+    count: reportCategoryCounts.get(key) ?? 0,
+  }));
+
   const raiserCounts = new Map(RAISED_BY_GROUPS.map((g) => [g, 0]));
   for (const r of raiserRows) {
     const group = raisedByGroup(r.role);
@@ -337,7 +361,8 @@ export async function GET(req: Request) {
 
   const workloadByPerson = new Map<string, { pending: number; in_testing: number; retest_needed: number }>();
   for (const row of workloadRows) {
-    const key = row.person ?? "Unassigned";
+    // A blank name counts as unassigned too, matching the list's "none" filter.
+    const key = row.person?.trim() ? row.person : "Unassigned";
     const entry = workloadByPerson.get(key) ?? { pending: 0, in_testing: 0, retest_needed: 0 };
     if (row.status === "Pending") entry.pending += toNum(row.n);
     if (row.status === "In Testing") entry.in_testing += toNum(row.n);
@@ -368,6 +393,8 @@ export async function GET(req: Request) {
     by_category: byCategory
       .map((r) => ({ label: r.category ?? "Uncategorised", count: toNum(r.n) }))
       .sort((a, b) => b.count - a.count),
+    total_reports_all_time: toNum(allTimeReports?.n),
+    reports_by_category: reportsByCategory,
     by_raiser: RAISED_BY_GROUPS.map((group) => ({ group, label: RAISED_BY_LABELS[group], count: raiserCounts.get(group) ?? 0 })),
     by_source_team: bySourceTeam
       .map((r) => ({ label: r.team ?? "Unspecified", count: toNum(r.n) }))

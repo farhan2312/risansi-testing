@@ -70,12 +70,12 @@ const DashboardPage = () => {
   // Overview drill-downs (/dashboard?category=...&from=...&to=...) land here
   // pre-filtered. Only values the dropdowns actually offer are accepted, so a
   // stale or hand-edited link can never leave a select showing a blank value.
-  const [categoryFilter, setCategoryFilter] = useState(() => fromQuery(searchParams.get("category"), REQUISITION_CATEGORIES));
+  const [categoryFilter, setCategoryFilter] = useState(() => fromQuery(searchParams.get("category"), [...REQUISITION_CATEGORIES, "none"]));
   const [sourceTeamFilter, setSourceTeamFilter] = useState(() => fromQuery(searchParams.get("source_team"), SOURCE_TEAMS));
   // Who raised it: a Source Team account, a Testing Team account, or anyone else.
   const [raisedByFilter, setRaisedByFilter] = useState(() => fromQuery(searchParams.get("raised_by"), RAISED_BY_GROUPS));
   const [responsiblePersonFilter, setResponsiblePersonFilter] = useState(() =>
-    fromQuery(searchParams.get("responsible_person"), RESPONSIBLE_PERSONS)
+    fromQuery(searchParams.get("responsible_person"), [...RESPONSIBLE_PERSONS, "none"])
   );
   const [submittedByFilter, setSubmittedByFilter] = useState(ALL);
   const [retestFilter, setRetestFilter] = useState(ALL);
@@ -313,6 +313,7 @@ const DashboardPage = () => {
               {c}
             </option>
           ))}
+          <option value="none">No category</option>
         </select>
         <select value={raisedByFilter} onChange={(e) => setRaisedByFilter(e.target.value)} aria-label="Raised by">
           <option value={ALL}>Raised By: Anyone</option>
@@ -337,6 +338,7 @@ const DashboardPage = () => {
               {p}
             </option>
           ))}
+          <option value="none">Unassigned</option>
         </select>
         <select value={submittedByFilter} onChange={(e) => setSubmittedByFilter(e.target.value)}>
           <option value={ALL}>All Submitted By</option>
@@ -377,7 +379,7 @@ const DashboardPage = () => {
       {(categoryFilter !== ALL || activeStatus === "Closed" || reportResultFilter !== "All") && (
         <div className="report-result-filter">
           <span className="report-result-label">
-            Reports filled{categoryFilter !== ALL ? ` for "${categoryFilter}"` : ""}: {reportResultCounts.green + reportResultCounts.red}
+            Reports filled{categoryFilter !== ALL ? ` for "${categoryFilter === "none" ? "No category" : categoryFilter}"` : ""}: {reportResultCounts.green + reportResultCounts.red}
           </span>
           <button
             type="button"

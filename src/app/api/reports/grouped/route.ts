@@ -2,8 +2,9 @@ import { desc } from "drizzle-orm";
 
 import { json } from "@/lib/api";
 import { db } from "@/lib/db";
-import { pumpTestReports } from "@/lib/db/schema";
+import { pumpTestReports, testRequisitions } from "@/lib/db/schema";
 import { modelDisplayLabel, normalizeModelKey } from "@/lib/modelKey";
+import { buildReportCategoryResolver, isReportCategoryKey } from "@/lib/reportCategory";
 import { enrichReports } from "@/lib/reportEnrichment";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +40,21 @@ export async function GET(req: Request) {
   const rows = await db.select().from(pumpTestReports).orderBy(desc(pumpTestReports.createdAt));
   const enrichedAll = await enrichReports(rows);
   const reportDay = (r: (typeof enrichedAll)[number]) => r.test_date ?? r.created_at?.toISOString().slice(0, 10) ?? "";
-  const enriched = enrichedAll.filter((r) => (!fromDay || reportDay(r) >= fromDay) && (!toDay || reportDay(r) <= toDay));
+  // Category-wise view (the Overview's "Reports by category" card): a report's
+  // category comes from its requisition, or its pump model's requisitions --
+  // see lib/reportCategory.ts, the same rule that produced the card's counts.
+  const categoryParam = searchParams.get("category");
+  const categoryOf = isReportCategoryKey(categoryParam)
+    ? buildReportCategoryResolver(
+        await db.select({ id: testRequisitions.id, model: testRequisitions.model, category: testRequisitions.category }).from(testRequisitions)
+      )
+    : null;
+  const enriched = enrichedAll.filter(
+    (r) =>
+      (!fromDay || reportDay(r) >= fromDay) &&
+      (!toDay || reportDay(r) <= toDay) &&
+      (!categoryOf || categoryOf({ requisitionId: r.requisition_id, model: r.model }) === categoryParam)
+  );
 
   const groups = new Map<string, typeof enriched>();
   for (const r of enriched) {

@@ -1,5 +1,6 @@
 .requisition-form-page {
   max-width: 900px;
+  margin-inline: auto; /* centred, matching the requisition detail page */
 }
 
 .requisition-form-page h1 {

@@ -133,13 +133,17 @@ const OverviewPage = () => {
   );
 
   // Report Archive, narrowed to reports tested inside the same window.
-  const reportsHref = useMemo(() => {
-    const params = new URLSearchParams();
-    if (range.from) params.set("from", range.from);
-    if (range.to) params.set("to", range.to);
-    const qs = params.toString();
-    return `/reports${qs ? `?${qs}` : ""}`;
-  }, [range.from, range.to]);
+  const reportsHref = useMemo(
+    () => (extra: Record<string, string> = {}) => {
+      const params = new URLSearchParams();
+      if (range.from) params.set("from", range.from);
+      if (range.to) params.set("to", range.to);
+      for (const [k, v] of Object.entries(extra)) params.set(k, v);
+      const qs = params.toString();
+      return `/reports${qs ? `?${qs}` : ""}`;
+    },
+    [range.from, range.to]
+  );
 
   if (isLoading && !data) return <SkeletonPage cards={3} />;
   if (!data) return <p className="detail-empty">{loadError || "Nothing to show."}</p>;
@@ -225,9 +229,15 @@ const OverviewPage = () => {
             accent="green"
             value={data.total_reports.toLocaleString()}
             deltaPct={pctChange(data.total_reports, prev?.total_reports)}
-            hint={prev ? "vs previous period" : undefined}
+            hint={
+              data.total_reports < data.total_reports_all_time
+                ? `of ${data.total_reports_all_time.toLocaleString()} all time`
+                : prev
+                  ? "vs previous period"
+                  : undefined
+            }
             sparkline={data.monthly_trend.map((m) => m.reports)}
-            href={reportsHref}
+            href={reportsHref()}
           />
           <KpiCard
             icon="✅"
@@ -299,64 +309,36 @@ const OverviewPage = () => {
         {/* ---- Quality, category, workload ---- */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
           <ChartCard
-            title="Requirement results"
-            subtitle="Closed requisitions with a rated target"
-            href={summaryHref({ status: "Closed" })}
-            hrefLabel="Closed"
+            title="Reports by category"
+            subtitle="Report Archive · category from the requisition, else the pump model's"
+            href={reportsHref()}
+            hrefLabel="Archive"
             table={{
-              columns: ["Result", "Reports"],
-              rows: [
-                ["Met rated target", data.requirement_met],
-                ["Missed rated target", data.requirement_unmet],
-                ["Missed Head", data.unmet_by_parameter.head],
-                ["Missed Capacity", data.unmet_by_parameter.capacity],
-                ["Missed Power", data.unmet_by_parameter.power],
-              ],
+              columns: ["Category", "Reports", "Share"],
+              rows: data.reports_by_category.map((c) => [c.label, c.count, `${data.total_reports ? Math.round((c.count / data.total_reports) * 100) : 0}%`]),
             }}
           >
-            {judged === 0 ? (
-              <p className="py-6 text-center text-sm text-text-muted">No judged reports in this range.</p>
-            ) : (
-              <div className="viz-root flex flex-col gap-4">
-                <div>
-                  <div className="flex h-3 w-full gap-[2px] overflow-hidden rounded-full">
-                    <div style={{ width: `${metPct}%`, background: "var(--status-good)" }} />
-                    <div style={{ width: `${100 - (metPct ?? 0)}%`, background: "var(--status-critical)" }} />
-                  </div>
-                  <div className="mt-2 flex justify-between text-xs">
-                    <Link
-                      href={summaryHref({ status: "Closed", report_result: "green" })}
-                      className="font-semibold text-pos-strong hover:underline"
-                      title="Open the Met requisitions"
-                    >
-                      ✓ Met {data.requirement_met}
-                    </Link>
-                    <Link
-                      href={summaryHref({ status: "Closed", report_result: "red" })}
-                      className="font-semibold text-neg-strong hover:underline"
-                      title="Open the Missed requisitions"
-                    >
-                      ✕ Missed {data.requirement_unmet}
-                    </Link>
-                  </div>
-                </div>
-                <div>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">Where reports miss</p>
-                  <BarList
-                    items={[
-                      { key: "head", label: "Head", value: data.unmet_by_parameter.head },
-                      { key: "capacity", label: "Capacity", value: data.unmet_by_parameter.capacity },
-                      { key: "power", label: "Power", value: data.unmet_by_parameter.power },
-                    ]}
-                  />
-                </div>
-              </div>
+            <BarList
+              emptyText="No reports in this range."
+              items={data.reports_by_category.map((c) => ({
+                key: c.key,
+                label: c.label.replace(/^Against\s+/i, ""),
+                value: c.count,
+                detail: `${data.total_reports ? Math.round((c.count / data.total_reports) * 100) : 0}% of ${data.total_reports.toLocaleString()} reports`,
+                href: reportsHref({ category: c.key }),
+              }))}
+            />
+            {data.reports_by_category.some((c) => c.key === "none" || c.key === "multiple") && (
+              <p className="mt-3 text-[11px] text-text-muted">
+                Most reports are imported from older sheets with no requisition. Where the same pump model was requisitioned under
+                one category they take it; under several, they show as “Multiple categories”.
+              </p>
             )}
           </ChartCard>
 
           <ChartCard
-            title="By category"
-            subtitle="Requisitions raised per category"
+            title="Requisitions by category"
+            subtitle="Requisitions raised per category · click a bar to open them"
             table={{ columns: ["Category", "Requisitions"], rows: data.by_category.map((c) => [c.label, c.count]) }}
           >
             <BarList
@@ -364,7 +346,7 @@ const OverviewPage = () => {
                 key: c.label,
                 label: c.label.replace(/^Against\s+/i, ""),
                 value: c.count,
-                href: c.label === "Uncategorised" ? undefined : summaryHref({ category: c.label }),
+                href: summaryHref({ category: c.label === "Uncategorised" ? "none" : c.label }),
               }))}
             />
           </ChartCard>
@@ -384,7 +366,7 @@ const OverviewPage = () => {
                 label: w.person,
                 value: w.total,
                 detail: `${w.pending} pending · ${w.in_testing} in testing · ${w.retest_needed} retest needed`,
-                href: w.person === "Unassigned" ? undefined : summaryHref({ responsible_person: w.person, scope: "open" }),
+                href: summaryHref({ responsible_person: w.person === "Unassigned" ? "none" : w.person, scope: "open" }),
               }))}
             />
           </ChartCard>
@@ -510,7 +492,64 @@ const OverviewPage = () => {
             )}
           </ChartCard>
 
-          <ChartCard title="Recent reports" subtitle="Latest filed test reports" href={reportsHref} hrefLabel="Archive">
+          <div className="flex flex-col gap-5">
+          <ChartCard
+            title="Requirement results"
+            subtitle="Closed requisitions with a rated target"
+            href={summaryHref({ status: "Closed" })}
+            hrefLabel="Closed"
+            table={{
+              columns: ["Result", "Reports"],
+              rows: [
+                ["Met rated target", data.requirement_met],
+                ["Missed rated target", data.requirement_unmet],
+                ["Missed Head", data.unmet_by_parameter.head],
+                ["Missed Capacity", data.unmet_by_parameter.capacity],
+                ["Missed Power", data.unmet_by_parameter.power],
+              ],
+            }}
+          >
+            {judged === 0 ? (
+              <p className="py-6 text-center text-sm text-text-muted">No judged reports in this range.</p>
+            ) : (
+              <div className="viz-root flex flex-col gap-4">
+                <div>
+                  <div className="flex h-3 w-full gap-[2px] overflow-hidden rounded-full">
+                    <div style={{ width: `${metPct}%`, background: "var(--status-good)" }} />
+                    <div style={{ width: `${100 - (metPct ?? 0)}%`, background: "var(--status-critical)" }} />
+                  </div>
+                  <div className="mt-2 flex justify-between text-xs">
+                    <Link
+                      href={summaryHref({ status: "Closed", report_result: "green" })}
+                      className="font-semibold text-pos-strong hover:underline"
+                      title="Open the Met requisitions"
+                    >
+                      ✓ Met {data.requirement_met}
+                    </Link>
+                    <Link
+                      href={summaryHref({ status: "Closed", report_result: "red" })}
+                      className="font-semibold text-neg-strong hover:underline"
+                      title="Open the Missed requisitions"
+                    >
+                      ✕ Missed {data.requirement_unmet}
+                    </Link>
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">Where reports miss</p>
+                  <BarList
+                    items={[
+                      { key: "head", label: "Head", value: data.unmet_by_parameter.head },
+                      { key: "capacity", label: "Capacity", value: data.unmet_by_parameter.capacity },
+                      { key: "power", label: "Power", value: data.unmet_by_parameter.power },
+                    ]}
+                  />
+                </div>
+              </div>
+            )}
+          </ChartCard>
+
+          <ChartCard title="Recent reports" subtitle="Latest filed test reports" href={reportsHref()} hrefLabel="Archive">
             {data.recent_reports.length === 0 ? (
               <p className="py-6 text-center text-sm text-text-muted">No reports in this range.</p>
             ) : (
@@ -534,6 +573,7 @@ const OverviewPage = () => {
               </ul>
             )}
           </ChartCard>
+          </div>
         </div>
       </div>
     </div>

@@ -459,6 +459,10 @@ export interface PortalOverview {
   monthly_trend: { month: string; raised: number; reports: number; closed: number }[];
   by_category: { label: string; count: number }[];
   by_source_team: { label: string; count: number }[];
+  /** Every report in the portal, regardless of the date range. */
+  total_reports_all_time: number;
+  /** Reports in range by category (taken from the requisition / pump model -- see lib/reportCategory.ts); empty buckets omitted. */
+  reports_by_category: { key: string; label: string; count: number }[];
   /** Requisitions by the raiser's role -- always all three groups, zeros included. */
   by_raiser: { group: "source" | "testing" | "other"; label: string; count: number }[];
   workload: { person: string; pending: number; in_testing: number; retest_needed: number; total: number }[];

@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
 
 import { error, json, requisitionToDict } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
@@ -172,9 +172,16 @@ export async function GET(req: Request) {
   if (claims.role === "source") conditions.push(eq(testRequisitions.createdBy, claims.sub));
   if (model) conditions.push(eq(testRequisitions.model, model));
   if (ecQuotationNo) conditions.push(ilike(testRequisitions.ecQuotationNo, `%${ecQuotationNo}%`));
-  if (category) conditions.push(eq(testRequisitions.category, category));
+  // "none" = requisitions raised without a category (the Overview's "Uncategorised" bar).
+  if (category === "none") conditions.push(isNull(testRequisitions.category));
+  else if (category) conditions.push(eq(testRequisitions.category, category));
   if (sourceTeam) conditions.push(eq(testRequisitions.sourceTeam, sourceTeam));
-  if (responsiblePerson) conditions.push(eq(testRequisitions.responsiblePerson, responsiblePerson));
+  // "none" = no Responsible Person assigned (the Overview workload card's "Unassigned" bar).
+  if (responsiblePerson === "none") {
+    conditions.push(sql`(${testRequisitions.responsiblePerson} is null or trim(${testRequisitions.responsiblePerson}) = '')`);
+  } else if (responsiblePerson) {
+    conditions.push(eq(testRequisitions.responsiblePerson, responsiblePerson));
+  }
   if (submittedBy) conditions.push(eq(testRequisitions.submittedBy, submittedBy));
   if (retestNeeded === "true") conditions.push(eq(testRequisitions.retestNeeded, true));
   if (retestNeeded === "false") conditions.push(eq(testRequisitions.retestNeeded, false));

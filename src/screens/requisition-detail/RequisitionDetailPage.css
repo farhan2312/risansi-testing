@@ -1,5 +1,6 @@
 .requisition-detail-page {
   max-width: 900px;
+  margin-inline: auto; /* centred in the content area rather than hugging the sidebar */
   display: flex;
   flex-direction: column;
   gap: 16px;

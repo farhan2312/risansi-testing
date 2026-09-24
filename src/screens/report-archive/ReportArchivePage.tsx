@@ -10,6 +10,7 @@ import { formatDate, formatNumber, motorWithKw } from "@/lib/formUtils";
 import Pagination from "@/components/ui/Pagination";
 import { SkeletonTableRows } from "@/components/ui/Skeleton";
 import PageHeader from "@/components/ui/PageHeader";
+import { isReportCategoryKey, reportCategoryLabel } from "@/lib/reportCategory";
 
 const PAGE_SIZE = 50;
 
@@ -23,7 +24,10 @@ const ReportArchivePage = () => {
   // number on the card. Cleared with the chip below (which drops the params).
   const dateFrom = dayParam(searchParams.get("from"));
   const dateTo = dayParam(searchParams.get("to"));
-  const hasRange = Boolean(dateFrom || dateTo);
+  // ?category= (the Overview's Reports by category card): only reports whose category matches.
+  const categoryParam = searchParams.get("category");
+  const category = isReportCategoryKey(categoryParam) ? categoryParam : "";
+  const hasRange = Boolean(dateFrom || dateTo || category);
 
   const [pumpGroups, setPumpGroups] = useState<ArchivePumpGroup[]>([]);
   const [total, setTotal] = useState(0);
@@ -44,14 +48,14 @@ const ReportArchivePage = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [search, dateFrom, dateTo]);
+  }, [search, dateFrom, dateTo, category]);
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
     setError("");
 
-    listGroupedReports(page, search || undefined, { from: dateFrom || undefined, to: dateTo || undefined })
+    listGroupedReports(page, search || undefined, { from: dateFrom || undefined, to: dateTo || undefined, category: category || undefined })
       .then((result) => {
         if (cancelled) return;
         setPumpGroups(result.entries);
@@ -68,7 +72,7 @@ const ReportArchivePage = () => {
     return () => {
       cancelled = true;
     };
-  }, [page, search, dateFrom, dateTo]);
+  }, [page, search, dateFrom, dateTo, category]);
 
   // With a range or a search active the point is to see the matching reports,
   // so every pump on the page opens instead of needing a click each.
@@ -105,6 +109,7 @@ const ReportArchivePage = () => {
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-accent-soft px-4 py-2.5 text-sm text-text">
           <span aria-hidden="true">📅</span>
           <span>
+            {category && <strong className="mr-2 text-text-h">{reportCategoryLabel(category)} ·</strong>}
             Reports tested {dateFrom ? formatDate(dateFrom) : "from the beginning"} – {dateTo ? formatDate(dateTo) : "today"}
             {!isLoading && (
               <strong className="ml-2 text-text-h">
