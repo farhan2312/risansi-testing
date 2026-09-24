@@ -509,7 +509,11 @@ export interface BugReportListResult extends PaginatedResult<BugReport> {
 
 // ----- Audit Log (admin-only) -----
 
-export type AuditRange = "today" | "7days" | "30days" | "all";
+/** Audit Log date window -- IST calendar days (YYYY-MM-DD), either end optional. */
+export interface AuditRange {
+  from?: string;
+  to?: string;
+}
 
 export interface AuditSummary {
   logins_24h: number;
@@ -546,6 +550,7 @@ export interface AuditSessionEntry {
   user_email: string | null;
   event_type: "login" | "login_failed" | "logout";
   details: string | null;
+  ip_address: string | null;
   created_at: string;
 }
 
@@ -569,6 +574,79 @@ export interface AuditActivityEntry {
 }
 
 export interface AuditActivityResult extends PaginatedResult<AuditActivityEntry> {}
+
+export interface AuditDailyPoint {
+  /** IST calendar day, YYYY-MM-DD. */
+  day: string;
+  actions: number;
+  sign_ins: number;
+  failed: number;
+  sign_outs: number;
+  /** Distinct signed-in users with any event that day. */
+  users: number;
+  active_seconds: number;
+  requisitions: number;
+  reports: number;
+}
+
+/** One user's row in the Overview tab's day grids -- each array is aligned to `matrix_days`. */
+export interface AuditUserDayRow {
+  user_id: string;
+  email: string | null;
+  name: string | null;
+  role: string | null;
+  active_days: number;
+  actions: number[];
+  active_seconds: number[];
+  requisitions: number[];
+  reports: number[];
+}
+
+export interface AuditIpRow {
+  ip: string;
+  events: number;
+  users: number;
+  failed: number;
+  emails: string[];
+  last_at: string;
+}
+
+export interface AuditCount {
+  label: string;
+  count: number;
+}
+
+/** GET /api/audit-log/overview -- everything the Audit Log's Overview tab draws. */
+export interface AuditOverview {
+  /** IST days the trend covers (the range, capped to its latest 62). */
+  days: string[];
+  daily_capped: boolean;
+  /** The latest <= 14 of `days` -- the per-user grids' columns. */
+  matrix_days: string[];
+  kpis: {
+    requisitions_created: number;
+    reports_created: number;
+    sign_ins: number;
+    failed_sign_ins: number;
+    distinct_ips: number;
+    previous: { requisitions_created: number; reports_created: number; sign_ins: number } | null;
+  };
+  daily: AuditDailyPoint[];
+  event_types: { actions: number; sign_ins: number; failed_sign_ins: number; sign_outs: number };
+  action_breakdown: AuditCount[];
+  /** [weekday Mon=0..Sun=6][hour 0..23] event counts, IST. */
+  heatmap: number[][];
+  insights: {
+    busiest_day: { day: string; events: number; users: number } | null;
+    peak_hour: { hour: number; events: number; hottest: { dow: number; hour: number; events: number } | null } | null;
+    top_user: { email: string | null; name: string | null; actions: number; active_seconds: number } | null;
+  };
+  user_days: AuditUserDayRow[];
+  devices: AuditCount[];
+  browsers: AuditCount[];
+  operating_systems: AuditCount[];
+  ips: AuditIpRow[];
+}
 
 export interface AuditSessionListResult extends PaginatedResult<AuditSessionEntry> {}
 

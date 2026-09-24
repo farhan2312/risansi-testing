@@ -1,20 +1,13 @@
-import { and, desc, eq, gt, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 
 import { error, json } from "@/lib/api";
 import { AuthError, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { auditLogs, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
+import { parseAuditWindow, windowCondition } from "@/lib/auditRange";
 import { offsetFor, PAGE_SIZE, parsePage } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
-
-function cutoffFor(range: string | null): Date | null {
-  const now = Date.now();
-  if (range === "today") return new Date(now - 24 * 60 * 60 * 1000);
-  if (range === "30days") return new Date(now - 30 * 24 * 60 * 60 * 1000);
-  if (range === "all") return null;
-  return new Date(now - 7 * 24 * 60 * 60 * 1000);
-}
 
 const ACTION_TYPES = new Set(["create", "update", "delete"]);
 
@@ -32,14 +25,17 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
-  const cutoff = cutoffFor(searchParams.get("range"));
+  const window = parseAuditWindow(searchParams);
   const page = parsePage(req);
   const action = searchParams.get("action");
   const search = searchParams.get("search")?.trim();
+  // "Access Changes" tab: only actions taken on user accounts (role/status changes, password resets, deletions).
+  const entity = searchParams.get("entity");
 
   const eventTypes = action && ACTION_TYPES.has(action) ? [action] : ["create", "update", "delete"];
   const conditions = [inArray(auditLogs.eventType, eventTypes)];
-  if (cutoff) conditions.push(gt(auditLogs.createdAt, cutoff));
+  conditions.push(windowCondition(auditLogs.createdAt, window));
+  if (entity === "user") conditions.push(eq(auditLogs.entityType, "user"));
   if (search) {
     const like = `%${search}%`;
     conditions.push(

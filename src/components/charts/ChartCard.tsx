@@ -20,11 +20,13 @@ interface ChartCardProps {
   table?: { columns: string[]; rows: (string | number)[][] };
   href?: string;
   hrefLabel?: string;
+  /** Extra controls (a segmented toggle, say) shown in the header, before Table. */
+  actions?: ReactNode;
   className?: string;
   children: ReactNode;
 }
 
-const ChartCard = ({ title, subtitle, legend, table, href, hrefLabel = "View all", className = "", children }: ChartCardProps) => {
+const ChartCard = ({ title, subtitle, legend, table, href, hrefLabel = "View all", actions, className = "", children }: ChartCardProps) => {
   const [showTable, setShowTable] = useState(false);
 
   return (
@@ -34,7 +36,8 @@ const ChartCard = ({ title, subtitle, legend, table, href, hrefLabel = "View all
           <h2 className="m-0 text-[15px] font-semibold text-text-h">{title}</h2>
           {subtitle && <p className="mt-0.5 text-xs text-text-muted">{subtitle}</p>}
         </div>
-        <div className="flex flex-shrink-0 items-center gap-1">
+        <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-1">
+          {actions}
           {table && (
             <button
               type="button"

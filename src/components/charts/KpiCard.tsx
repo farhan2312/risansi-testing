@@ -9,7 +9,8 @@ interface KpiCardProps {
   value: string | number;
   /** Extra context under the value ("of 42 raised", "median 3d", ...). */
   hint?: string;
-  href: string;
+  /** Omit for a display-only card (no drill-down target). */
+  href?: string;
   /** Signed % change vs the previous equal-length period. */
   deltaPct?: number | null;
   /** Whether an increase is good news (reports filed) or bad (overdue). */
@@ -45,11 +46,10 @@ const KpiCard = ({ icon, label, value, hint, href, deltaPct, upIsGood = true, sp
   const hasDelta = deltaPct !== undefined && deltaPct !== null && Number.isFinite(deltaPct);
   const good = hasDelta && (deltaPct! === 0 ? null : (deltaPct! > 0) === upIsGood);
 
-  return (
-    <Link
-      href={href}
-      className={`viz-root group flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-accent-line hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent ${TONE_RING[tone]}`}
-    >
+  const cardClass = `viz-root group flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 shadow-sm ${TONE_RING[tone]}`;
+
+  const body = (
+    <>
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-2 text-[13px] font-medium text-text-muted">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-sm" aria-hidden="true">
@@ -57,9 +57,11 @@ const KpiCard = ({ icon, label, value, hint, href, deltaPct, upIsGood = true, sp
           </span>
           {label}
         </span>
-        <span className="text-xs text-text-faint transition-transform group-hover:translate-x-0.5" aria-hidden="true">
-          &rarr;
-        </span>
+        {href && (
+          <span className="text-xs text-text-faint transition-transform group-hover:translate-x-0.5" aria-hidden="true">
+            &rarr;
+          </span>
+        )}
       </div>
 
       <div className="flex items-end justify-between gap-2">
@@ -79,7 +81,18 @@ const KpiCard = ({ icon, label, value, hint, href, deltaPct, upIsGood = true, sp
         </div>
         {sparkline && sparkline.length > 1 && <Sparkline values={sparkline} />}
       </div>
+    </>
+  );
+
+  return href ? (
+    <Link
+      href={href}
+      className={`${cardClass} transition-all hover:-translate-y-0.5 hover:border-accent-line hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent`}
+    >
+      {body}
     </Link>
+  ) : (
+    <div className={cardClass}>{body}</div>
   );
 };
 

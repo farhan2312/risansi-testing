@@ -312,6 +312,10 @@ export const auditLogs = pgTable("audit_logs", {
   // (see getClientIp in audit.ts) -- null for anything logged before this
   // column existed, or where no forwarding header was present.
   ipAddress: varchar("ip_address", { length: 64 }),
+  // Browser User-Agent -- only captured on sign-in events (login /
+  // login_failed), feeding the Audit Log's Devices / Browsers cards. Null on
+  // everything else, and on anything logged before the column existed.
+  userAgent: text("user_agent"),
   createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
 });
 

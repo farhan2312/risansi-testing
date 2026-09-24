@@ -1,424 +1,125 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
-import Link from "next/link";
-import "./AdminShared.css";
-import "./AdminBugReportsPage.css"; // reuses .bug-status-tab pill styling
-import "./AdminAuditLogPage.css";
-import {
-  getAuditActivity,
-  getAuditSessions,
-  getAuditSummary,
-  getAuditUsage,
-  getAuditUserPages,
-} from "@/services/adminService";
-import Pagination from "@/components/ui/Pagination";
-import { SkeletonTableRows } from "@/components/ui/Skeleton";
-import PageHeader from "@/components/ui/PageHeader";
-import type {
-  AuditActivityEntry,
-  AuditRange,
-  AuditSessionEntry,
-  AuditSummary,
-  AuditUsageRow,
-  AuditUserPageRow,
-} from "@/types/testing";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { auditExportUrl, getAuditSummary } from "@/services/adminService";
+import { pageHeaderButton } from "@/components/ui/PageHeader";
+import DateRangeFilter from "@/components/ui/DateRangeFilter";
+import { presetValue, type DateRangeValue, type PresetKey } from "@/lib/dateRangePresets";
+import AuditOverviewTab from "./audit/AuditOverviewTab";
+import { ActivityTab, SessionsTab, UsageTab } from "./audit/AuditTables";
+import type { AuditRange, AuditSummary } from "@/types/testing";
 
-const PAGE_SIZE = 25;
+type Tab = "overview" | "usage" | "activity" | "sessions" | "access";
 
-type Tab = "usage" | "sessions" | "activity";
-type ActionFilter = "all" | "create" | "update" | "delete";
-
-const RANGE_TABS: { label: string; value: AuditRange }[] = [
-  { label: "Today", value: "today" },
-  { label: "7 days", value: "7days" },
-  { label: "30 days", value: "30days" },
-  { label: "All", value: "all" },
+const TABS: { value: Tab; label: string; icon: string }[] = [
+  { value: "overview", label: "Overview", icon: "📊" },
+  { value: "usage", label: "Usage by User", icon: "👥" },
+  { value: "activity", label: "Activity", icon: "⚡" },
+  { value: "sessions", label: "Logins & Sessions", icon: "🔐" },
+  { value: "access", label: "Access Changes", icon: "🛡️" },
 ];
 
-const ACTION_FILTERS: { label: string; value: ActionFilter }[] = [
-  { label: "All actions", value: "all" },
-  { label: "Created", value: "create" },
-  { label: "Updated", value: "update" },
-  { label: "Deleted", value: "delete" },
-];
+const AUDIT_PRESETS: Exclude<PresetKey, "custom">[] = ["today", "week", "month", "7d", "30d", "all"];
 
-const ROLE_LABELS: Record<string, string> = {
-  source: "SOURCE",
-  testing: "TESTING",
-  "central-admin": "C.ADMIN",
-  admin: "ADMIN",
-};
-
-const roleClass = (role: string | null) => (role ? `audit-role-badge audit-role-${role.replace(/[^a-z]/g, "")}` : "");
-
-/** "15h 04m" / "30m 32s" / "8s" -- matches the works-sheet convention of
- * dropping to the next-smaller unit rather than always showing h/m/s. */
-const formatDuration = (totalSeconds: number): string => {
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = Math.floor(totalSeconds % 60);
-  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
-  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
-  return `${s}s`;
-};
-
-const eventLabel: Record<string, string> = {
-  login: "Login",
-  login_failed: "Failed Login",
-  logout: "Logout",
-  create: "Created",
-  update: "Updated",
-  delete: "Deleted",
-};
-
-const eventClass = (eventType: string) => `audit-event audit-event-${eventType.replace(/_/g, "-")}`;
-
-/** Only requisitions and reports have their own detail page to link to --
- * everything else (attachments, users, bug reports) just shows as text.
- * Links with the pretty number when it resolved (entity_no), falls back to
- * the raw uuid otherwise (e.g. the row's since been deleted, so entity_no
- * came back null -- the link still resolves via requisitionLookup's
- * backward-compat uuid match, it just won't be pretty). */
-const entityHref = (entityType: string | null, entityId: string | null, entityNo: string | null): string | null => {
-  if (!entityId) return null;
-  if (entityType === "requisition") return `/requisitions/${entityNo ?? entityId}`;
-  if (entityType === "report") return `/reports/${entityNo ?? entityId}`;
-  return null;
-};
+const StripItem = ({ icon, label, value, tone }: { icon: string; label: string; value: ReactNode; tone?: "critical" }) => (
+  <div className="flex items-center gap-3 px-6 py-3.5">
+    <span className="text-lg" aria-hidden="true">
+      {icon}
+    </span>
+    <div>
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+        {label}
+        <span className="rounded bg-bg-sunk px-1 py-px text-[10px] font-bold text-text-muted">24H</span>
+      </div>
+      <div className={`text-2xl font-bold leading-tight ${tone === "critical" ? "text-neg" : "text-text-h"}`} style={{ fontVariantNumeric: "tabular-nums" }}>
+        {value}
+      </div>
+    </div>
+  </div>
+);
 
 const AdminAuditLogPage = () => {
   const [summary, setSummary] = useState<AuditSummary | null>(null);
-  const [tab, setTab] = useState<Tab>("usage");
-  const [range, setRange] = useState<AuditRange>("7days");
-  const [usage, setUsage] = useState<AuditUsageRow[]>([]);
-  const [sessions, setSessions] = useState<AuditSessionEntry[]>([]);
-  const [sessionsTotal, setSessionsTotal] = useState(0);
-  const [activity, setActivity] = useState<AuditActivityEntry[]>([]);
-  const [activityTotal, setActivityTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  // Shared across the Sessions/Activity tabs -- reset to 1 whenever the tab,
-  // range, or (for Activity) search/action filter changes below.
-  const [page, setPage] = useState(1);
-
-  // Activity tab search/filter -- searchInput is the live textbox value,
-  // appliedSearch is what was actually last submitted (Search button or
-  // Enter), matching the reference's explicit-search UX rather than
-  // refetching on every keystroke.
-  const [searchInput, setSearchInput] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [actionFilter, setActionFilter] = useState<ActionFilter>("all");
-
-  // Usage & Time drill-down -- which user row is expanded, and that user's
-  // per-page breakdown once loaded (keyed by user_id so switching users
-  // doesn't require a fresh click-to-reload if you go back to one already seen).
-  const [expandedUser, setExpandedUser] = useState<string | null>(null);
-  const [userPages, setUserPages] = useState<Record<string, AuditUserPageRow[]>>({});
-  const [pagesLoading, setPagesLoading] = useState(false);
+  const [tab, setTab] = useState<Tab>("overview");
+  const [dateRange, setDateRange] = useState<DateRangeValue>(() => presetValue("7d"));
 
   useEffect(() => {
     getAuditSummary()
       .then(setSummary)
-      .catch(() => setError("Could not load the summary."));
+      .catch(() => setSummary(null));
   }, []);
 
-  // Changing the tab, range, or (Activity's) search/action filter always
-  // starts back at page 1 -- the previous page number rarely still makes
-  // sense against a different result set.
-  useEffect(() => {
-    setPage(1);
-  }, [tab, range, appliedSearch, actionFilter]);
+  // Stable identity per (from, to) so each tab's fetch effect only re-runs on a real change.
+  const range: AuditRange = useMemo(
+    () => ({ from: dateRange.from || undefined, to: dateRange.to || undefined }),
+    [dateRange.from, dateRange.to]
+  );
+  const exportHref = auditExportUrl(range);
 
-  useEffect(() => {
-    setIsLoading(true);
-    setError("");
-    setExpandedUser(null);
-    const loader =
-      tab === "usage"
-        ? getAuditUsage(range).then(setUsage)
-        : tab === "sessions"
-        ? getAuditSessions(range, page).then((r) => {
-            setSessions(r.entries);
-            setSessionsTotal(r.total);
-          })
-        : getAuditActivity(range, page, {
-            search: appliedSearch || undefined,
-            action: actionFilter === "all" ? undefined : actionFilter,
-          }).then((r) => {
-            setActivity(r.entries);
-            setActivityTotal(r.total);
-          });
-    loader.catch(() => setError("Could not load this tab.")).finally(() => setIsLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, range, appliedSearch, actionFilter, page]);
-
-  const totalActiveTime = usage.reduce((sum, r) => sum + r.active_seconds, 0);
-
-  const toggleUserRow = (userId: string) => {
-    if (expandedUser === userId) {
-      setExpandedUser(null);
-      return;
-    }
-    setExpandedUser(userId);
-    if (!userPages[userId]) {
-      setPagesLoading(true);
-      getAuditUserPages(userId, range)
-        .then((rows) => setUserPages((prev) => ({ ...prev, [userId]: rows })))
-        .catch(() => setUserPages((prev) => ({ ...prev, [userId]: [] })))
-        .finally(() => setPagesLoading(false));
-    }
-  };
-
-  const runSearch = () => setAppliedSearch(searchInput.trim());
+  const rangeText =
+    dateRange.preset === "all" || (!dateRange.from && !dateRange.to)
+      ? "all time"
+      : `${dateRange.from || "the beginning"} → ${dateRange.to || "today"}`;
 
   return (
-    <div className="admin-requests-page">
-      <PageHeader icon="📜" title="Audit Log" subtitle="Full activity trail — who signed in, when, and everything they did." />
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-5 p-2">
+      {/* Header card: title + export, then the trailing-24h strip. */}
+      <div className="overflow-hidden rounded-2xl border border-border bg-gradient-to-r from-surface to-accent-soft shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4 px-6 py-5">
+          <div className="flex items-start gap-4">
+            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-accent text-xl leading-none text-white shadow-sm" aria-hidden="true">
+              🛡️
+            </span>
+            <div>
+              <h1 className="m-0 text-2xl! font-bold text-text-h">Audit Log</h1>
+              <p className="mt-1 text-sm text-text-muted">Full activity trail · who signed in, from where, and everything they did</p>
+            </div>
+          </div>
+          <a href={exportHref} download className={pageHeaderButton("primary")} title={`Download ${rangeText} as CSV`}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+            </svg>
+            Generate Report
+          </a>
+        </div>
 
-      <div className="audit-stats">
-        <div className="audit-stat">
-          <span className="stat-value">{summary?.logins_24h ?? "-"}</span>
-          <span className="stat-label">Logins · 24H</span>
-        </div>
-        <div className="audit-stat">
-          <span className="stat-value stat-value-neg">{summary?.failed_24h ?? "-"}</span>
-          <span className="stat-label">Failed · 24H</span>
-        </div>
-        <div className="audit-stat">
-          <span className="stat-value">{summary?.active_users_24h ?? "-"}</span>
-          <span className="stat-label">Active Users · 24H</span>
-        </div>
-        <div className="audit-stat">
-          <span className="stat-value">{summary?.actions_24h ?? "-"}</span>
-          <span className="stat-label">Actions · 24H</span>
+        <div className="grid grid-cols-2 divide-x divide-border/70 border-t border-border/70 bg-surface/60 lg:grid-cols-4">
+          <StripItem icon="🔑" label="Sign-ins" value={summary?.logins_24h ?? "–"} />
+          <StripItem icon="⚠️" label="Failed" value={summary?.failed_24h ?? "–"} tone={summary && summary.failed_24h > 0 ? "critical" : undefined} />
+          <StripItem icon="👥" label="Active users" value={summary?.active_users_24h ?? "–"} />
+          <StripItem icon="⚡" label="Actions" value={summary?.actions_24h ?? "–"} />
         </div>
       </div>
 
-      <div className="bug-status-tabs audit-tab-row">
-        <button type="button" className={tab === "usage" ? "bug-status-tab active" : "bug-status-tab"} onClick={() => setTab("usage")}>
-          Usage &amp; Time
-        </button>
-        <button type="button" className={tab === "sessions" ? "bug-status-tab active" : "bug-status-tab"} onClick={() => setTab("sessions")}>
-          Logins &amp; Sessions
-        </button>
-        <button type="button" className={tab === "activity" ? "bug-status-tab active" : "bug-status-tab"} onClick={() => setTab("activity")}>
-          Activity
-        </button>
-      </div>
-
-      <div className="audit-range-row">
-        {RANGE_TABS.map((r) => (
+      <div className="flex flex-wrap gap-1 border-b border-border" role="tablist" aria-label="Audit Log sections">
+        {TABS.map((t) => (
           <button
-            key={r.value}
+            key={t.value}
             type="button"
-            className={range === r.value ? "audit-range-btn active" : "audit-range-btn"}
-            onClick={() => setRange(r.value)}
+            role="tab"
+            aria-selected={tab === t.value}
+            onClick={() => setTab(t.value)}
+            className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+              tab === t.value ? "border-accent text-accent" : "border-transparent text-text-muted hover:text-text"
+            }`}
           >
-            {r.label}
+            <span aria-hidden="true">{t.icon}</span>
+            {t.label}
           </button>
         ))}
       </div>
 
-      {isLoading && (
-        <table className="admin-requests-table">
-          <tbody>
-            <SkeletonTableRows columns={tab === "usage" ? 5 : tab === "sessions" ? 4 : 6} />
-          </tbody>
-        </table>
-      )}
-      {error && <p className="error-message">{error}</p>}
+      {/* One filter row above everything it scopes. */}
+      <div className="flex flex-wrap items-center gap-3">
+        <DateRangeFilter presets={AUDIT_PRESETS} value={dateRange} onChange={setDateRange} />
+        <span className="ml-auto text-xs text-text-muted">Showing {rangeText} · times in IST</span>
+      </div>
 
-      {!isLoading && !error && tab === "usage" && (
-        <>
-          <p className="audit-tab-subline">
-            {usage.length} users active · {formatDuration(totalActiveTime)} total active time · click a user for the page breakdown
-          </p>
-          {usage.length === 0 ? (
-            <p className="empty-state">No activity in this range.</p>
-          ) : (
-            <table className="admin-requests-table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Role</th>
-                  <th>Active Time</th>
-                  <th>Sessions</th>
-                  <th>Last Active</th>
-                </tr>
-              </thead>
-              <tbody>
-                {usage.map((r) => (
-                  <Fragment key={r.user_id}>
-                    <tr className="audit-user-row" onClick={() => toggleUserRow(r.user_id)}>
-                      <td>
-                        <span className="audit-expand-toggle">{expandedUser === r.user_id ? "−" : "+"}</span>
-                        {r.user_email ?? r.user_name ?? "-"}
-                      </td>
-                      <td>{r.user_role && <span className={roleClass(r.user_role)}>{ROLE_LABELS[r.user_role] ?? r.user_role}</span>}</td>
-                      <td>
-                        <strong>{formatDuration(r.active_seconds)}</strong>
-                      </td>
-                      <td>{r.session_count}</td>
-                      <td>{new Date(r.last_active).toLocaleString()}</td>
-                    </tr>
-                    {expandedUser === r.user_id && (
-                      <tr className="audit-user-detail-row">
-                        <td colSpan={5}>
-                          {pagesLoading && !userPages[r.user_id] ? (
-                            <p className="audit-tab-subline">Loading page breakdown...</p>
-                          ) : (userPages[r.user_id]?.length ?? 0) === 0 ? (
-                            <p className="empty-state">No individual page views recorded in this range.</p>
-                          ) : (
-                            <table className="audit-page-breakdown-table">
-                              <thead>
-                                <tr>
-                                  <th>Page</th>
-                                  <th>Views</th>
-                                  <th>Last Visited</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {userPages[r.user_id]!.map((p) => (
-                                  <tr key={p.path}>
-                                    <td>{p.path}</td>
-                                    <td>{p.view_count}</td>
-                                    <td>{new Date(p.last_viewed).toLocaleString()}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </>
-      )}
-
-      {!isLoading && !error && tab === "sessions" && (
-        <>
-          {sessions.length === 0 ? (
-            <p className="empty-state">No login activity in this range.</p>
-          ) : (
-            <table className="admin-requests-table">
-              <thead>
-                <tr>
-                  <th>Event</th>
-                  <th>User</th>
-                  <th>Details</th>
-                  <th>When</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sessions.map((s) => (
-                  <tr key={s.id}>
-                    <td>
-                      <span className={eventClass(s.event_type)}>{eventLabel[s.event_type] ?? s.event_type}</span>
-                    </td>
-                    <td>{s.user_email ?? s.user_name ?? "-"}</td>
-                    <td className="audit-details">{s.details ?? "-"}</td>
-                    <td>{new Date(s.created_at).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          <Pagination
-            page={page}
-            totalPages={Math.max(1, Math.ceil(sessionsTotal / PAGE_SIZE))}
-            total={sessionsTotal}
-            pageSize={PAGE_SIZE}
-            onPageChange={setPage}
-          />
-        </>
-      )}
-
-      {!isLoading && !error && tab === "activity" && (
-        <>
-          <div className="audit-activity-toolbar">
-            <input
-              type="text"
-              placeholder="Search user, entity, action..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && runSearch()}
-            />
-            <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value as ActionFilter)}>
-              {ACTION_FILTERS.map((a) => (
-                <option key={a.value} value={a.value}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
-            <button type="button" className="btn-primary" onClick={runSearch}>
-              Search
-            </button>
-          </div>
-          <p className="audit-tab-subline">{activityTotal.toLocaleString()} entries · newest first</p>
-
-          {activity.length === 0 ? (
-            <p className="empty-state">No data changes match this filter.</p>
-          ) : (
-            <table className="admin-requests-table audit-activity-table">
-              <thead>
-                <tr>
-                  <th>When</th>
-                  <th>Actor</th>
-                  <th>Action</th>
-                  <th>Entity</th>
-                  <th>What</th>
-                  <th>IP</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activity.map((a) => {
-                  const href = entityHref(a.entity_type, a.entity_id, a.entity_no);
-                  const typeLabel = a.entity_type
-                    ? a.entity_type.replace("_", " ").replace(/^./, (c) => c.toUpperCase())
-                    : null;
-                  const entityText = typeLabel ? `${typeLabel}${a.entity_label ? ` · ${a.entity_label}` : ""}` : "-";
-                  return (
-                    <tr key={a.id}>
-                      <td className="audit-when">{new Date(a.created_at).toLocaleString()}</td>
-                      <td>
-                        {a.user_email ?? a.user_name ?? "-"}
-                        {a.user_role && <span className={roleClass(a.user_role)}>{ROLE_LABELS[a.user_role] ?? a.user_role}</span>}
-                      </td>
-                      <td>
-                        <span className={eventClass(a.event_type)}>{eventLabel[a.event_type] ?? a.event_type}</span>
-                      </td>
-                      <td>
-                        {href ? (
-                          <Link href={href} className="audit-entity-link">
-                            {entityText}
-                          </Link>
-                        ) : (
-                          entityText
-                        )}
-                      </td>
-                      <td className="audit-details">{a.details ?? "-"}</td>
-                      <td className="audit-ip">{a.ip_address ?? "-"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-          <Pagination
-            page={page}
-            totalPages={Math.max(1, Math.ceil(activityTotal / PAGE_SIZE))}
-            total={activityTotal}
-            pageSize={PAGE_SIZE}
-            onPageChange={setPage}
-          />
-        </>
-      )}
+      {tab === "overview" && <AuditOverviewTab range={range} />}
+      {tab === "usage" && <UsageTab range={range} />}
+      {tab === "activity" && <ActivityTab key="activity" range={range} />}
+      {tab === "sessions" && <SessionsTab range={range} />}
+      {tab === "access" && <ActivityTab key="access" range={range} entity="user" />}
     </div>
   );
 };

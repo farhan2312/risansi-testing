@@ -17,6 +17,8 @@
   /* Sequential (heatmap) -- one hue, light -> dark. */
   --seq-lo: #cde2fb;
   --seq-hi: #184f95;
+  /* Text on the darkest sequential cells (flips in dark mode, where high = light). */
+  --seq-on-hi: #ffffff;
 
   --viz-grid: #e9edf3;
   --viz-axis: #c9d1dc;
@@ -33,6 +35,7 @@
    * the navy surface, high values run toward light. */
   --seq-lo: #1c4a86;
   --seq-hi: #9ec5f4;
+  --seq-on-hi: #0b1a33;
 
   --viz-grid: rgba(255, 255, 255, 0.07);
   --viz-axis: rgba(255, 255, 255, 0.16);

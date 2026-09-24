@@ -15,20 +15,11 @@ import DonutChart from "@/components/charts/DonutChart";
 import BarList from "@/components/charts/BarList";
 import Heatmap, { monthRange } from "@/components/charts/Heatmap";
 import { monthLong } from "@/components/charts/chartUtils";
+import DateRangeFilter from "@/components/ui/DateRangeFilter";
+import { presetValue, type DateRangeValue, type PresetKey } from "@/lib/dateRangePresets";
 import type { PortalOverview, RequisitionStatus } from "@/types/testing";
 
-type PresetKey = "today" | "week" | "month" | "7d" | "30d" | "90d" | "12m" | "all" | "custom";
-
-const PRESETS: { key: Exclude<PresetKey, "custom">; label: string; range: () => { from: string; to: string } }[] = [
-  { key: "today", label: "Today", range: () => rangeFor(1) },
-  { key: "week", label: "This week", range: () => rangeFor(new Date().getDay() === 0 ? 7 : new Date().getDay()) }, // Monday-based
-  { key: "month", label: "This month", range: () => rangeFor(new Date().getDate()) },
-  { key: "7d", label: "7 days", range: () => rangeFor(7) },
-  { key: "30d", label: "30 days", range: () => rangeFor(30) },
-  { key: "90d", label: "90 days", range: () => rangeFor(90) },
-  { key: "12m", label: "12 months", range: () => rangeFor(365) },
-  { key: "all", label: "All time", range: () => rangeFor(null) },
-];
+const OVERVIEW_PRESETS: Exclude<PresetKey, "custom">[] = ["today", "week", "month", "7d", "30d", "90d", "12m", "all"];
 
 // Color follows the entity: each status keeps its slot on every chart. Ring
 // order Pending -> In Testing -> Closed -> Retest keeps every adjacent pair
@@ -43,19 +34,6 @@ const STATUS_SEGMENTS: { status: RequisitionStatus; color: string }[] = [
 const FORMAT_LABELS: Record<string, string> = {
   observation: "Observation Sheet",
   "viscosity-chart": "Viscosity Chart",
-};
-
-// Local calendar day, not UTC -- otherwise "Today" is yesterday for the first
-// hours of an IST morning.
-const isoDay = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-const rangeFor = (days: number | null) => {
-  if (days === null) return { from: "", to: "" };
-  const to = new Date();
-  const from = new Date();
-  from.setDate(from.getDate() - (days - 1));
-  return { from: isoDay(from), to: isoDay(to) };
 };
 
 const timeOfDayGreeting = (): string => {
@@ -118,18 +96,8 @@ const OverviewPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  const [preset, setPreset] = useState<PresetKey>("12m");
-  const [range, setRange] = useState(() => rangeFor(365));
-
-  const choosePreset = (key: Exclude<PresetKey, "custom">) => {
-    setPreset(key);
-    setRange(PRESETS.find((p) => p.key === key)!.range());
-  };
-
-  const setCustom = (patch: Partial<typeof range>) => {
-    setPreset("custom");
-    setRange((r) => ({ ...r, ...patch }));
-  };
+  const [range, setRange] = useState<DateRangeValue>(() => presetValue("12m"));
+  const preset = range.preset;
 
   useEffect(() => {
     let cancelled = false;
@@ -206,45 +174,7 @@ const OverviewPage = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3 border-t border-border/70 bg-surface/60 px-6 py-3">
-          <div className="flex flex-wrap items-center gap-0.5 rounded-xl border border-border bg-surface p-1" role="group" aria-label="Date range">
-            {PRESETS.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => choosePreset(p.key)}
-                aria-pressed={preset === p.key}
-                className={`rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors ${
-                  preset === p.key ? "bg-accent text-white shadow-sm" : "text-text-muted hover:bg-surface-hover hover:text-text"
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3.5 py-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 text-text-faint" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <path d="M16 2v4M8 2v4M3 10h18" />
-            </svg>
-            <input
-              type="date"
-              value={range.from}
-              onChange={(e) => setCustom({ from: e.target.value })}
-              className="bg-transparent text-sm text-text outline-none"
-              aria-label="From date"
-            />
-            <span className="text-text-faint" aria-hidden="true">
-              →
-            </span>
-            <input
-              type="date"
-              value={range.to}
-              onChange={(e) => setCustom({ to: e.target.value })}
-              className="bg-transparent text-sm text-text outline-none"
-              aria-label="To date"
-            />
-          </div>
+          <DateRangeFilter presets={OVERVIEW_PRESETS} value={range} onChange={setRange} />
 
           <span className="ml-auto text-xs text-text-muted">
             Showing {rangeText}

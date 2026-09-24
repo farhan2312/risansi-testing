@@ -21,6 +21,7 @@ export interface AuditParams {
   entityLabel?: string | null;
   details?: string | null;
   ipAddress?: string | null;
+  userAgent?: string | null;
 }
 
 /** Best-effort client IP off a Next.js Request. Vercel (and most proxies)
@@ -39,6 +40,11 @@ export function getClientIp(req: Request): string | null {
   return null;
 }
 
+/** Raw User-Agent header, capped so a hostile client can't bloat the table. */
+export function getUserAgent(req: Request): string | null {
+  return req.headers.get("user-agent")?.slice(0, 400) || null;
+}
+
 export async function logAudit(params: AuditParams): Promise<void> {
   try {
     await db.insert(auditLogs).values({
@@ -51,6 +57,7 @@ export async function logAudit(params: AuditParams): Promise<void> {
       entityLabel: params.entityLabel ?? null,
       details: params.details ?? null,
       ipAddress: params.ipAddress ?? null,
+      userAgent: params.userAgent ?? null,
     });
   } catch (err) {
     // Never let an audit-log write take down the real request it's

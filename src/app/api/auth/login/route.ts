@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
 import { error, json } from "@/lib/api";
-import { getClientIp, logAudit } from "@/lib/audit";
+import { getClientIp, getUserAgent, logAudit } from "@/lib/audit";
 import { authCookieOptions, AUTH_COOKIE_NAME, createToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { userSessions, users } from "@/lib/db/schema";
@@ -24,18 +24,19 @@ export async function POST(req: Request) {
   }
 
   const ip = getClientIp(req);
+  const userAgent = getUserAgent(req);
 
   const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
     // No user_id on a failed attempt -- either the account doesn't exist or
     // the password was wrong, and we don't want to leak which via the log.
-    await logAudit({ ipAddress: ip, eventType: "login_failed", userEmail: email, details: "Invalid email or password" });
+    await logAudit({ ipAddress: ip, userAgent, eventType: "login_failed", userEmail: email, details: "Invalid email or password" });
     return error("Invalid email or password.", 401);
   }
 
   if (user.status === "pending") {
     await logAudit({
-      ipAddress: ip,
+      ipAddress: ip, userAgent,
       userId: user.id,
       userName: user.name,
       userEmail: user.email,
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
   }
   if (user.status === "rejected") {
     await logAudit({
-      ipAddress: ip,
+      ipAddress: ip, userAgent,
       userId: user.id,
       userName: user.name,
       userEmail: user.email,
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
   }
   if (user.status === "inactive") {
     await logAudit({
-      ipAddress: ip,
+      ipAddress: ip, userAgent,
       userId: user.id,
       userName: user.name,
       userEmail: user.email,
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
   const token = createToken({ id: user.id, email: user.email, role: user.role });
 
   await db.insert(userSessions).values({ userId: user.id, userName: user.name, userEmail: user.email });
-  await logAudit({ ipAddress: ip, userId: user.id, userName: user.name, userEmail: user.email, eventType: "login" });
+  await logAudit({ ipAddress: ip, userAgent, userId: user.id, userName: user.name, userEmail: user.email, eventType: "login" });
 
   const response = json({
     user: {

@@ -2,6 +2,7 @@ import apiClient from "./apiClient";
 import type {
   ActionRegistryEntry,
   AuditActivityResult,
+  AuditOverview,
   AuditRange,
   AuditSessionListResult,
   AuditSummary,
@@ -178,14 +179,30 @@ export const getAuditSummary = async (): Promise<AuditSummary> => {
   return data;
 };
 
+const rangeParams = (range: AuditRange) => ({
+  ...(range.from ? { from: range.from } : {}),
+  ...(range.to ? { to: range.to } : {}),
+});
+
+export const getAuditOverview = async (range: AuditRange): Promise<AuditOverview> => {
+  const { data } = await apiClient.get<AuditOverview>("/audit-log/overview", { params: rangeParams(range) });
+  return data;
+};
+
+/** Where the "Generate Report" button sends the browser -- same-origin, so the auth cookie rides along. */
+export const auditExportUrl = (range: AuditRange): string => {
+  const qs = new URLSearchParams(rangeParams(range)).toString();
+  return `/api/audit-log/export${qs ? `?${qs}` : ""}`;
+};
+
 export const getAuditUsage = async (range: AuditRange): Promise<AuditUsageRow[]> => {
-  const { data } = await apiClient.get<AuditUsageRow[]>("/audit-log/usage", { params: { range } });
+  const { data } = await apiClient.get<AuditUsageRow[]>("/audit-log/usage", { params: rangeParams(range) });
   return data;
 };
 
 export const getAuditSessions = async (range: AuditRange, page = 1): Promise<AuditSessionListResult> => {
   const { data } = await apiClient.get<AuditSessionListResult>("/audit-log/sessions", {
-    params: { range, page },
+    params: { ...rangeParams(range), page },
   });
   return data;
 };
@@ -193,24 +210,25 @@ export const getAuditSessions = async (range: AuditRange, page = 1): Promise<Aud
 export const getAuditActivity = async (
   range: AuditRange,
   page = 1,
-  filters?: { search?: string; action?: "create" | "update" | "delete" }
+  filters?: { search?: string; action?: "create" | "update" | "delete"; entity?: "user" }
 ): Promise<AuditActivityResult> => {
   const { data } = await apiClient.get<AuditActivityResult>("/audit-log/activity", {
     params: {
-      range,
+      ...rangeParams(range),
       page,
       ...(filters?.search ? { search: filters.search } : {}),
       ...(filters?.action ? { action: filters.action } : {}),
+      ...(filters?.entity ? { entity: filters.entity } : {}),
     },
   });
   return data;
 };
 
 /** Which pages one user visited within a range, and how often -- backs the
- * "click a user for the page breakdown" drill-down on Usage & Time. */
+ * "click a user for the page breakdown" drill-down on Usage by User. */
 export const getAuditUserPages = async (userId: string, range: AuditRange): Promise<AuditUserPageRow[]> => {
   const { data } = await apiClient.get<AuditUserPageRow[]>(`/audit-log/usage/${userId}/pages`, {
-    params: { range },
+    params: rangeParams(range),
   });
   return data;
 };

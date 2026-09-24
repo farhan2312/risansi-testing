@@ -5,10 +5,22 @@ import { useRouter } from "next/navigation";
 import { monthLabel, monthLong } from "./chartUtils";
 
 interface HeatmapProps {
+  /** Column keys -- months ("2026-03"), days ("2026-03-14") or anything else
+   * the formatters below understand (e.g. "0".."23" for hours). */
   months: string[];
   rows: { label: string; counts: number[] }[];
   /** Where a non-empty cell drills down to. */
   cellHref?: (rowLabel: string, month: string) => string | null;
+  /** Short column header ("" to skip that column's label). Defaults to month/day labels. */
+  formatColumn?: (key: string, index: number) => string;
+  /** Long column name for the tooltip. Defaults to "March 2026" / "14 March 2026". */
+  formatColumnLong?: (key: string) => string;
+  /** What one unit is called in the tooltip ("requisition", "event"). */
+  unit?: string;
+  /** Narrowest a column may get before the grid scrolls sideways. */
+  minColumnWidth?: number;
+  /** Width reserved for the row labels. */
+  labelWidth?: number;
 }
 
 const lastDayOfMonth = (key: string) => {
@@ -22,13 +34,23 @@ export const monthRange = (key: string) =>
 /** Sequential heatmap -- one hue, light -> dark (its own dark-mode ramp,
  * see charts.css). Zero cells stay neutral so "none" never reads as "a
  * little". Values live in the tooltip and the card's table view. */
-const Heatmap = ({ months, rows, cellHref }: HeatmapProps) => {
+const Heatmap = ({
+  months,
+  rows,
+  cellHref,
+  formatColumn,
+  formatColumnLong = monthLong,
+  unit = "requisition",
+  minColumnWidth = 22,
+  labelWidth = 120,
+}: HeatmapProps) => {
   const router = useRouter();
   const [hover, setHover] = useState<{ row: string; month: string; value: number; x: number; y: number } | null>(null);
 
   const max = Math.max(1, ...rows.flatMap((r) => r.counts));
   const shade = (v: number) =>
     v === 0 ? "var(--bg-sunk)" : `color-mix(in oklab, var(--seq-hi) ${Math.round(15 + (v / max) * 85)}%, var(--seq-lo))`;
+  const columnLabel = formatColumn ?? ((key: string, i: number) => (i % 2 === 0 || months.length <= 12 ? monthLabel(key) : ""));
 
   if (rows.length === 0) return <p className="py-6 text-center text-sm text-text-muted">Nothing in this range.</p>;
 
@@ -37,7 +59,7 @@ const Heatmap = ({ months, rows, cellHref }: HeatmapProps) => {
       <div className="overflow-x-auto">
         <div
           className="grid gap-[2px]"
-          style={{ gridTemplateColumns: `minmax(120px, max-content) repeat(${months.length}, minmax(22px, 1fr))` }}
+          style={{ gridTemplateColumns: `minmax(${labelWidth}px, max-content) repeat(${months.length}, minmax(${minColumnWidth}px, 1fr))` }}
         >
           {rows.map((row) => (
             <div key={row.label} className="contents">
@@ -51,7 +73,7 @@ const Heatmap = ({ months, rows, cellHref }: HeatmapProps) => {
                     key={months[i]}
                     type="button"
                     disabled={!href}
-                    aria-label={`${row.label}, ${monthLong(months[i])}: ${v}`}
+                    aria-label={`${row.label}, ${formatColumnLong(months[i])}: ${v}`}
                     className="h-7 rounded-[4px] transition-transform enabled:cursor-pointer enabled:hover:scale-110 disabled:cursor-default"
                     style={{ background: shade(v) }}
                     onPointerEnter={(e) => {
@@ -68,7 +90,7 @@ const Heatmap = ({ months, rows, cellHref }: HeatmapProps) => {
           <div />
           {months.map((m, i) => (
             <div key={m} className="pt-1 text-center text-[10px] text-text-muted">
-              {i % 2 === 0 || months.length <= 12 ? monthLabel(m) : ""}
+              {columnLabel(m, i)}
             </div>
           ))}
         </div>
@@ -84,10 +106,11 @@ const Heatmap = ({ months, rows, cellHref }: HeatmapProps) => {
       {hover && (
         <div className="viz-tooltip" style={{ left: hover.x, top: hover.y - 8, transform: "translate(-50%, -100%)" }}>
           <div className="text-[13px] font-semibold text-text-h" style={{ fontVariantNumeric: "tabular-nums" }}>
-            {hover.value} requisition{hover.value === 1 ? "" : "s"}
+            {hover.value} {unit}
+            {hover.value === 1 ? "" : "s"}
           </div>
-          <div className="text-text-muted">{hover.row}</div>
-          <div className="text-text-muted">{monthLong(hover.month)}</div>
+          <div className="text-text-muted">{hover.row.replace(/^Against\s+/i, "")}</div>
+          <div className="text-text-muted">{formatColumnLong(hover.month)}</div>
         </div>
       )}
     </div>
