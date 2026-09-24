@@ -6,7 +6,7 @@ import "../dashboard/DashboardPage.css"; // reuses .status-pill / .status-* colo
 import { getOverview } from "@/services/testingService";
 import { useAuth } from "@/contexts/AuthContext";
 import { SkeletonPage } from "@/components/ui/Skeleton";
-import { pageHeaderButton } from "@/components/ui/PageHeader";
+import HeroHeader from "@/components/ui/HeroHeader";
 import { formatDate } from "@/lib/formUtils";
 import ChartCard from "@/components/charts/ChartCard";
 import KpiCard from "@/components/charts/KpiCard";
@@ -153,35 +153,29 @@ const OverviewPage = () => {
       : `${range.from ? formatDate(range.from) : "the beginning"} – ${range.to ? formatDate(range.to) : "today"}`;
 
   return (
-    <div className="mx-auto flex max-w-[1400px] flex-col gap-5 p-2">
-      {/* One card: greeting + action on top, the filters that scope every widget below on a divided second row. */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-gradient-to-r from-surface to-accent-soft shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4 px-6 py-5">
-          <div>
-            <h1 className="m-0 text-2xl! font-bold text-text-h">
-              {timeOfDayGreeting()}, {firstName}
-            </h1>
-            <p className="mt-1 text-sm text-text-muted">
-              {TODAY_LABEL} · requisitions, reports and deadlines at a glance
-            </p>
-          </div>
-          <Link href="/dashboard" className={pageHeaderButton("primary")}>
+    <div className="tw-reset mx-auto flex max-w-[1400px] flex-col gap-5 p-2">
+      {/* Greeting + action on top; the filters that scope every widget below sit in the frosted band. */}
+      <HeroHeader
+        eyebrow={TODAY_LABEL}
+        title={`${timeOfDayGreeting()}, ${firstName}`}
+        subtitle="Requisitions, reports and deadlines at a glance"
+        actions={
+          <Link href="/dashboard" className="hero-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
             </svg>
             Go to Testing Summary
           </Link>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 border-t border-border/70 bg-surface/60 px-6 py-3">
+        }
+      >
+        <div className="flex flex-wrap items-center gap-3 px-9 py-5">
           <DateRangeFilter presets={OVERVIEW_PRESETS} value={range} onChange={setRange} />
-
           <span className="ml-auto text-xs text-text-muted">
             Showing {rangeText}
             {isLoading && " · updating…"}
           </span>
         </div>
-      </div>
+      </HeroHeader>
 
       {loadError && <p className="text-sm font-medium text-neg">{loadError}</p>}
 
@@ -192,6 +186,7 @@ const OverviewPage = () => {
           <KpiCard
             icon="📋"
             label="Requisitions raised"
+            accent="blue"
             value={data.total_requisitions.toLocaleString()}
             deltaPct={pctChange(data.total_requisitions, prev?.total_requisitions)}
             hint={prev ? "vs previous period" : undefined}
@@ -201,6 +196,7 @@ const OverviewPage = () => {
           <KpiCard
             icon="⏳"
             label="Open now"
+            accent="amber"
             value={openCount.toLocaleString()}
             hint={`${byStatus.Pending ?? 0} pending · ${byStatus["In Testing"] ?? 0} testing · ${byStatus["Retest Needed"] ?? 0} retest`}
             href={summaryHref({ scope: "open" })}
@@ -216,6 +212,7 @@ const OverviewPage = () => {
           <KpiCard
             icon="📄"
             label="Reports filed"
+            accent="green"
             value={data.total_reports.toLocaleString()}
             deltaPct={pctChange(data.total_reports, prev?.total_reports)}
             hint={prev ? "vs previous period" : undefined}
@@ -225,6 +222,7 @@ const OverviewPage = () => {
           <KpiCard
             icon="✅"
             label="Pass rate"
+            accent="green"
             value={metPct === null ? "—" : `${metPct}%`}
             hint={judged ? `${data.requirement_met} of ${judged} met` : "No judged reports"}
             href="/pumps"
@@ -232,6 +230,7 @@ const OverviewPage = () => {
           <KpiCard
             icon="⏱️"
             label="Avg turnaround"
+            accent="orange"
             value={data.avg_turnaround_days === null ? "—" : `${data.avg_turnaround_days.toFixed(1)}d`}
             hint="raised → closed"
             href={summaryHref({ status: "Closed" })}

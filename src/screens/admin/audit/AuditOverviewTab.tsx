@@ -206,6 +206,7 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
   const systemItems = systemMode === "browser" ? data.browsers : data.operating_systems;
   const systemColors = assignColors(systemItems.map((d) => d.label), systemMode === "browser" ? BROWSER_COLORS : OS_COLORS);
   const hasUnknown = data.devices.some((d) => d.label === "Unknown");
+  const hasClientData = data.devices.some((d) => d.label !== "Unknown");
 
   return (
     <div className={`flex flex-col gap-5 transition-opacity ${isLoading ? "pointer-events-none opacity-60" : ""}`}>
@@ -216,6 +217,7 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
         <KpiCard
           icon="📋"
           label="Requisitions created"
+          accent="blue"
           value={kpis.requisitions_created.toLocaleString()}
           deltaPct={pctChange(kpis.requisitions_created, prev?.requisitions_created)}
           hint={prev ? "vs previous period" : undefined}
@@ -224,6 +226,7 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
         <KpiCard
           icon="📄"
           label="Reports created"
+          accent="green"
           value={kpis.reports_created.toLocaleString()}
           deltaPct={pctChange(kpis.reports_created, prev?.reports_created)}
           hint={prev ? "vs previous period" : undefined}
@@ -232,6 +235,7 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
         <KpiCard
           icon="🔑"
           label="Sign-ins"
+          accent="orange"
           value={kpis.sign_ins.toLocaleString()}
           deltaPct={pctChange(kpis.sign_ins, prev?.sign_ins)}
           hint={`${kpis.failed_sign_ins} failed`}
@@ -241,6 +245,7 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
         <KpiCard
           icon="🌐"
           label="IP addresses"
+          accent="amber"
           value={kpis.distinct_ips.toLocaleString()}
           hint="distinct addresses seen in this range"
         />
@@ -415,44 +420,49 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
       </ChartCard>
 
       {/* ---- Where people sign in from ---- */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
-        <ChartCard
-          title="Devices"
-          subtitle="Desktop, mobile or tablet · share of sign-ins"
-          table={{ columns: ["Device", "Sign-ins"], rows: data.devices.map((d) => [d.label, d.count]) }}
-        >
-          {data.devices.length === 0 ? (
-            <p className="py-6 text-center text-sm text-text-muted">No sign-ins in this range.</p>
-          ) : (
-            <ShareDonut items={data.devices} colors={deviceColors} centerLabel="sign-ins" />
-          )}
-          {hasUnknown && (
-            <p className="mt-3 text-[11px] text-text-muted">Unknown = sign-ins from before browser details were recorded.</p>
-          )}
-        </ChartCard>
+      <div className={hasClientData ? "grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3" : undefined}>
+        {/* Hidden until at least one sign-in has a recorded browser -- an all-"Unknown" donut says nothing. */}
+        {hasClientData && (
+          <>
+            <ChartCard
+              title="Devices"
+              subtitle="Desktop, mobile or tablet · share of sign-ins"
+              table={{ columns: ["Device", "Sign-ins"], rows: data.devices.map((d) => [d.label, d.count]) }}
+            >
+              {data.devices.length === 0 ? (
+                <p className="py-6 text-center text-sm text-text-muted">No sign-ins in this range.</p>
+              ) : (
+                <ShareDonut items={data.devices} colors={deviceColors} centerLabel="sign-ins" />
+              )}
+              {hasUnknown && (
+                <p className="mt-3 text-[11px] text-text-muted">Unknown = sign-ins from before browser details were recorded.</p>
+              )}
+            </ChartCard>
 
-        <ChartCard
-          title={systemMode === "browser" ? "Browsers" : "Operating systems"}
-          subtitle="Share of sign-ins"
-          table={{ columns: [systemMode === "browser" ? "Browser" : "OS", "Sign-ins"], rows: systemItems.map((d) => [d.label, d.count]) }}
-          actions={
-            <Segmented<SystemMode>
-              ariaLabel="Browser or OS"
-              value={systemMode}
-              onChange={setSystemMode}
-              options={[
-                { value: "browser", label: "Browser" },
-                { value: "os", label: "OS" },
-              ]}
-            />
-          }
-        >
-          {systemItems.length === 0 ? (
-            <p className="py-6 text-center text-sm text-text-muted">No sign-ins in this range.</p>
-          ) : (
-            <ShareDonut items={systemItems} colors={systemColors} centerLabel="sign-ins" />
-          )}
-        </ChartCard>
+            <ChartCard
+              title={systemMode === "browser" ? "Browsers" : "Operating systems"}
+              subtitle="Share of sign-ins"
+              table={{ columns: [systemMode === "browser" ? "Browser" : "OS", "Sign-ins"], rows: systemItems.map((d) => [d.label, d.count]) }}
+              actions={
+                <Segmented<SystemMode>
+                  ariaLabel="Browser or OS"
+                  value={systemMode}
+                  onChange={setSystemMode}
+                  options={[
+                    { value: "browser", label: "Browser" },
+                    { value: "os", label: "OS" },
+                  ]}
+                />
+              }
+            >
+              {systemItems.length === 0 ? (
+                <p className="py-6 text-center text-sm text-text-muted">No sign-ins in this range.</p>
+              ) : (
+                <ShareDonut items={systemItems} colors={systemColors} centerLabel="sign-ins" />
+              )}
+            </ChartCard>
+          </>
+        )}
 
         <ChartCard
           title="IP addresses"

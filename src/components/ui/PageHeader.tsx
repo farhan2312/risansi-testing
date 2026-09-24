@@ -16,7 +16,7 @@ interface PageHeaderProps {
  * with right-aligned actions. Every dashboard-group page renders one of
  * these at the top instead of its own ad-hoc header markup. */
 const PageHeader = ({ icon, title, subtitle, actions }: PageHeaderProps) => (
-  <div className="mb-6 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-border bg-gradient-to-r from-surface to-accent-soft px-6 py-5 shadow-sm">
+  <div className="tw-reset mb-6 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-border bg-gradient-to-r from-surface to-accent-soft px-6 py-5 shadow-sm">
     <div className="flex items-start gap-4">
       <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-accent text-xl leading-none text-white shadow-sm">
         {icon}

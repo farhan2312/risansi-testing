@@ -60,3 +60,34 @@
 
   --radius-DEFAULT: var(--radius);
 }
+
+/* Opt-in mini reset for screens built with Tailwind utilities. Because
+ * Preflight is skipped (see top of file), a <button> that only gets utility
+ * classes keeps the browser's grey bevelled default -- the "2010" look. Put
+ * `tw-reset` on a screen's root and its buttons start clean.
+ *
+ * Wrapped in :where() so it has ZERO specificity: any utility class
+ * (bg-*, border, px-*, ...) or plain-CSS class rule still wins, so this can
+ * never fight an existing style -- it only fills in what nothing else set. */
+:where(.tw-reset) :where(button) {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: transparent;
+  border: 0 solid transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+:where(.tw-reset) :where(button:disabled) {
+  cursor: not-allowed;
+}
+
+/* Same idea for lists: without Preflight a <ul> keeps its bullets and 40px
+ * indent, which shows up as stray dots beside every legend row. */
+:where(.tw-reset) :where(ul, ol) {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}

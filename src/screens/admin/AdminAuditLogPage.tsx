@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { auditExportUrl, getAuditSummary } from "@/services/adminService";
-import { pageHeaderButton } from "@/components/ui/PageHeader";
+import HeroHeader, { HeroStat } from "@/components/ui/HeroHeader";
 import DateRangeFilter from "@/components/ui/DateRangeFilter";
 import { presetValue, type DateRangeValue, type PresetKey } from "@/lib/dateRangePresets";
 import AuditOverviewTab from "./audit/AuditOverviewTab";
@@ -20,23 +20,6 @@ const TABS: { value: Tab; label: string; icon: string }[] = [
 ];
 
 const AUDIT_PRESETS: Exclude<PresetKey, "custom">[] = ["today", "week", "month", "7d", "30d", "all"];
-
-const StripItem = ({ icon, label, value, tone }: { icon: string; label: string; value: ReactNode; tone?: "critical" }) => (
-  <div className="flex items-center gap-3 px-6 py-3.5">
-    <span className="text-lg" aria-hidden="true">
-      {icon}
-    </span>
-    <div>
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-        {label}
-        <span className="rounded bg-bg-sunk px-1 py-px text-[10px] font-bold text-text-muted">24H</span>
-      </div>
-      <div className={`text-2xl font-bold leading-tight ${tone === "critical" ? "text-neg" : "text-text-h"}`} style={{ fontVariantNumeric: "tabular-nums" }}>
-        {value}
-      </div>
-    </div>
-  </div>
-);
 
 const AdminAuditLogPage = () => {
   const [summary, setSummary] = useState<AuditSummary | null>(null);
@@ -62,34 +45,29 @@ const AdminAuditLogPage = () => {
       : `${dateRange.from || "the beginning"} → ${dateRange.to || "today"}`;
 
   return (
-    <div className="mx-auto flex max-w-[1400px] flex-col gap-5 p-2">
-      {/* Header card: title + export, then the trailing-24h strip. */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-gradient-to-r from-surface to-accent-soft shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4 px-6 py-5">
-          <div className="flex items-start gap-4">
-            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-accent text-xl leading-none text-white shadow-sm" aria-hidden="true">
-              🛡️
-            </span>
-            <div>
-              <h1 className="m-0 text-2xl! font-bold text-text-h">Audit Log</h1>
-              <p className="mt-1 text-sm text-text-muted">Full activity trail · who signed in, from where, and everything they did</p>
-            </div>
-          </div>
-          <a href={exportHref} download className={pageHeaderButton("primary")} title={`Download ${rangeText} as CSV`}>
+    <div className="tw-reset mx-auto flex max-w-[1400px] flex-col gap-5 p-2">
+      {/* Title + export on top, the trailing-24h strip in the frosted band. */}
+      <HeroHeader
+        icon="🛡️"
+        eyebrow="Admin · Security"
+        title="Audit Log"
+        subtitle="Full activity trail · who signed in, from where, and everything they did"
+        actions={
+          <a href={exportHref} download className="hero-btn" title={`Download ${rangeText} as CSV`}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
             </svg>
             Generate Report
           </a>
+        }
+      >
+        <div className="grid grid-cols-2 divide-x divide-border lg:grid-cols-4">
+          <HeroStat icon="🔑" label="Sign-ins" chip="24H" value={summary?.logins_24h ?? "–"} tint="var(--accent)" />
+          <HeroStat icon="⚠️" label="Failed" chip="24H" value={summary?.failed_24h ?? "–"} critical={!!summary && summary.failed_24h > 0} tint="var(--neg)" />
+          <HeroStat icon="👥" label="Active users" chip="24H" value={summary?.active_users_24h ?? "–"} tint="var(--pos)" />
+          <HeroStat icon="⚡" label="Actions" chip="24H" value={summary?.actions_24h ?? "–"} tint="var(--warn)" />
         </div>
-
-        <div className="grid grid-cols-2 divide-x divide-border/70 border-t border-border/70 bg-surface/60 lg:grid-cols-4">
-          <StripItem icon="🔑" label="Sign-ins" value={summary?.logins_24h ?? "–"} />
-          <StripItem icon="⚠️" label="Failed" value={summary?.failed_24h ?? "–"} tone={summary && summary.failed_24h > 0 ? "critical" : undefined} />
-          <StripItem icon="👥" label="Active users" value={summary?.active_users_24h ?? "–"} />
-          <StripItem icon="⚡" label="Actions" value={summary?.actions_24h ?? "–"} />
-        </div>
-      </div>
+      </HeroHeader>
 
       <div className="flex flex-wrap gap-1 border-b border-border" role="tablist" aria-label="Audit Log sections">
         {TABS.map((t) => (
