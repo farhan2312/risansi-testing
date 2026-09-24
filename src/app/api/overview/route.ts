@@ -397,7 +397,7 @@ export async function GET(req: Request) {
     reports_by_category: reportsByCategory,
     by_raiser: RAISED_BY_GROUPS.map((group) => ({ group, label: RAISED_BY_LABELS[group], count: raiserCounts.get(group) ?? 0 })),
     by_source_team: bySourceTeam
-      .map((r) => ({ label: r.team ?? "Unspecified", count: toNum(r.n) }))
+      .map((r) => ({ label: r.team?.trim() ? r.team : "Unspecified", count: toNum(r.n) }))
       .sort((a, b) => b.count - a.count),
     workload: [...workloadByPerson.entries()]
       .map(([person, c]) => ({ person, ...c, total: c.pending + c.in_testing + c.retest_needed }))

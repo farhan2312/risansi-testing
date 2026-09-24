@@ -71,7 +71,7 @@ const DashboardPage = () => {
   // pre-filtered. Only values the dropdowns actually offer are accepted, so a
   // stale or hand-edited link can never leave a select showing a blank value.
   const [categoryFilter, setCategoryFilter] = useState(() => fromQuery(searchParams.get("category"), [...REQUISITION_CATEGORIES, "none"]));
-  const [sourceTeamFilter, setSourceTeamFilter] = useState(() => fromQuery(searchParams.get("source_team"), SOURCE_TEAMS));
+  const [sourceTeamFilter, setSourceTeamFilter] = useState(() => fromQuery(searchParams.get("source_team"), [...SOURCE_TEAMS, "none"]));
   // Who raised it: a Source Team account, a Testing Team account, or anyone else.
   const [raisedByFilter, setRaisedByFilter] = useState(() => fromQuery(searchParams.get("raised_by"), RAISED_BY_GROUPS));
   const [responsiblePersonFilter, setResponsiblePersonFilter] = useState(() =>
@@ -330,6 +330,7 @@ const DashboardPage = () => {
               {t}
             </option>
           ))}
+          <option value="none">Unspecified</option>
         </select>
         <select value={responsiblePersonFilter} onChange={(e) => setResponsiblePersonFilter(e.target.value)}>
           <option value={ALL}>All Responsible Persons</option>

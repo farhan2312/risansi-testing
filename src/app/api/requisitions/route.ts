@@ -175,7 +175,12 @@ export async function GET(req: Request) {
   // "none" = requisitions raised without a category (the Overview's "Uncategorised" bar).
   if (category === "none") conditions.push(isNull(testRequisitions.category));
   else if (category) conditions.push(eq(testRequisitions.category, category));
-  if (sourceTeam) conditions.push(eq(testRequisitions.sourceTeam, sourceTeam));
+  // "none" = no Source Team set (the Overview's "Unspecified" bar); blank counts as unset too.
+  if (sourceTeam === "none") {
+    conditions.push(sql`(${testRequisitions.sourceTeam} is null or trim(${testRequisitions.sourceTeam}) = '')`);
+  } else if (sourceTeam) {
+    conditions.push(eq(testRequisitions.sourceTeam, sourceTeam));
+  }
   // "none" = no Responsible Person assigned (the Overview workload card's "Unassigned" bar).
   if (responsiblePerson === "none") {
     conditions.push(sql`(${testRequisitions.responsiblePerson} is null or trim(${testRequisitions.responsiblePerson}) = '')`);

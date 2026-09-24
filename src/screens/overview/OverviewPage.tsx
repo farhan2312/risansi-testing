@@ -421,7 +421,7 @@ const OverviewPage = () => {
                 key: t.label,
                 label: t.label,
                 value: t.count,
-                href: t.label === "Unspecified" ? undefined : summaryHref({ source_team: t.label }),
+                href: summaryHref({ source_team: t.label === "Unspecified" ? "none" : t.label }),
               }))}
             />
           </ChartCard>
