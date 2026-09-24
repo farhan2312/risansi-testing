@@ -24,11 +24,22 @@ const PAGE_SIZE = 50;
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search")?.trim().toLowerCase() ?? "";
+  // Overview drill-down: only reports whose test date (created date when
+  // there is none -- same fallback the dashboard's Reports filed card uses)
+  // falls inside the range.
+  const dayParam = (key: string) => {
+    const v = searchParams.get(key);
+    return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+  };
+  const fromDay = dayParam("from");
+  const toDay = dayParam("to");
   const rawPage = Number(searchParams.get("page"));
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
 
   const rows = await db.select().from(pumpTestReports).orderBy(desc(pumpTestReports.createdAt));
-  const enriched = await enrichReports(rows);
+  const enrichedAll = await enrichReports(rows);
+  const reportDay = (r: (typeof enrichedAll)[number]) => r.test_date ?? r.created_at?.toISOString().slice(0, 10) ?? "";
+  const enriched = enrichedAll.filter((r) => (!fromDay || reportDay(r) >= fromDay) && (!toDay || reportDay(r) <= toDay));
 
   const groups = new Map<string, typeof enriched>();
   for (const r of enriched) {
@@ -70,6 +81,8 @@ export async function GET(req: Request) {
   return json({
     entries: allGroups.slice(offset, offset + PAGE_SIZE),
     total: allGroups.length,
+    // Reports (not pumps) across every page, so a range link's "N reports" matches the dashboard card.
+    total_reports: allGroups.reduce((sum, g) => sum + g.report_count, 0),
     page,
     page_size: PAGE_SIZE,
   });

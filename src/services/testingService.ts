@@ -1,7 +1,7 @@
 import apiClient from "./apiClient";
 import type {
   ActionRegistryEntry,
-  ArchivePumpGroup,
+  ArchiveListResult,
   ArchiveReportSummary,
   BugReport,
   BugReportSeverity,
@@ -36,6 +36,8 @@ export interface RequisitionFilters {
   report_result?: "green" | "red";
   /** Not-yet-closed requisitions, optionally narrowed to overdue / due within 5 days. */
   scope?: "open" | "overdue" | "due_soon";
+  /** Which kind of account raised the requisition. */
+  raised_by?: "source" | "testing" | "other";
 }
 
 /** Server-paginated, 25/page, with the Testing Summary filter bar's full
@@ -192,10 +194,16 @@ export const listReports = async (model?: string): Promise<ArchiveReportSummary[
  * /api/reports/grouped for why this paginates groups rather than rows). */
 export const listGroupedReports = async (
   page = 1,
-  search?: string
-): Promise<PaginatedResult<ArchivePumpGroup>> => {
-  const { data } = await apiClient.get<PaginatedResult<ArchivePumpGroup>>("/reports/grouped", {
-    params: { page, ...(search ? { search } : {}) },
+  search?: string,
+  range?: { from?: string; to?: string }
+): Promise<ArchiveListResult> => {
+  const { data } = await apiClient.get<ArchiveListResult>("/reports/grouped", {
+    params: {
+      page,
+      ...(search ? { search } : {}),
+      ...(range?.from ? { from: range.from } : {}),
+      ...(range?.to ? { to: range.to } : {}),
+    },
   });
   return data;
 };

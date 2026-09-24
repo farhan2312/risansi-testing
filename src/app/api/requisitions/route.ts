@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ilike, inArray, lte, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, sql } from "drizzle-orm";
 
 import { error, json, requisitionToDict } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
@@ -6,6 +6,7 @@ import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
 import { offsetFor, PAGE_SIZE, parsePage } from "@/lib/pagination";
+import { isRaisedByGroup, raisedByGroup } from "@/lib/raisedBy";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 
 export const dynamic = "force-dynamic";
@@ -96,7 +97,26 @@ async function reportStatusFor(rows: RequisitionRow[]) {
     })
   );
 
-  return { reportIdByRequisition, reportNoByRequisition, unmetByRequisition };
+  // "Judged" = the report has at least one rated Head/Capacity/Power to hold
+  // it against. A report with no targets is neither Met nor Missed -- same
+  // rule the Overview's Pass rate and Report Compilation's Met/Not-met use.
+  const judgedByRequisition = new Set(
+    reports
+      .filter((r) => r.ratedHead !== null || r.ratedCapacity !== null || r.ratedPowerKw !== null)
+      .map((r) => r.requisitionId)
+  );
+
+  // Who raised each one -- the creator's current role, bucketed Source / Testing / Other.
+  const creatorIds = [...new Set(rows.map((r) => r.createdBy).filter((id): id is string => !!id))];
+  const creators = creatorIds.length
+    ? await db.select({ id: users.id, role: users.role }).from(users).where(inArray(users.id, creatorIds))
+    : [];
+  const roleByUser = new Map(creators.map((u) => [u.id, u.role]));
+  const raisedByGroupByRequisition = new Map(
+    rows.map((r) => [r.id, raisedByGroup(r.createdBy ? roleByUser.get(r.createdBy) : null)])
+  );
+
+  return { reportIdByRequisition, reportNoByRequisition, unmetByRequisition, judgedByRequisition, raisedByGroupByRequisition };
 }
 
 function dictify(
@@ -108,6 +128,7 @@ function dictify(
     report_id: status.reportIdByRequisition.get(r.id) ?? null,
     report_no: status.reportNoByRequisition.get(r.id) ?? null,
     report_requirement_unmet_fields: status.unmetByRequisition.get(r.id) ?? [],
+    raised_by_group: status.raisedByGroupByRequisition.get(r.id) ?? "other",
   }));
 }
 
@@ -141,6 +162,7 @@ export async function GET(req: Request) {
   const dateTo = searchParams.get("date_to");
   const reportResult = searchParams.get("report_result");
   const scope = searchParams.get("scope");
+  const raisedBy = searchParams.get("raised_by");
   const page = parsePage(req);
 
   const conditions = [];
@@ -157,11 +179,26 @@ export async function GET(req: Request) {
   if (retestNeeded === "true") conditions.push(eq(testRequisitions.retestNeeded, true));
   if (retestNeeded === "false") conditions.push(eq(testRequisitions.retestNeeded, false));
   if (month) conditions.push(sql`substring(${testRequisitions.dateOfRequisition}::text, 1, 7) = ${month}`);
-  if (dateFrom) conditions.push(gte(testRequisitions.dateOfRequisition, dateFrom));
-  if (dateTo) conditions.push(lte(testRequisitions.dateOfRequisition, dateTo));
+  // A requisition with no "date of requisition" counts on the day it was
+  // created -- the same fallback the Overview dashboard uses, so a range
+  // clicked through from there lists exactly the rows its cards counted.
+  const requisitionDay = sql`coalesce(${testRequisitions.dateOfRequisition}, ${testRequisitions.createdAt}::date)`;
+  if (dateFrom) conditions.push(sql`${requisitionDay} >= ${dateFrom}`);
+  if (dateTo) conditions.push(sql`${requisitionDay} <= ${dateTo}`);
   // Overview drill-downs: open (any not-yet-closed status), overdue, or due
   // within 5 days -- judged on the same effective target date the list shows
   // (explicit target_date, else date of requisition + 7).
+  // Raised by: the creator account's role -- Source Team, Testing Team, or
+  // anyone else (admins, central admins, deleted accounts, unknown creator).
+  if (isRaisedByGroup(raisedBy)) {
+    if (raisedBy === "other") {
+      conditions.push(
+        sql`(${testRequisitions.createdBy} is null or ${testRequisitions.createdBy} not in (select ${users.id} from ${users} where ${users.role} in ('source', 'testing')))`
+      );
+    } else {
+      conditions.push(sql`${testRequisitions.createdBy} in (select ${users.id} from ${users} where ${users.role} = ${raisedBy})`);
+    }
+  }
   if (scope === "open" || scope === "overdue" || scope === "due_soon") {
     const effTarget = sql`coalesce(${testRequisitions.targetDate}, coalesce(${testRequisitions.dateOfRequisition}, ${testRequisitions.createdAt}::date) + 7)`;
     conditions.push(inArray(testRequisitions.status, ["Pending", "In Testing", "Retest Needed"]));
@@ -172,17 +209,19 @@ export async function GET(req: Request) {
   }
   const where = conditions.length ? and(...conditions) : undefined;
 
-  // Every-other-filter-but-report_result scope -- backs the Green/Not Met
-  // pill counts shown once a Category is picked, regardless of which pill
-  // (if any) is currently selected.
+  // Every-other-filter-but-report_result scope -- backs the Met / Missed pill
+  // counts, regardless of which pill (if any) is currently selected. Computed
+  // once a Category is picked, on the Closed tab, or whenever a result is
+  // asked for (the Overview's Pass rate links straight to Closed + Met/Missed).
+  // Only Closed requisitions whose report has a rated target are judged.
   let reportResultCounts: { green: number; red: number } | null = null;
-  if (category) {
+  if (category || status === "Closed" || reportResult === "green" || reportResult === "red") {
     const scopedRows = await db.select().from(testRequisitions).where(where).orderBy(desc(testRequisitions.createdAt));
     const scopedStatus = await reportStatusFor(scopedRows);
     let green = 0;
     let red = 0;
     for (const r of scopedRows) {
-      if (r.status !== "Closed" || !scopedStatus.reportIdByRequisition.get(r.id)) continue;
+      if (r.status !== "Closed" || !scopedStatus.judgedByRequisition.has(r.id)) continue;
       const unmet = (scopedStatus.unmetByRequisition.get(r.id) ?? []).length > 0;
       if (unmet) red += 1;
       else green += 1;
@@ -191,7 +230,7 @@ export async function GET(req: Request) {
 
     if (reportResult === "green" || reportResult === "red") {
       const filtered = scopedRows.filter((r) => {
-        if (r.status !== "Closed" || !scopedStatus.reportIdByRequisition.get(r.id)) return false;
+        if (r.status !== "Closed" || !scopedStatus.judgedByRequisition.has(r.id)) return false;
         const unmet = (scopedStatus.unmetByRequisition.get(r.id) ?? []).length > 0;
         return reportResult === "red" ? unmet : !unmet;
       });

@@ -17,6 +17,7 @@ import Heatmap, { monthRange } from "@/components/charts/Heatmap";
 import { monthLong } from "@/components/charts/chartUtils";
 import DateRangeFilter from "@/components/ui/DateRangeFilter";
 import { presetValue, type DateRangeValue, type PresetKey } from "@/lib/dateRangePresets";
+import { RAISED_BY_LABELS } from "@/lib/raisedBy";
 import type { PortalOverview, RequisitionStatus } from "@/types/testing";
 
 const OVERVIEW_PRESETS: Exclude<PresetKey, "custom">[] = ["today", "week", "month", "7d", "30d", "90d", "12m", "all"];
@@ -131,6 +132,15 @@ const OverviewPage = () => {
     [range.from, range.to]
   );
 
+  // Report Archive, narrowed to reports tested inside the same window.
+  const reportsHref = useMemo(() => {
+    const params = new URLSearchParams();
+    if (range.from) params.set("from", range.from);
+    if (range.to) params.set("to", range.to);
+    const qs = params.toString();
+    return `/reports${qs ? `?${qs}` : ""}`;
+  }, [range.from, range.to]);
+
   if (isLoading && !data) return <SkeletonPage cards={3} />;
   if (!data) return <p className="detail-empty">{loadError || "Nothing to show."}</p>;
 
@@ -217,7 +227,7 @@ const OverviewPage = () => {
             deltaPct={pctChange(data.total_reports, prev?.total_reports)}
             hint={prev ? "vs previous period" : undefined}
             sparkline={data.monthly_trend.map((m) => m.reports)}
-            href="/reports"
+            href={reportsHref}
           />
           <KpiCard
             icon="✅"
@@ -225,7 +235,7 @@ const OverviewPage = () => {
             accent="green"
             value={metPct === null ? "—" : `${metPct}%`}
             hint={judged ? `${data.requirement_met} of ${judged} met` : "No judged reports"}
-            href="/pumps"
+            href={summaryHref({ status: "Closed" })}
           />
           <KpiCard
             icon="⏱️"
@@ -291,8 +301,8 @@ const OverviewPage = () => {
           <ChartCard
             title="Requirement results"
             subtitle="Closed requisitions with a rated target"
-            href="/pumps"
-            hrefLabel="Compilation"
+            href={summaryHref({ status: "Closed" })}
+            hrefLabel="Closed"
             table={{
               columns: ["Result", "Reports"],
               rows: [
@@ -314,8 +324,20 @@ const OverviewPage = () => {
                     <div style={{ width: `${100 - (metPct ?? 0)}%`, background: "var(--status-critical)" }} />
                   </div>
                   <div className="mt-2 flex justify-between text-xs">
-                    <span className="font-semibold text-pos-strong">✓ Met {data.requirement_met}</span>
-                    <span className="font-semibold text-neg-strong">✕ Missed {data.requirement_unmet}</span>
+                    <Link
+                      href={summaryHref({ status: "Closed", report_result: "green" })}
+                      className="font-semibold text-pos-strong hover:underline"
+                      title="Open the Met requisitions"
+                    >
+                      ✓ Met {data.requirement_met}
+                    </Link>
+                    <Link
+                      href={summaryHref({ status: "Closed", report_result: "red" })}
+                      className="font-semibold text-neg-strong hover:underline"
+                      title="Open the Missed requisitions"
+                    >
+                      ✕ Missed {data.requirement_unmet}
+                    </Link>
                   </div>
                 </div>
                 <div>
@@ -391,9 +413,25 @@ const OverviewPage = () => {
             />
           </ChartCard>
 
+          <div className="flex flex-col gap-5">
+          <ChartCard
+            title="Raised by"
+            subtitle="Who put the requisition in · by account type"
+            table={{ columns: ["Raised by", "Requisitions"], rows: data.by_raiser.map((g) => [RAISED_BY_LABELS[g.group], g.count]) }}
+          >
+            <BarList
+              items={data.by_raiser.map((g) => ({
+                key: g.group,
+                label: RAISED_BY_LABELS[g.group],
+                value: g.count,
+                href: summaryHref({ raised_by: g.group }),
+              }))}
+            />
+          </ChartCard>
+
           <ChartCard
             title="By source team"
-            subtitle="Who is raising requisitions"
+            subtitle="The Source Team field on each requisition"
             table={{ columns: ["Source team", "Requisitions"], rows: data.by_source_team.map((t) => [t.label, t.count]) }}
           >
             <BarList
@@ -405,6 +443,7 @@ const OverviewPage = () => {
               }))}
             />
           </ChartCard>
+          </div>
         </div>
 
         {/* ---- Deadlines + recent reports ---- */}
@@ -471,7 +510,7 @@ const OverviewPage = () => {
             )}
           </ChartCard>
 
-          <ChartCard title="Recent reports" subtitle="Latest filed test reports" href="/reports" hrefLabel="Archive">
+          <ChartCard title="Recent reports" subtitle="Latest filed test reports" href={reportsHref} hrefLabel="Archive">
             {data.recent_reports.length === 0 ? (
               <p className="py-6 text-center text-sm text-text-muted">No reports in this range.</p>
             ) : (

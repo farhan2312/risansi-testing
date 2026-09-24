@@ -125,6 +125,8 @@ export interface TestRequisition {
   /** Which rated fields (Head/Capacity/Power) the linked report's test
    * points never reached -- empty when met or there's no report yet. */
   report_requirement_unmet_fields?: string[];
+  /** Whether a Source Team user, a Testing Team user, or someone else raised it (list responses only). */
+  raised_by_group?: "source" | "testing" | "other";
   attachments?: RequisitionAttachment[];
 }
 
@@ -376,6 +378,11 @@ export interface ArchivePumpGroup {
   reports: ArchiveReportSummary[];
 }
 
+/** GET /api/reports/grouped -- pump groups plus the number of reports behind them (across all pages). */
+export interface ArchiveListResult extends PaginatedResult<ArchivePumpGroup> {
+  total_reports: number;
+}
+
 /** One row of GET /api/pumps's paginated (50/page) response -- Report
  * Compilation, same as Report Archive, paginates pump groups rather than
  * raw rows. Carries its own full (unfiltered) reports/requisitions so the
@@ -452,6 +459,8 @@ export interface PortalOverview {
   monthly_trend: { month: string; raised: number; reports: number; closed: number }[];
   by_category: { label: string; count: number }[];
   by_source_team: { label: string; count: number }[];
+  /** Requisitions by the raiser's role -- always all three groups, zeros included. */
+  by_raiser: { group: "source" | "testing" | "other"; label: string; count: number }[];
   workload: { person: string; pending: number; in_testing: number; retest_needed: number; total: number }[];
   category_matrix: { months: string[]; rows: { category: string; counts: number[] }[] };
   upcoming_deadlines: {

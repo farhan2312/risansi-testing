@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Pagination from "@/components/ui/Pagination";
 import { SkeletonTableRows } from "@/components/ui/Skeleton";
 import PageHeader, { pageHeaderButton } from "@/components/ui/PageHeader";
+import { RAISED_BY_GROUPS, RAISED_BY_LABELS, RAISED_BY_SHORT } from "@/lib/raisedBy";
 import {
   REQUISITION_CATEGORIES,
   RESPONSIBLE_PERSONS,
@@ -38,7 +39,7 @@ const SCOPE_OPTIONS = [
 const fromQuery = (value: string | null, allowed: readonly string[]) =>
   value && allowed.includes(value) ? value : ALL;
 
-const isoDateParam = (value: string | null) => (value && /^d{4}-d{2}-d{2}$/.test(value) ? value : "");
+const isoDateParam = (value: string | null) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "");
 
 const DashboardPage = () => {
   const searchParams = useSearchParams();
@@ -71,6 +72,8 @@ const DashboardPage = () => {
   // stale or hand-edited link can never leave a select showing a blank value.
   const [categoryFilter, setCategoryFilter] = useState(() => fromQuery(searchParams.get("category"), REQUISITION_CATEGORIES));
   const [sourceTeamFilter, setSourceTeamFilter] = useState(() => fromQuery(searchParams.get("source_team"), SOURCE_TEAMS));
+  // Who raised it: a Source Team account, a Testing Team account, or anyone else.
+  const [raisedByFilter, setRaisedByFilter] = useState(() => fromQuery(searchParams.get("raised_by"), RAISED_BY_GROUPS));
   const [responsiblePersonFilter, setResponsiblePersonFilter] = useState(() =>
     fromQuery(searchParams.get("responsible_person"), RESPONSIBLE_PERSONS)
   );
@@ -86,7 +89,11 @@ const DashboardPage = () => {
   // Only meaningful once a single Category is selected -- a second-level
   // filter for how many of that category's filled reports met their rated
   // requirements vs didn't ("Red").
-  const [reportResultFilter, setReportResultFilter] = useState<"All" | "Green" | "Red">("All");
+  // Also seeded from ?report_result= (the Overview's Met / Missed links).
+  const [reportResultFilter, setReportResultFilter] = useState<"All" | "Green" | "Red">(() => {
+    const fromQuery = searchParams.get("report_result");
+    return fromQuery === "green" ? "Green" : fromQuery === "red" ? "Red" : "All";
+  });
 
   const [modelOptions, setModelOptions] = useState<string[]>([]);
   const [submittedByOptions, setSubmittedByOptions] = useState<string[]>([]);
@@ -98,6 +105,7 @@ const DashboardPage = () => {
     scopeFilter !== ALL ||
     categoryFilter !== ALL ||
     sourceTeamFilter !== ALL ||
+    raisedByFilter !== ALL ||
     responsiblePersonFilter !== ALL ||
     submittedByFilter !== ALL ||
     retestFilter !== ALL ||
@@ -113,6 +121,7 @@ const DashboardPage = () => {
     setScopeFilter(ALL);
     setCategoryFilter(ALL);
     setSourceTeamFilter(ALL);
+    setRaisedByFilter(ALL);
     setResponsiblePersonFilter(ALL);
     setSubmittedByFilter(ALL);
     setRetestFilter(ALL);
@@ -155,6 +164,7 @@ const DashboardPage = () => {
     scopeFilter,
     categoryFilter,
     sourceTeamFilter,
+    raisedByFilter,
     responsiblePersonFilter,
     submittedByFilter,
     retestFilter,
@@ -175,6 +185,7 @@ const DashboardPage = () => {
       scope: scopeFilter === ALL ? undefined : (scopeFilter as (typeof SCOPE_OPTIONS)[number]["value"]),
       category: categoryFilter === ALL ? undefined : categoryFilter,
       source_team: sourceTeamFilter === ALL ? undefined : sourceTeamFilter,
+      raised_by: raisedByFilter === ALL ? undefined : (raisedByFilter as (typeof RAISED_BY_GROUPS)[number]),
       responsible_person: responsiblePersonFilter === ALL ? undefined : responsiblePersonFilter,
       submitted_by: submittedByFilter === ALL ? undefined : submittedByFilter,
       retest_needed: retestFilter === ALL ? undefined : retestFilter === "Yes" ? "true" : "false",
@@ -208,6 +219,7 @@ const DashboardPage = () => {
     scopeFilter,
     categoryFilter,
     sourceTeamFilter,
+    raisedByFilter,
     responsiblePersonFilter,
     submittedByFilter,
     retestFilter,
@@ -302,6 +314,14 @@ const DashboardPage = () => {
             </option>
           ))}
         </select>
+        <select value={raisedByFilter} onChange={(e) => setRaisedByFilter(e.target.value)} aria-label="Raised by">
+          <option value={ALL}>Raised By: Anyone</option>
+          {RAISED_BY_GROUPS.map((g) => (
+            <option key={g} value={g}>
+              Raised By: {RAISED_BY_LABELS[g]}
+            </option>
+          ))}
+        </select>
         <select value={sourceTeamFilter} onChange={(e) => setSourceTeamFilter(e.target.value)}>
           <option value={ALL}>All Source Teams</option>
           {SOURCE_TEAMS.map((t) => (
@@ -354,10 +374,10 @@ const DashboardPage = () => {
         )}
       </div>
 
-      {categoryFilter !== ALL && (
+      {(categoryFilter !== ALL || activeStatus === "Closed" || reportResultFilter !== "All") && (
         <div className="report-result-filter">
           <span className="report-result-label">
-            Reports filled for &quot;{categoryFilter}&quot;: {reportResultCounts.green + reportResultCounts.red}
+            Reports filled{categoryFilter !== ALL ? ` for "${categoryFilter}"` : ""}: {reportResultCounts.green + reportResultCounts.red}
           </span>
           <button
             type="button"
@@ -447,7 +467,14 @@ const DashboardPage = () => {
                   })()}
                 </td>
                 <td>{r.retest_needed === null ? "-" : r.retest_needed ? "Yes" : "No"}</td>
-                <td>{r.submitted_by ?? "-"}</td>
+                <td>
+                  {r.submitted_by ?? "-"}
+                  {r.raised_by_group && (
+                    <span className={`raised-by-badge raised-by-${r.raised_by_group}`} title={RAISED_BY_LABELS[r.raised_by_group]}>
+                      {RAISED_BY_SHORT[r.raised_by_group]}
+                    </span>
+                  )}
+                </td>
                 <td>
                   {r.status === "Closed" && r.report_id ? (
                     (() => {

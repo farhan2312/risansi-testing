@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import "./ReportArchivePage.css";
 import { listGroupedReports } from "@/services/testingService";
 import type { ArchivePumpGroup } from "@/types/testing";
@@ -12,9 +13,21 @@ import PageHeader from "@/components/ui/PageHeader";
 
 const PAGE_SIZE = 50;
 
+const dayParam = (value: string | null) => (value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "");
+
 const ReportArchivePage = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // Arriving from the Overview's "Reports filed" card (?from=&to=) narrows the
+  // archive to reports tested inside that window, so the list matches the
+  // number on the card. Cleared with the chip below (which drops the params).
+  const dateFrom = dayParam(searchParams.get("from"));
+  const dateTo = dayParam(searchParams.get("to"));
+  const hasRange = Boolean(dateFrom || dateTo);
+
   const [pumpGroups, setPumpGroups] = useState<ArchivePumpGroup[]>([]);
   const [total, setTotal] = useState(0);
+  const [totalReports, setTotalReports] = useState(0);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -31,18 +44,19 @@ const ReportArchivePage = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [search]);
+  }, [search, dateFrom, dateTo]);
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
     setError("");
 
-    listGroupedReports(page, search || undefined)
+    listGroupedReports(page, search || undefined, { from: dateFrom || undefined, to: dateTo || undefined })
       .then((result) => {
         if (cancelled) return;
         setPumpGroups(result.entries);
         setTotal(result.total);
+        setTotalReports(result.total_reports);
       })
       .catch(() => {
         if (!cancelled) setError("Could not load reports.");
@@ -54,9 +68,11 @@ const ReportArchivePage = () => {
     return () => {
       cancelled = true;
     };
-  }, [page, search]);
+  }, [page, search, dateFrom, dateTo]);
 
-  const isSearching = search.length > 0;
+  // With a range or a search active the point is to see the matching reports,
+  // so every pump on the page opens instead of needing a click each.
+  const isSearching = search.length > 0 || hasRange;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const toggleExpanded = (model: string) => {
@@ -84,6 +100,27 @@ const ReportArchivePage = () => {
           />
         }
       />
+
+      {hasRange && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-accent-soft px-4 py-2.5 text-sm text-text">
+          <span aria-hidden="true">📅</span>
+          <span>
+            Reports tested {dateFrom ? formatDate(dateFrom) : "from the beginning"} – {dateTo ? formatDate(dateTo) : "today"}
+            {!isLoading && (
+              <strong className="ml-2 text-text-h">
+                {totalReports.toLocaleString()} report{totalReports === 1 ? "" : "s"} · {total.toLocaleString()} pump{total === 1 ? "" : "s"}
+              </strong>
+            )}
+          </span>
+          <button
+            type="button"
+            onClick={() => router.push("/reports")}
+            className="ml-auto cursor-pointer rounded-lg border border-border bg-surface px-3 py-1 text-xs font-semibold text-text hover:bg-surface-hover"
+          >
+            ✕ Clear range
+          </button>
+        </div>
+      )}
 
       {error && <div className="archive-error">{error}</div>}
 

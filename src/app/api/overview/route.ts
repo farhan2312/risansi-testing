@@ -3,7 +3,8 @@ import { desc, inArray, sql } from "drizzle-orm";
 import { error, json } from "@/lib/api";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { pumpTestReportPoints, pumpTestReports, testRequisitions } from "@/lib/db/schema";
+import { pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
+import { RAISED_BY_GROUPS, RAISED_BY_LABELS, raisedByGroup } from "@/lib/raisedBy";
 import { enrichReports } from "@/lib/reportEnrichment";
 import { computeRequirementStatus } from "@/lib/requirementCheck";
 
@@ -58,8 +59,9 @@ const monthKeys = (start: Date, end: Date): string[] => {
  * if set, otherwise date of requisition + 7 days.
  */
 export async function GET(req: Request) {
+  let claims;
   try {
-    decodeToken(req);
+    claims = decodeToken(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
@@ -78,7 +80,11 @@ export async function GET(req: Request) {
     if (t) parts.push(sql`${col} <= ${t}`);
     return parts.length ? sql.join(parts, sql` and `) : sql`true`;
   };
-  const reqDateCondition = dateRange(reqDateCol, from, to);
+  // Source teams only ever see the requisitions they raised (same rule as
+  // GET /api/requisitions), so every requisition figure here is scoped the
+  // same way -- otherwise a card's number wouldn't match the list it opens.
+  const ownOnly = claims.role === "source" ? sql`${testRequisitions.createdBy} = ${claims.sub}` : sql`true`;
+  const reqDateCondition = sql`${dateRange(reqDateCol, from, to)} and ${ownOnly}`;
   const reportDateCondition = dateRange(reportDateCol, from, to);
   const openCondition = sql`${testRequisitions.status} in ('Pending', 'In Testing', 'Retest Needed')`;
 
@@ -122,6 +128,7 @@ export async function GET(req: Request) {
     upcoming,
     turnaround,
     latestReports,
+    raiserRows,
   ] = await Promise.all([
     db
       .select({ status: testRequisitions.status, n: sql<number>`count(*)::int` })
@@ -155,7 +162,7 @@ export async function GET(req: Request) {
     db
       .select({ month: monthOf(reqDateCol), n: sql<number>`count(*)::int` })
       .from(testRequisitions)
-      .where(dateRange(reqDateCol, trendFrom, trendTo))
+      .where(sql`${dateRange(reqDateCol, trendFrom, trendTo)} and ${ownOnly}`)
       .groupBy(monthOf(reqDateCol)),
     db
       .select({ month: monthOf(reportDateCol), n: sql<number>`count(*)::int` })
@@ -165,7 +172,7 @@ export async function GET(req: Request) {
     db
       .select({ month: monthOf(sql`${testRequisitions.closedAt}::date`), n: sql<number>`count(*)::int` })
       .from(testRequisitions)
-      .where(sql`${testRequisitions.closedAt} is not null and ${dateRange(sql`${testRequisitions.closedAt}::date`, trendFrom, trendTo)}`)
+      .where(sql`${testRequisitions.closedAt} is not null and ${ownOnly} and ${dateRange(sql`${testRequisitions.closedAt}::date`, trendFrom, trendTo)}`)
       .groupBy(monthOf(sql`${testRequisitions.closedAt}::date`)),
     db
       .select({ category: testRequisitions.category, n: sql<number>`count(*)::int` })
@@ -193,7 +200,7 @@ export async function GET(req: Request) {
         n: sql<number>`count(*)::int`,
       })
       .from(testRequisitions)
-      .where(dateRange(reqDateCol, trendFrom, trendTo))
+      .where(sql`${dateRange(reqDateCol, trendFrom, trendTo)} and ${ownOnly}`)
       .groupBy(testRequisitions.category, monthOf(reqDateCol)),
     db
       .select({
@@ -224,6 +231,17 @@ export async function GET(req: Request) {
       .from(testRequisitions)
       .where(sql`${testRequisitions.closedAt} is not null and ${reqDateCondition}`),
     db.select().from(pumpTestReports).where(reportDateCondition).orderBy(desc(pumpTestReports.createdAt)).limit(6),
+    // Who raised them -- the creator's role bucketed Source / Testing / Other
+    // (same rule as GET /api/requisitions?raised_by=).
+    db
+      .select({
+        role: users.role,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(testRequisitions)
+      .leftJoin(users, sql`${users.id} = ${testRequisitions.createdBy}`)
+      .where(reqDateCondition)
+      .groupBy(users.role),
   ]);
 
   // ---- Pass/fail -- same rule as the Testing Summary's Green/Red filter ----
@@ -293,7 +311,7 @@ export async function GET(req: Request) {
     const prevFrom = new Date(prevTo.getTime() - (lengthDays - 1) * 86400000);
     const [prev] = await db
       .select({
-        reqs: sql<number>`(select count(*)::int from ${testRequisitions} where ${dateRange(reqDateCol, isoDay(prevFrom), isoDay(prevTo))})`,
+        reqs: sql<number>`(select count(*)::int from ${testRequisitions} where ${dateRange(reqDateCol, isoDay(prevFrom), isoDay(prevTo))} and ${ownOnly})`,
         reps: sql<number>`(select count(*)::int from ${pumpTestReports} where ${dateRange(reportDateCol, isoDay(prevFrom), isoDay(prevTo))})`,
       })
       .from(pumpTestReports)
@@ -302,6 +320,12 @@ export async function GET(req: Request) {
   }
 
   const enrichedLatest = await enrichReports(latestReports);
+
+  const raiserCounts = new Map(RAISED_BY_GROUPS.map((g) => [g, 0]));
+  for (const r of raiserRows) {
+    const group = raisedByGroup(r.role);
+    raiserCounts.set(group, (raiserCounts.get(group) ?? 0) + toNum(r.n));
+  }
 
   const countByMonth = (rows: { month: string; n: number }[]) => {
     const m = new Map(rows.map((r) => [r.month, toNum(r.n)]));
@@ -344,6 +368,7 @@ export async function GET(req: Request) {
     by_category: byCategory
       .map((r) => ({ label: r.category ?? "Uncategorised", count: toNum(r.n) }))
       .sort((a, b) => b.count - a.count),
+    by_raiser: RAISED_BY_GROUPS.map((group) => ({ group, label: RAISED_BY_LABELS[group], count: raiserCounts.get(group) ?? 0 })),
     by_source_team: bySourceTeam
       .map((r) => ({ label: r.team ?? "Unspecified", count: toNum(r.n) }))
       .sort((a, b) => b.count - a.count),
