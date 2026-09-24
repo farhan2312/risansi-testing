@@ -250,3 +250,32 @@
   border-color: transparent !important;
   color: var(--text-h) !important;
 }
+
+/* ---------- Podium medals (Audit Log top-3) ---------- */
+.medal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.medal--1 {
+  color: #4a3200;
+  background: linear-gradient(140deg, #ffe58a, #f5b301 58%, #c98a00);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 8px 14px -8px rgba(245, 179, 1, 0.9);
+}
+.medal--2 {
+  color: #2b3442;
+  background: linear-gradient(140deg, #f4f6fa, #b4bdcb 58%, #838ea0);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 8px 14px -8px rgba(131, 142, 160, 0.9);
+}
+.medal--3 {
+  color: #3a1f08;
+  background: linear-gradient(140deg, #f5c9a2, #cd7f32 58%, #9a5a1c);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 8px 14px -8px rgba(205, 127, 50, 0.9);
+}

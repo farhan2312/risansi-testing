@@ -611,6 +611,17 @@ export interface AuditIpRow {
   last_at: string;
 }
 
+/** One podium place. `value` is seconds (by time) or a count (by actions); `share_pct` is that person's share of the range's total. */
+export interface AuditLeader {
+  rank: number;
+  user_id: string;
+  email: string | null;
+  name: string | null;
+  role: string | null;
+  value: number;
+  share_pct: number;
+}
+
 export interface AuditCount {
   label: string;
   count: number;
@@ -641,6 +652,8 @@ export interface AuditOverview {
     peak_hour: { hour: number; events: number; hottest: { dow: number; hour: number; events: number } | null } | null;
     top_user: { email: string | null; name: string | null; actions: number; active_seconds: number } | null;
   };
+  /** Top 3 people over the whole range (not just the grids' latest 14 days). */
+  leaderboards: { by_time: AuditLeader[]; by_actions: AuditLeader[] };
   user_days: AuditUserDayRow[];
   devices: AuditCount[];
   browsers: AuditCount[];

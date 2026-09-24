@@ -115,6 +115,9 @@ export async function GET(req: Request) {
     [ipTotal],
     uaRows,
     prevRows,
+    leaderActionRows,
+    leaderTimeRows,
+    [timeTotal],
   ] = await Promise.all([
     db
       .select({ eventType: auditLogs.eventType, entityType: auditLogs.entityType, n: sql<number>`count(*)::int` })
@@ -204,6 +207,32 @@ export async function GET(req: Request) {
           .from(auditLogs)
           .where(windowCondition(auditLogs.createdAt, prev))
       : Promise.resolve([]),
+    // Podium: the three busiest people by data-changing actions and by session time, over the whole range.
+    db
+      .select({
+        userId: auditLogs.userId,
+        email: sql<string | null>`max(${auditLogs.userEmail})`,
+        name: sql<string | null>`max(${auditLogs.userName})`,
+        value: sql<number>`count(*)::int`,
+      })
+      .from(auditLogs)
+      .where(sql`${inRange} and ${isAction} and ${auditLogs.userId} is not null`)
+      .groupBy(auditLogs.userId)
+      .orderBy(sql`4 desc`)
+      .limit(3),
+    db
+      .select({
+        userId: userSessions.userId,
+        email: sql<string | null>`max(${userSessions.userEmail})`,
+        name: sql<string | null>`max(${userSessions.userName})`,
+        value: sessionSeconds,
+      })
+      .from(userSessions)
+      .where(windowCondition(userSessions.loginAt, range))
+      .groupBy(userSessions.userId)
+      .orderBy(sql`4 desc`)
+      .limit(3),
+    db.select({ seconds: sessionSeconds }).from(userSessions).where(windowCondition(userSessions.loginAt, range)),
   ]);
 
   // ---- Range-wide event totals + action breakdown ----
@@ -351,6 +380,33 @@ export async function GET(req: Request) {
     .sort((a, b) => sum(b.active_seconds) - sum(a.active_seconds) || sum(b.actions) - sum(a.actions))
     .slice(0, MAX_MATRIX_USERS);
 
+  // ---- Podium (top 3 by time / by actions, over the whole range) ----
+  const leaderIds = [...new Set([...leaderActionRows, ...leaderTimeRows].map((r) => r.userId).filter((id): id is string => !!id))];
+  const leaderUsers = leaderIds.length
+    ? await db.select({ id: users.id, role: users.role, name: users.name, email: users.email }).from(users).where(inArray(users.id, leaderIds))
+    : [];
+  const leaderUserById = new Map(leaderUsers.map((u) => [u.id, u]));
+  const toLeaders = (rows: { userId: string | null; email: string | null; name: string | null; value: number }[], total: number) =>
+    rows
+      .filter((r) => r.userId && toNum(r.value) > 0)
+      .map((r, i) => {
+        const live = leaderUserById.get(r.userId!);
+        const value = Math.round(toNum(r.value));
+        return {
+          rank: i + 1,
+          user_id: r.userId!,
+          email: live?.email ?? r.email,
+          name: live?.name ?? r.name,
+          role: live?.role ?? null,
+          value,
+          share_pct: total > 0 ? Math.round((value / total) * 100) : 0,
+        };
+      });
+  const leaderboards = {
+    by_time: toLeaders(leaderTimeRows, Math.round(toNum(timeTotal?.seconds))),
+    by_actions: toLeaders(leaderActionRows, eventTypes.actions),
+  };
+
   // ---- Devices / browsers / OS (sign-in events only; null UA = logged before tracking) ----
   const devices = new Map<string, number>();
   const browsers = new Map<string, number>();
@@ -404,6 +460,7 @@ export async function GET(req: Request) {
       peak_hour: peakHourIndex >= 0 ? { hour: peakHourIndex, events: hourTotals[peakHourIndex], hottest } : null,
       top_user: topUser,
     },
+    leaderboards,
     user_days: userDays,
     devices: collapse(devices, 4),
     browsers: collapse(browsers, 4),

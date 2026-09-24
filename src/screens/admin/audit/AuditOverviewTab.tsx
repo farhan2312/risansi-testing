@@ -10,6 +10,7 @@ import DonutChart from "@/components/charts/DonutChart";
 import BarList from "@/components/charts/BarList";
 import Heatmap from "@/components/charts/Heatmap";
 import Segmented from "./Segmented";
+import Leaderboard from "./Leaderboard";
 import UserDayMatrix, { type MatrixRow } from "./UserDayMatrix";
 import {
   assignColors,
@@ -274,6 +275,28 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
           label="Most active user"
           value={mostActive ? (mostActive.email ?? mostActive.name ?? "Unknown user") : "—"}
           detail={mostActive ? `${formatDuration(mostActive.active_seconds)} active · ${mostActive.actions.toLocaleString()} actions` : "No activity in this range"}
+        />
+      </div>
+
+      {/* ---- Podium ---- */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <Leaderboard
+          title="Top 3 · Active time"
+          subtitle="Most signed-in session time in this range"
+          leaders={data.leaderboards.by_time}
+          formatValue={formatDuration}
+          shareOf="of all session time"
+          valueLabel="Active time"
+          emptyText="No sessions in this range."
+        />
+        <Leaderboard
+          title="Top 3 · Actions"
+          subtitle="Most creates, updates and deletes in this range"
+          leaders={data.leaderboards.by_actions}
+          formatValue={(n) => n.toLocaleString()}
+          shareOf="of all actions"
+          valueLabel="Actions"
+          emptyText="No actions in this range."
         />
       </div>
 
