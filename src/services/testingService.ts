@@ -34,6 +34,8 @@ export interface RequisitionFilters {
   date_from?: string;
   date_to?: string;
   report_result?: "green" | "red";
+  /** Not-yet-closed requisitions, optionally narrowed to overdue / due within 5 days. */
+  scope?: "open" | "overdue" | "due_soon";
 }
 
 /** Server-paginated, 25/page, with the Testing Summary filter bar's full

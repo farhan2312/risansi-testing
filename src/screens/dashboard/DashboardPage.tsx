@@ -29,6 +29,17 @@ const STATUS_TABS: { label: string; value: RequisitionStatus | "All" }[] = [
   { label: "Closed", value: "Closed" },
 ];
 
+const SCOPE_OPTIONS = [
+  { value: "open", label: "Open (not closed)" },
+  { value: "overdue", label: "Overdue" },
+  { value: "due_soon", label: "Due in 5 days" },
+] as const;
+
+const fromQuery = (value: string | null, allowed: readonly string[]) =>
+  value && allowed.includes(value) ? value : ALL;
+
+const isoDateParam = (value: string | null) => (value && /^d{4}-d{2}-d{2}$/.test(value) ? value : "");
+
 const DashboardPage = () => {
   const searchParams = useSearchParams();
   const [requisitions, setRequisitions] = useState<TestRequisition[]>([]);
@@ -51,11 +62,18 @@ const DashboardPage = () => {
   // ecInput is the live textbox value; ecFilter is the debounced value that
   // actually drives the server fetch, so typing doesn't fire a request per
   // keystroke.
-  const [ecInput, setEcInput] = useState("");
-  const [ecFilter, setEcFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState(ALL);
-  const [sourceTeamFilter, setSourceTeamFilter] = useState(ALL);
-  const [responsiblePersonFilter, setResponsiblePersonFilter] = useState(ALL);
+  const [ecInput, setEcInput] = useState(() => searchParams.get("ec") ?? "");
+  const [ecFilter, setEcFilter] = useState(() => (searchParams.get("ec") ?? "").trim());
+  // "Open" / "Overdue" / "Due in 5 days" -- Overview KPI drill-downs.
+  const [scopeFilter, setScopeFilter] = useState(() => fromQuery(searchParams.get("scope"), SCOPE_OPTIONS.map((o) => o.value)));
+  // Overview drill-downs (/dashboard?category=...&from=...&to=...) land here
+  // pre-filtered. Only values the dropdowns actually offer are accepted, so a
+  // stale or hand-edited link can never leave a select showing a blank value.
+  const [categoryFilter, setCategoryFilter] = useState(() => fromQuery(searchParams.get("category"), REQUISITION_CATEGORIES));
+  const [sourceTeamFilter, setSourceTeamFilter] = useState(() => fromQuery(searchParams.get("source_team"), SOURCE_TEAMS));
+  const [responsiblePersonFilter, setResponsiblePersonFilter] = useState(() =>
+    fromQuery(searchParams.get("responsible_person"), RESPONSIBLE_PERSONS)
+  );
   const [submittedByFilter, setSubmittedByFilter] = useState(ALL);
   const [retestFilter, setRetestFilter] = useState(ALL);
   // Quick "Month" pick (e.g. "2026-08") -- a shortcut for the common case of
@@ -63,8 +81,8 @@ const DashboardPage = () => {
   // From/To dates. Combines (AND) with the From/To range below when both
   // are set, same as every other filter here.
   const [monthFilter, setMonthFilter] = useState(ALL);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(() => isoDateParam(searchParams.get("from")));
+  const [dateTo, setDateTo] = useState(() => isoDateParam(searchParams.get("to")));
   // Only meaningful once a single Category is selected -- a second-level
   // filter for how many of that category's filled reports met their rated
   // requirements vs didn't ("Red").
@@ -77,6 +95,7 @@ const DashboardPage = () => {
   const hasActiveFilters =
     modelFilter !== ALL ||
     ecFilter.trim() !== "" ||
+    scopeFilter !== ALL ||
     categoryFilter !== ALL ||
     sourceTeamFilter !== ALL ||
     responsiblePersonFilter !== ALL ||
@@ -91,6 +110,7 @@ const DashboardPage = () => {
     setModelFilter(ALL);
     setEcInput("");
     setEcFilter("");
+    setScopeFilter(ALL);
     setCategoryFilter(ALL);
     setSourceTeamFilter(ALL);
     setResponsiblePersonFilter(ALL);
@@ -132,6 +152,7 @@ const DashboardPage = () => {
     activeStatus,
     modelFilter,
     ecFilter,
+    scopeFilter,
     categoryFilter,
     sourceTeamFilter,
     responsiblePersonFilter,
@@ -151,6 +172,7 @@ const DashboardPage = () => {
     listRequisitions(activeStatus === "All" ? undefined : activeStatus, page, {
       model: modelFilter === ALL ? undefined : modelFilter,
       ec_quotation_no: ecFilter || undefined,
+      scope: scopeFilter === ALL ? undefined : (scopeFilter as (typeof SCOPE_OPTIONS)[number]["value"]),
       category: categoryFilter === ALL ? undefined : categoryFilter,
       source_team: sourceTeamFilter === ALL ? undefined : sourceTeamFilter,
       responsible_person: responsiblePersonFilter === ALL ? undefined : responsiblePersonFilter,
@@ -183,6 +205,7 @@ const DashboardPage = () => {
     page,
     modelFilter,
     ecFilter,
+    scopeFilter,
     categoryFilter,
     sourceTeamFilter,
     responsiblePersonFilter,
@@ -263,6 +286,14 @@ const DashboardPage = () => {
           value={ecInput}
           onChange={(e) => setEcInput(e.target.value)}
         />
+        <select value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value)}>
+          <option value={ALL}>All Deadlines</option>
+          {SCOPE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
         <select value={categoryFilter} onChange={(e) => handleCategoryChange(e.target.value)}>
           <option value={ALL}>All Categories</option>
           {REQUISITION_CATEGORIES.map((c) => (

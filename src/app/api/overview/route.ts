@@ -1,23 +1,61 @@
-import { inArray, sql } from "drizzle-orm";
+import { desc, inArray, sql } from "drizzle-orm";
 
 import { error, json } from "@/lib/api";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports, testRequisitions } from "@/lib/db/schema";
+import { enrichReports } from "@/lib/reportEnrichment";
 import { computeRequirementStatus } from "@/lib/requirementCheck";
 
 export const dynamic = "force-dynamic";
 
+const OPEN_STATUSES = ["Pending", "In Testing", "Retest Needed"];
+const DUE_SOON_DAYS = 5;
+
+const toNum = (v: unknown) => Number(v ?? 0);
+
+const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+
+const DAY_MS = 86400000;
+/** Windows up to this long (Today / 7 days / 30 days) trend per day. */
+const DAILY_MAX_DAYS = 31;
+/** A daily trend never shows fewer than this many days, so "Today" still has context. */
+const DAILY_MIN_DAYS = 7;
+
+/** Every YYYY-MM-DD key from `start` through `end` inclusive. */
+const dayKeys = (start: Date, end: Date): string[] => {
+  const keys: string[] = [];
+  for (let t = start.getTime(); t <= end.getTime(); t += DAY_MS) keys.push(isoDay(new Date(t)));
+  return keys;
+};
+
+/** Every YYYY-MM key from `start` through `end` inclusive. */
+const monthKeys = (start: Date, end: Date): string[] => {
+  const keys: string[] = [];
+  const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+  const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1));
+  while (cursor <= last) {
+    keys.push(cursor.toISOString().slice(0, 7));
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  return keys;
+};
+
 /**
- * Portal-wide snapshot for the landing overview page -- counts only, no row
- * data, so this stays cheap regardless of how many reports/points pile up.
+ * Portal-wide snapshot for the Overview dashboard.
  *
- * Optional `?from=YYYY-MM-DD&to=YYYY-MM-DD` narrows every count to that
+ * Optional `?from=YYYY-MM-DD&to=YYYY-MM-DD` narrows everything to that
  * window: requisitions by `date_of_requisition` (falling back to
- * `created_at` for the rare row missing it), reports/points by the report's
- * `test_date` (same fallback). Distinct models draws from both tables, so
- * it stays in sync with the Pump Dashboard's own "Pump Models" tile. Omit
- * both for the all-time snapshot.
+ * `created_at`), reports/points by the report's `test_date` (same fallback).
+ * Omit both for the all-time snapshot. The monthly trend / matrix span the
+ * filtered window (capped at the latest 24 months), or the last 12 months
+ * when unfiltered. A window of 31 days or less trends per day instead
+ * (`trend_granularity: "day"`, keys are YYYY-MM-DD, padded back to at least
+ * 7 days so a single-day window still draws a line).
+ *
+ * "Target date" everywhere here is the same effective date the Testing
+ * Summary shows (lib/formUtils.ts targetDateFor): the explicit target_date
+ * if set, otherwise date of requisition + 7 days.
  */
 export async function GET(req: Request) {
   try {
@@ -33,37 +71,77 @@ export async function GET(req: Request) {
 
   const reqDateCol = sql`coalesce(${testRequisitions.dateOfRequisition}, ${testRequisitions.createdAt}::date)`;
   const reportDateCol = sql`coalesce(${pumpTestReports.testDate}, ${pumpTestReports.createdAt}::date)`;
-  const dateRange = (col: ReturnType<typeof sql>) => {
+  const effTargetCol = sql`coalesce(${testRequisitions.targetDate}, ${reqDateCol} + 7)`;
+  const dateRange = (col: ReturnType<typeof sql>, f?: string, t?: string) => {
     const parts: ReturnType<typeof sql>[] = [];
-    if (from) parts.push(sql`${col} >= ${from}`);
-    if (to) parts.push(sql`${col} <= ${to}`);
+    if (f) parts.push(sql`${col} >= ${f}`);
+    if (t) parts.push(sql`${col} <= ${t}`);
     return parts.length ? sql.join(parts, sql` and `) : sql`true`;
   };
-  const reqDateCondition = dateRange(reqDateCol);
-  const reportDateCondition = dateRange(reportDateCol);
+  const reqDateCondition = dateRange(reqDateCol, from, to);
+  const reportDateCondition = dateRange(reportDateCol, from, to);
+  const openCondition = sql`${testRequisitions.status} in ('Pending', 'In Testing', 'Retest Needed')`;
 
-  const [requisitionsByStatus, reportsByFormat, totals] = await Promise.all([
+  // ---- Trend window: the filtered range (max 24 months), else last 12 ----
+  const today = new Date();
+  const trendEnd = to ? new Date(`${to}T00:00:00Z`) : today;
+  const spanDays =
+    from && to ? Math.round((trendEnd.getTime() - new Date(`${from}T00:00:00Z`).getTime()) / DAY_MS) + 1 : null;
+  const daily = spanDays !== null && spanDays <= DAILY_MAX_DAYS;
+
+  let months: string[];
+  let trendFrom: string;
+  if (daily) {
+    const windowStart = new Date(`${from}T00:00:00Z`);
+    const paddedStart = new Date(trendEnd.getTime() - (DAILY_MIN_DAYS - 1) * DAY_MS);
+    months = dayKeys(windowStart < paddedStart ? windowStart : paddedStart, trendEnd);
+    trendFrom = months[0];
+  } else {
+    const trendStart = from
+      ? new Date(`${from}T00:00:00Z`)
+      : new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 11, 1));
+    months = monthKeys(trendStart, trendEnd).slice(-24);
+    trendFrom = `${months[0]}-01`;
+  }
+  const trendTo = to ?? isoDay(today);
+  const bucketFormat = sql.raw(daily ? "'YYYY-MM-DD'" : "'YYYY-MM'");
+  const monthOf = (col: ReturnType<typeof sql>) => sql<string>`to_char(${col}, ${bucketFormat})`;
+
+  const [
+    requisitionsByStatus,
+    reportsByFormat,
+    totals,
+    raisedByMonth,
+    reportsByMonth,
+    closedByMonth,
+    byCategory,
+    bySourceTeam,
+    workloadRows,
+    matrixRows,
+    deadlineCounts,
+    upcoming,
+    turnaround,
+    latestReports,
+  ] = await Promise.all([
     db
-      .select({ status: testRequisitions.status, n: sql<number>`count(*)` })
+      .select({ status: testRequisitions.status, n: sql<number>`count(*)::int` })
       .from(testRequisitions)
       .where(reqDateCondition)
       .groupBy(testRequisitions.status),
     db
-      .select({ format: pumpTestReports.reportFormat, n: sql<number>`count(*)` })
+      .select({ format: pumpTestReports.reportFormat, n: sql<number>`count(*)::int` })
       .from(pumpTestReports)
       .where(reportDateCondition)
       .groupBy(pumpTestReports.reportFormat),
     db
       .select({
-        totalRequisitions: sql<number>`(select count(*) from ${testRequisitions} where ${reqDateCondition})`,
-        totalReports: sql<number>`(select count(*) from ${pumpTestReports} where ${reportDateCondition})`,
-        totalPoints: sql<number>`(select count(*) from ${pumpTestReportPoints} where report_id in (select id from ${pumpTestReports} where ${reportDateCondition}))`,
-        // Every distinct pump model known to the portal -- raised for testing
-        // OR actually tested, same "normalize away case/punctuation" key the
-        // Pump Dashboard groups by (lib/modelKey.ts's normalizeModelKey), so
-        // this always agrees with that page's "Pump Models" tile.
+        totalRequisitions: sql<number>`(select count(*)::int from ${testRequisitions} where ${reqDateCondition})`,
+        totalReports: sql<number>`(select count(*)::int from ${pumpTestReports} where ${reportDateCondition})`,
+        totalPoints: sql<number>`(select count(*)::int from ${pumpTestReportPoints} where report_id in (select id from ${pumpTestReports} where ${reportDateCondition}))`,
+        // Every distinct pump model known to the portal -- same normalized
+        // key the Report Compilation page groups by (lib/modelKey.ts).
         distinctModels: sql<number>`(
-          select count(distinct key) from (
+          select count(distinct key)::int from (
             select upper(regexp_replace(model, '[^A-Za-z0-9]', '', 'g')) as key
             from ${testRequisitions} where ${reqDateCondition}
             union
@@ -74,16 +152,83 @@ export async function GET(req: Request) {
       })
       .from(pumpTestReports)
       .limit(1),
+    db
+      .select({ month: monthOf(reqDateCol), n: sql<number>`count(*)::int` })
+      .from(testRequisitions)
+      .where(dateRange(reqDateCol, trendFrom, trendTo))
+      .groupBy(monthOf(reqDateCol)),
+    db
+      .select({ month: monthOf(reportDateCol), n: sql<number>`count(*)::int` })
+      .from(pumpTestReports)
+      .where(dateRange(reportDateCol, trendFrom, trendTo))
+      .groupBy(monthOf(reportDateCol)),
+    db
+      .select({ month: monthOf(sql`${testRequisitions.closedAt}::date`), n: sql<number>`count(*)::int` })
+      .from(testRequisitions)
+      .where(sql`${testRequisitions.closedAt} is not null and ${dateRange(sql`${testRequisitions.closedAt}::date`, trendFrom, trendTo)}`)
+      .groupBy(monthOf(sql`${testRequisitions.closedAt}::date`)),
+    db
+      .select({ category: testRequisitions.category, n: sql<number>`count(*)::int` })
+      .from(testRequisitions)
+      .where(reqDateCondition)
+      .groupBy(testRequisitions.category),
+    db
+      .select({ team: testRequisitions.sourceTeam, n: sql<number>`count(*)::int` })
+      .from(testRequisitions)
+      .where(reqDateCondition)
+      .groupBy(testRequisitions.sourceTeam),
+    db
+      .select({
+        person: testRequisitions.responsiblePerson,
+        status: testRequisitions.status,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(testRequisitions)
+      .where(sql`${openCondition} and ${reqDateCondition}`)
+      .groupBy(testRequisitions.responsiblePerson, testRequisitions.status),
+    db
+      .select({
+        category: testRequisitions.category,
+        month: monthOf(reqDateCol),
+        n: sql<number>`count(*)::int`,
+      })
+      .from(testRequisitions)
+      .where(dateRange(reqDateCol, trendFrom, trendTo))
+      .groupBy(testRequisitions.category, monthOf(reqDateCol)),
+    db
+      .select({
+        overdue: sql<number>`count(*) filter (where ${effTargetCol} < current_date)::int`,
+        dueSoon: sql<number>`count(*) filter (where ${effTargetCol} >= current_date and ${effTargetCol} <= current_date + ${DUE_SOON_DAYS}::int)::int`,
+      })
+      .from(testRequisitions)
+      .where(sql`${openCondition} and ${reqDateCondition}`),
+    db
+      .select({
+        id: testRequisitions.id,
+        requisitionNo: testRequisitions.requisitionNo,
+        model: testRequisitions.model,
+        ecQuotationNo: testRequisitions.ecQuotationNo,
+        status: testRequisitions.status,
+        responsiblePerson: testRequisitions.responsiblePerson,
+        targetDate: sql<string>`to_char(${effTargetCol}, 'YYYY-MM-DD')`,
+        daysLeft: sql<number>`(${effTargetCol} - current_date)::int`,
+      })
+      .from(testRequisitions)
+      .where(sql`${openCondition} and ${reqDateCondition}`)
+      .orderBy(effTargetCol)
+      .limit(8),
+    db
+      .select({
+        avgDays: sql<number | null>`avg(extract(epoch from (${testRequisitions.closedAt} - ${testRequisitions.createdAt})) / 86400)`,
+      })
+      .from(testRequisitions)
+      .where(sql`${testRequisitions.closedAt} is not null and ${reqDateCondition}`),
+    db.select().from(pumpTestReports).where(reportDateCondition).orderBy(desc(pumpTestReports.createdAt)).limit(6),
   ]);
 
-  // Pass/fail: only meaningful for Closed requisitions that actually have a
-  // linked report -- same rule and same computeRequirementStatus formula the
-  // Testing Summary page's Green/Red filter uses, so the two never disagree.
-  // Scoped by the requisition's own date, same as the "Requisitions Raised"
-  // bucket above, so every tile on a filtered view describes the same window.
+  // ---- Pass/fail -- same rule as the Testing Summary's Green/Red filter ----
   const closedWithReport = await db
     .select({
-      requisitionId: testRequisitions.id,
       ratedHead: pumpTestReports.ratedHead,
       ratedCapacity: pumpTestReports.ratedCapacity,
       ratedPowerKw: pumpTestReports.ratedPowerKw,
@@ -110,6 +255,7 @@ export async function GET(req: Request) {
 
   let requirementMet = 0;
   let requirementUnmet = 0;
+  const unmetByParameter = { head: 0, capacity: 0, power: 0 };
   for (const r of closedWithReport) {
     const max = maxByReport.get(r.reportId);
     const status = computeRequirementStatus(
@@ -128,21 +274,107 @@ export async function GET(req: Request) {
           ]
         : []
     );
-    const unmet = [status.head, status.capacity, status.power].some((v) => v === false);
     const hasAnyTarget = [status.head, status.capacity, status.power].some((v) => v !== null);
     if (!hasAnyTarget) continue; // nothing to judge -- not counted either way
-    if (unmet) requirementUnmet++;
+    if (status.head === false) unmetByParameter.head++;
+    if (status.capacity === false) unmetByParameter.capacity++;
+    if (status.power === false) unmetByParameter.power++;
+    if ([status.head, status.capacity, status.power].some((v) => v === false)) requirementUnmet++;
     else requirementMet++;
   }
 
+  // ---- Previous equal-length window, for KPI deltas (only when bounded) ----
+  let previous: { total_requisitions: number; total_reports: number } | null = null;
+  if (from && to) {
+    const fromD = new Date(`${from}T00:00:00Z`);
+    const toD = new Date(`${to}T00:00:00Z`);
+    const lengthDays = Math.round((toD.getTime() - fromD.getTime()) / 86400000) + 1;
+    const prevTo = new Date(fromD.getTime() - 86400000);
+    const prevFrom = new Date(prevTo.getTime() - (lengthDays - 1) * 86400000);
+    const [prev] = await db
+      .select({
+        reqs: sql<number>`(select count(*)::int from ${testRequisitions} where ${dateRange(reqDateCol, isoDay(prevFrom), isoDay(prevTo))})`,
+        reps: sql<number>`(select count(*)::int from ${pumpTestReports} where ${dateRange(reportDateCol, isoDay(prevFrom), isoDay(prevTo))})`,
+      })
+      .from(pumpTestReports)
+      .limit(1);
+    previous = { total_requisitions: toNum(prev?.reqs), total_reports: toNum(prev?.reps) };
+  }
+
+  const enrichedLatest = await enrichReports(latestReports);
+
+  const countByMonth = (rows: { month: string; n: number }[]) => {
+    const m = new Map(rows.map((r) => [r.month, toNum(r.n)]));
+    return (key: string) => m.get(key) ?? 0;
+  };
+  const raised = countByMonth(raisedByMonth);
+  const filed = countByMonth(reportsByMonth);
+  const closed = countByMonth(closedByMonth);
+
+  const workloadByPerson = new Map<string, { pending: number; in_testing: number; retest_needed: number }>();
+  for (const row of workloadRows) {
+    const key = row.person ?? "Unassigned";
+    const entry = workloadByPerson.get(key) ?? { pending: 0, in_testing: 0, retest_needed: 0 };
+    if (row.status === "Pending") entry.pending += toNum(row.n);
+    if (row.status === "In Testing") entry.in_testing += toNum(row.n);
+    if (row.status === "Retest Needed") entry.retest_needed += toNum(row.n);
+    workloadByPerson.set(key, entry);
+  }
+
+  const matrixCategories = [...new Set(matrixRows.map((r) => r.category ?? "Uncategorised"))];
+  const matrixLookup = new Map(matrixRows.map((r) => [`${r.category ?? "Uncategorised"}|${r.month}`, toNum(r.n)]));
+
   return json({
-    total_requisitions: totals[0]?.totalRequisitions ?? 0,
-    requisitions_by_status: Object.fromEntries(requisitionsByStatus.map((r) => [r.status, Number(r.n)])),
-    total_reports: totals[0]?.totalReports ?? 0,
-    reports_by_format: Object.fromEntries(reportsByFormat.map((r) => [r.format ?? "observation", Number(r.n)])),
-    total_test_points: totals[0]?.totalPoints ?? 0,
-    distinct_models_tested: totals[0]?.distinctModels ?? 0,
+    total_requisitions: toNum(totals[0]?.totalRequisitions),
+    requisitions_by_status: Object.fromEntries(requisitionsByStatus.map((r) => [r.status, toNum(r.n)])),
+    total_reports: toNum(totals[0]?.totalReports),
+    reports_by_format: Object.fromEntries(reportsByFormat.map((r) => [r.format ?? "observation", toNum(r.n)])),
+    total_test_points: toNum(totals[0]?.totalPoints),
+    distinct_models_tested: toNum(totals[0]?.distinctModels),
     requirement_met: requirementMet,
     requirement_unmet: requirementUnmet,
+    unmet_by_parameter: unmetByParameter,
+    open_statuses: OPEN_STATUSES,
+    overdue_count: toNum(deadlineCounts[0]?.overdue),
+    due_soon_count: toNum(deadlineCounts[0]?.dueSoon),
+    avg_turnaround_days: turnaround[0]?.avgDays === null || turnaround[0]?.avgDays === undefined ? null : Number(turnaround[0].avgDays),
+    previous_period: previous,
+    trend_granularity: daily ? "day" : "month",
+    monthly_trend: months.map((m) => ({ month: m, raised: raised(m), reports: filed(m), closed: closed(m) })),
+    by_category: byCategory
+      .map((r) => ({ label: r.category ?? "Uncategorised", count: toNum(r.n) }))
+      .sort((a, b) => b.count - a.count),
+    by_source_team: bySourceTeam
+      .map((r) => ({ label: r.team ?? "Unspecified", count: toNum(r.n) }))
+      .sort((a, b) => b.count - a.count),
+    workload: [...workloadByPerson.entries()]
+      .map(([person, c]) => ({ person, ...c, total: c.pending + c.in_testing + c.retest_needed }))
+      .sort((a, b) => b.total - a.total),
+    category_matrix: {
+      months,
+      rows: matrixCategories.map((category) => ({
+        category,
+        counts: months.map((m) => matrixLookup.get(`${category}|${m}`) ?? 0),
+      })),
+    },
+    upcoming_deadlines: upcoming.map((u) => ({
+      id: u.id,
+      requisition_no: u.requisitionNo,
+      model: u.model,
+      ec_quotation_no: u.ecQuotationNo,
+      status: u.status,
+      responsible_person: u.responsiblePerson,
+      target_date: u.targetDate,
+      days_left: toNum(u.daysLeft),
+    })),
+    recent_reports: enrichedLatest.map((r) => ({
+      id: r.id,
+      report_no: r.report_no,
+      model: r.model,
+      report_format: r.report_format,
+      date: r.test_date ?? (r.created_at ? new Date(r.created_at).toISOString().slice(0, 10) : null),
+      unmet_fields: r.requirement_unmet_fields,
+      has_target: r.rated_head !== null || r.rated_capacity !== null || r.rated_power_kw !== null,
+    })),
   });
 }

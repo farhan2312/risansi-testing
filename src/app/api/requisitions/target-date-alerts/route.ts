@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, lte } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import { error, json } from "@/lib/api";
 import { AuthError, decodeToken } from "@/lib/auth";
@@ -31,9 +31,10 @@ export async function GET(req: Request) {
   const name = (caller?.name ?? "").trim().toLowerCase();
   if (!name) return json({ count: 0, items: [] });
 
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() + LEAD_DAYS);
-  const cutoffStr = cutoff.toISOString().slice(0, 10);
+  // Same effective target date the Testing Summary shows (formUtils.ts
+  // targetDateFor): explicit target_date only exists for R&D Trials, every
+  // other requisition's target is date of requisition + 7 days.
+  const effTarget = sql`coalesce(${testRequisitions.targetDate}, coalesce(${testRequisitions.dateOfRequisition}, ${testRequisitions.createdAt}::date) + 7)`;
 
   const rows = await db
     .select({
@@ -41,17 +42,11 @@ export async function GET(req: Request) {
       requisitionNo: testRequisitions.requisitionNo,
       model: testRequisitions.model,
       status: testRequisitions.status,
-      targetDate: testRequisitions.targetDate,
+      targetDate: sql<string>`to_char(${effTarget}, 'YYYY-MM-DD')`,
       responsiblePerson: testRequisitions.responsiblePerson,
     })
     .from(testRequisitions)
-    .where(
-      and(
-        inArray(testRequisitions.status, ALERT_STATUSES),
-        isNotNull(testRequisitions.targetDate),
-        lte(testRequisitions.targetDate, cutoffStr)
-      )
-    );
+    .where(and(inArray(testRequisitions.status, ALERT_STATUSES), sql`${effTarget} <= current_date + ${LEAD_DAYS}::int`));
 
   const items = rows
     .filter((r) => r.responsiblePerson && name.startsWith(r.responsiblePerson.trim().toLowerCase()))

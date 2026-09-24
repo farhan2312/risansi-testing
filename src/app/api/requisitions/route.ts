@@ -140,6 +140,7 @@ export async function GET(req: Request) {
   const dateFrom = searchParams.get("date_from");
   const dateTo = searchParams.get("date_to");
   const reportResult = searchParams.get("report_result");
+  const scope = searchParams.get("scope");
   const page = parsePage(req);
 
   const conditions = [];
@@ -158,6 +159,17 @@ export async function GET(req: Request) {
   if (month) conditions.push(sql`substring(${testRequisitions.dateOfRequisition}::text, 1, 7) = ${month}`);
   if (dateFrom) conditions.push(gte(testRequisitions.dateOfRequisition, dateFrom));
   if (dateTo) conditions.push(lte(testRequisitions.dateOfRequisition, dateTo));
+  // Overview drill-downs: open (any not-yet-closed status), overdue, or due
+  // within 5 days -- judged on the same effective target date the list shows
+  // (explicit target_date, else date of requisition + 7).
+  if (scope === "open" || scope === "overdue" || scope === "due_soon") {
+    const effTarget = sql`coalesce(${testRequisitions.targetDate}, coalesce(${testRequisitions.dateOfRequisition}, ${testRequisitions.createdAt}::date) + 7)`;
+    conditions.push(inArray(testRequisitions.status, ["Pending", "In Testing", "Retest Needed"]));
+    if (scope === "overdue") conditions.push(sql`${effTarget} < current_date`);
+    if (scope === "due_soon") {
+      conditions.push(sql`${effTarget} >= current_date and ${effTarget} <= current_date + 5::int`);
+    }
+  }
   const where = conditions.length ? and(...conditions) : undefined;
 
   // Every-other-filter-but-report_result scope -- backs the Green/Not Met

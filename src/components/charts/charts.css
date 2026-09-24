@@ -1,0 +1,59 @@
+/* Chart palette -- categorical slots in fixed order (validated with the
+ * dataviz skill's validate_palette.js against THIS app's surfaces: #ffffff
+ * light, #132240 dark -- all gates pass). Color follows the entity, never
+ * its rank: a given status/series keeps its slot on every chart. */
+.viz-root {
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-1-wash: rgba(42, 120, 214, 0.1);
+
+  /* Status -- reserved for good/bad meaning, always paired with icon + label. */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+
+  /* Sequential (heatmap) -- one hue, light -> dark. */
+  --seq-lo: #cde2fb;
+  --seq-hi: #184f95;
+
+  --viz-grid: #e9edf3;
+  --viz-axis: #c9d1dc;
+}
+
+[data-theme="dark"] .viz-root {
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-1-wash: rgba(57, 135, 229, 0.14);
+
+  /* Dark is its own selected ramp, not a flip: near-zero sits close to
+   * the navy surface, high values run toward light. */
+  --seq-lo: #1c4a86;
+  --seq-hi: #9ec5f4;
+
+  --viz-grid: rgba(255, 255, 255, 0.07);
+  --viz-axis: rgba(255, 255, 255, 0.16);
+}
+
+.viz-tooltip {
+  position: absolute;
+  z-index: 30;
+  pointer-events: none;
+  min-width: 132px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-lg);
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.viz-focusable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

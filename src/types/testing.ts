@@ -435,6 +435,44 @@ export interface PortalOverview {
   distinct_models_tested: number;
   requirement_met: number;
   requirement_unmet: number;
+  /** Of the judged reports above, how many missed each rated parameter (a
+   * report can miss more than one). */
+  unmet_by_parameter: { head: number; capacity: number; power: number };
+  open_statuses: RequisitionStatus[];
+  /** Open requisitions past / within 5 days of their effective target date. */
+  overdue_count: number;
+  due_soon_count: number;
+  /** Mean days from a requisition being raised to it closing. */
+  avg_turnaround_days: number | null;
+  /** Same counts for the equal-length window just before `from`..`to` --
+   * null unless both bounds are set. */
+  previous_period: { total_requisitions: number; total_reports: number } | null;
+  /** Whether `monthly_trend` / `category_matrix` buckets are YYYY-MM or (for windows <= 31 days) YYYY-MM-DD. */
+  trend_granularity: "day" | "month";
+  monthly_trend: { month: string; raised: number; reports: number; closed: number }[];
+  by_category: { label: string; count: number }[];
+  by_source_team: { label: string; count: number }[];
+  workload: { person: string; pending: number; in_testing: number; retest_needed: number; total: number }[];
+  category_matrix: { months: string[]; rows: { category: string; counts: number[] }[] };
+  upcoming_deadlines: {
+    id: string;
+    requisition_no: string | null;
+    model: string;
+    ec_quotation_no: string | null;
+    status: RequisitionStatus;
+    responsible_person: string | null;
+    target_date: string;
+    days_left: number;
+  }[];
+  recent_reports: {
+    id: string;
+    report_no: string | null;
+    model: string;
+    report_format: ReportFormat | null;
+    date: string | null;
+    unmet_fields: string[];
+    has_target: boolean;
+  }[];
 }
 
 export type BugReportType = "bug" | "feature";
