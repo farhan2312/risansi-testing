@@ -3,9 +3,9 @@ import { desc } from "drizzle-orm";
 import { error, json } from "@/lib/api";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { pumpTestReports, testRequisitions } from "@/lib/db/schema";
+import { pumpTestReports } from "@/lib/db/schema";
 import { modelDisplayLabel, normalizeModelKey } from "@/lib/modelKey";
-import { buildReportCategoryResolver, isReportCategoryKey } from "@/lib/reportCategory";
+import { isReportCategoryKey, reportCategoryOf } from "@/lib/reportCategory";
 import { enrichReports } from "@/lib/reportEnrichment";
 
 export const dynamic = "force-dynamic";
@@ -48,21 +48,19 @@ export async function GET(req: Request) {
   const rows = await db.select().from(pumpTestReports).orderBy(desc(pumpTestReports.createdAt));
   const enrichedAll = await enrichReports(rows);
   const reportDay = (r: (typeof enrichedAll)[number]) => r.test_date ?? r.created_at?.toISOString().slice(0, 10) ?? "";
-  // Category-wise view (the Overview's "Reports by category" card): a report's
-  // category comes from its requisition, or its pump model's requisitions --
-  // see lib/reportCategory.ts, the same rule that produced the card's counts.
+  // Every report carries the category it states for itself (its remarks /
+  // EC number -- see lib/reportCategory.ts), shown in the archive and used
+  // by the Overview's "Reports by category" card and this ?category= filter.
   const categoryParam = searchParams.get("category");
-  const categoryOf = isReportCategoryKey(categoryParam)
-    ? buildReportCategoryResolver(
-        await db.select({ id: testRequisitions.id, model: testRequisitions.model, category: testRequisitions.category }).from(testRequisitions)
-      )
-    : null;
-  const enriched = enrichedAll.filter(
-    (r) =>
-      (!fromDay || reportDay(r) >= fromDay) &&
-      (!toDay || reportDay(r) <= toDay) &&
-      (!categoryOf || categoryOf({ requisitionId: r.requisition_id, model: r.model }) === categoryParam)
-  );
+  const categoryFilter = isReportCategoryKey(categoryParam) ? categoryParam : null;
+  const enriched = enrichedAll
+    .map((r) => ({ ...r, report_category: reportCategoryOf({ remarks: r.remarks, ecNo: r.ec_no }) }))
+    .filter(
+      (r) =>
+        (!fromDay || reportDay(r) >= fromDay) &&
+        (!toDay || reportDay(r) <= toDay) &&
+        (!categoryFilter || r.report_category === categoryFilter)
+    );
 
   const groups = new Map<string, typeof enriched>();
   for (const r of enriched) {

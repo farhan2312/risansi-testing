@@ -348,6 +348,9 @@ export interface NewReportInput {
 }
 
 export interface ArchiveReportSummary extends Omit<PumpTestReport, "points"> {
+  /** The category the report states for itself (lib/reportCategory.ts) -- a
+   * category name, or "none" when it doesn't state one. Report Archive only. */
+  report_category?: string;
   pointCount: number;
   /** Which rated fields (Head/Capacity/Power) the report's own test points
    * never reached -- empty when met or when there's nothing to compare. */

@@ -403,7 +403,7 @@ const OverviewPage = () => {
 
           <ChartCard
             title="Reports by category"
-            subtitle="Report Archive · category from the requisition, else the pump model's"
+            subtitle="Report Archive · category as stated on each report"
             href={reportsHref()}
             hrefLabel="Archive"
             table={{
@@ -421,10 +421,10 @@ const OverviewPage = () => {
                 href: reportsHref({ category: c.key }),
               }))}
             />
-            {data.reports_by_category.some((c) => c.key === "none" || c.key === "multiple") && (
+            {data.reports_by_category.some((c) => c.key === "none") && (
               <p className="mt-3 text-[11px] text-text-muted">
-                Most reports are imported from older sheets with no requisition. Where the same pump model was requisitioned under
-                one category they take it; under several, they show as “Multiple categories”.
+                The category is whatever each report states itself (imported sheets carry it in their remarks). Reports that
+                don&apos;t state one are counted under “Not stated on the report”.
               </p>
             )}
           </ChartCard>

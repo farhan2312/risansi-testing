@@ -173,6 +173,7 @@ const ReportArchivePage = () => {
                             <tr>
                               <th>Report No.</th>
                               <th>Motor</th>
+                              <th>Category</th>
                               <th>Test Date</th>
                               <th>Rated Capacity</th>
                               <th>Rated Head</th>
@@ -197,6 +198,11 @@ const ReportArchivePage = () => {
                                     {unmetTitle && <span className="requirement-flag">⚠</span>}
                                   </td>
                                   <td>{motorWithKw(r.motor)}</td>
+                                  <td title="The category this report states for itself (its remarks / EC number)">
+                                    {r.report_category && r.report_category !== "none"
+                                      ? reportCategoryLabel(r.report_category).replace(/^Against\s+/i, "")
+                                      : "-"}
+                                  </td>
                                   <td>{formatDate(r.test_date ?? r.created_at)}</td>
                                   <td>{formatNumber(r.rated_capacity)}</td>
                                   <td>{formatNumber(r.rated_head)}</td>

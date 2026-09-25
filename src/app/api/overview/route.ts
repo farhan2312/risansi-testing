@@ -5,7 +5,7 @@ import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
 import { RAISED_BY_GROUPS, RAISED_BY_LABELS, raisedByGroup } from "@/lib/raisedBy";
-import { buildReportCategoryResolver, REPORT_CATEGORY_ORDER, reportCategoryLabel } from "@/lib/reportCategory";
+import { REPORT_CATEGORY_ORDER, reportCategoryLabel, reportCategoryOf } from "@/lib/reportCategory";
 import { enrichReports } from "@/lib/reportEnrichment";
 import { computeRequirementStatus } from "@/lib/requirementCheck";
 
@@ -131,7 +131,6 @@ export async function GET(req: Request) {
     latestReports,
     raiserRows,
     reportsInRange,
-    requisitionsForCategory,
     [allTimeReports],
   ] = await Promise.all([
     db
@@ -246,12 +245,11 @@ export async function GET(req: Request) {
       .leftJoin(users, sql`${users.id} = ${testRequisitions.createdBy}`)
       .where(reqDateCondition)
       .groupBy(users.role),
-    // Category-wise reports: which reports are in range, and every requisition to take a category from.
+    // Category-wise reports: each in-range report's own remarks / EC number (see lib/reportCategory.ts).
     db
-      .select({ model: pumpTestReports.model, requisitionId: pumpTestReports.requisitionId })
+      .select({ remarks: pumpTestReports.remarks, ecNo: pumpTestReports.ecNo })
       .from(pumpTestReports)
       .where(reportDateCondition),
-    db.select({ id: testRequisitions.id, model: testRequisitions.model, category: testRequisitions.category }).from(testRequisitions),
     db.select({ n: sql<number>`count(*)::int` }).from(pumpTestReports),
   ]);
 
@@ -332,11 +330,10 @@ export async function GET(req: Request) {
 
   const enrichedLatest = await enrichReports(latestReports);
 
-  // Reports by category (see lib/reportCategory.ts for how a report gets one).
-  const categoryOfReport = buildReportCategoryResolver(requisitionsForCategory);
+  // Reports by category -- the category each report states for itself (lib/reportCategory.ts).
   const reportCategoryCounts = new Map<string, number>();
   for (const r of reportsInRange) {
-    const key = categoryOfReport(r);
+    const key = reportCategoryOf(r);
     reportCategoryCounts.set(key, (reportCategoryCounts.get(key) ?? 0) + 1);
   }
   const reportsByCategory = REPORT_CATEGORY_ORDER.filter((key) => (reportCategoryCounts.get(key) ?? 0) > 0).map((key) => ({
