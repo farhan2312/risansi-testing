@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * tab. Server-paginated, 25/page. */
 export async function GET(req: Request) {
   try {
-    requireAdmin(req);
+    await requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;

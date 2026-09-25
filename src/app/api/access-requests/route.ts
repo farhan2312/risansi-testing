@@ -49,6 +49,14 @@ export async function POST(req: Request) {
     return error("An account already exists for this email. Please log in.", 409);
   }
 
+  // Only a REJECTED request may be resubmitted. Anything else (deactivated
+  // accounts especially) belongs to a real, existing user whose password and
+  // role must never be overwritten by an unauthenticated request -- an admin
+  // reactivates those from Users & Access.
+  if (existing.status !== "rejected") {
+    return error("An account already exists for this email. Please contact an administrator.", 409);
+  }
+
   // status == "rejected" — allow resubmission
   const [updated] = await db
     .update(users)

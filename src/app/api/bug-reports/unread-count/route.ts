@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  * not just the Bug Reports board itself. */
 export async function GET(req: Request) {
   try {
-    requireAdmin(req);
+    await requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;

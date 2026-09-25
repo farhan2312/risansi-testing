@@ -7,7 +7,11 @@
  * sales-portal-next separately if it should also move off Authorization
  * headers -- this file only controls testing-portal's own cookie.
  */
+import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
+
+import { db } from "./db";
+import { users } from "./db/schema";
 
 const JWT_ALGORITHM = "HS256" as const;
 const JWT_EXPIRY_SECONDS = 60 * 60 * 12; // 12 hours
@@ -86,13 +90,50 @@ export function createToken(user: TokenUser): string {
   return jwt.sign(payload, getSecret(), { algorithm: JWT_ALGORITHM });
 }
 
-export function decodeToken(req: Request): TokenClaims {
+/** A valid signature only proves the token was minted for someone at login --
+ * not that they may still act. Every request therefore re-reads the account:
+ * a deactivated, rejected or deleted user is cut off immediately instead of
+ * riding out the rest of their 12h token, and the role comes from the
+ * database, so a demotion applies straight away too.
+ *
+ * Cached for a few seconds per user so a page firing a dozen API calls costs
+ * one lookup, not twelve. forgetCachedUser() drops an entry the moment an
+ * admin changes that account (same server instance; others catch up within
+ * the TTL). */
+const LIVE_USER_TTL_MS = 10_000;
+const liveUserCache = new Map<string, { at: number; status: string | null; role: string | null }>();
+
+export function forgetCachedUser(userId: string): void {
+  liveUserCache.delete(userId);
+}
+
+async function loadLiveUser(userId: string): Promise<{ status: string | null; role: string | null }> {
+  const hit = liveUserCache.get(userId);
+  if (hit && Date.now() - hit.at < LIVE_USER_TTL_MS) return hit;
+
+  let row: { status: string | null; role: string | null } | undefined;
+  try {
+    [row] = await db.select({ status: users.status, role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+  } catch (err) {
+    // A signed token whose subject isn't even a uuid can't belong to anyone.
+    if (String(err).includes("invalid input syntax")) return { status: null, role: null };
+    throw err;
+  }
+
+  const entry = { at: Date.now(), status: row?.status ?? null, role: row?.role ?? null };
+  liveUserCache.set(userId, entry);
+  return entry;
+}
+
+export async function decodeToken(req: Request): Promise<TokenClaims> {
   const token = readAuthCookie(req);
   if (!token) {
     throw new AuthError("Not authenticated", 401);
   }
+
+  let claims: TokenClaims;
   try {
-    return jwt.verify(token, getSecret(), {
+    claims = jwt.verify(token, getSecret(), {
       algorithms: [JWT_ALGORITHM],
     }) as TokenClaims;
   } catch (err) {
@@ -101,10 +142,16 @@ export function decodeToken(req: Request): TokenClaims {
     }
     throw new AuthError("Invalid token", 401);
   }
+
+  const live = await loadLiveUser(claims.sub);
+  if (live.status !== "active") {
+    throw new AuthError("This account is not active.", 401);
+  }
+  return { ...claims, role: live.role ?? claims.role };
 }
 
-export function requireAdmin(req: Request): TokenClaims {
-  const claims = decodeToken(req);
+export async function requireAdmin(req: Request): Promise<TokenClaims> {
+  const claims = await decodeToken(req);
   if (claims.role !== "admin") {
     throw new AuthError("Admin access required", 403);
   }

@@ -279,3 +279,52 @@
   background: linear-gradient(140deg, #f5c9a2, #cd7f32 58%, #9a5a1c);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 8px 14px -8px rgba(205, 127, 50, 0.9);
 }
+
+/* ---------- Page-header variant (the shared PageHeader on every screen) ---------- */
+
+/* Decorative layers follow the card's rounded corners. */
+.hero-card::before,
+.hero-card::after {
+  border-radius: inherit;
+}
+
+/* Lets header actions (dropdowns, popovers) escape the card instead of being clipped. */
+.hero-card--open {
+  overflow: visible;
+}
+
+/* Tighter than the dashboard hero: same look, screen-header proportions. */
+.hero-card.hero-compact .hero-title {
+  font-size: 24px;
+}
+.hero-compact .hero-badge {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  font-size: 21px;
+}
+
+/* Secondary + danger buttons that sit beside .hero-btn. */
+.hero-btn--secondary {
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 1px 2px rgba(10, 22, 40, 0.06);
+}
+.hero-btn--secondary:hover {
+  filter: none;
+  color: var(--text-h);
+  border-color: var(--accent-line);
+  background: var(--surface);
+  box-shadow: 0 10px 20px -14px color-mix(in oklab, var(--accent) 70%, transparent);
+}
+.hero-btn--danger {
+  background: linear-gradient(180deg, color-mix(in oklab, var(--neg) 86%, #fff), var(--neg));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 10px 20px -10px color-mix(in oklab, var(--neg) 85%, transparent);
+}
+.hero-btn:disabled,
+.hero-btn[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}

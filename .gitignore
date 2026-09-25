@@ -1,6 +1,7 @@
 # dependencies
 /node_modules
 /doc
+/PUMP_TESTING_SORTED
 
 # next.js
 /.next/

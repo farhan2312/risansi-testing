@@ -213,6 +213,11 @@ const OverviewPage = () => {
             accent="amber"
             value={openCount.toLocaleString()}
             hint={`${byStatus.Pending ?? 0} pending · ${byStatus["In Testing"] ?? 0} testing · ${byStatus["Retest Needed"] ?? 0} retest`}
+            ring={[
+              { label: "Pending", value: byStatus.Pending ?? 0, color: "var(--series-1)" },
+              { label: "In Testing", value: byStatus["In Testing"] ?? 0, color: "var(--series-2)" },
+              { label: "Retest Needed", value: byStatus["Retest Needed"] ?? 0, color: "var(--series-4)" },
+            ]}
             href={summaryHref({ scope: "open" })}
           />
           <KpiCard
@@ -220,6 +225,11 @@ const OverviewPage = () => {
             label="Overdue"
             value={data.overdue_count.toLocaleString()}
             hint={`${data.due_soon_count} due in 5 days`}
+            ring={[
+              { label: "Overdue", value: data.overdue_count, color: "var(--status-critical)" },
+              { label: "Due in 5 days", value: data.due_soon_count, color: "var(--status-warning)" },
+              { label: "On track", value: Math.max(0, openCount - data.overdue_count - data.due_soon_count), color: "var(--status-good)" },
+            ]}
             tone={data.overdue_count > 0 ? "critical" : "neutral"}
             href={summaryHref({ scope: "overdue" })}
           />
@@ -245,6 +255,14 @@ const OverviewPage = () => {
             accent="green"
             value={metPct === null ? "—" : `${metPct}%`}
             hint={judged ? `${data.requirement_met} of ${judged} met` : "No judged reports"}
+            ring={
+              judged
+                ? [
+                    { label: "Met rated target", value: data.requirement_met, color: "var(--status-good)" },
+                    { label: "Missed rated target", value: data.requirement_unmet, color: "var(--status-critical)" },
+                  ]
+                : undefined
+            }
             href={summaryHref({ status: "Closed" })}
           />
           <KpiCard
@@ -253,12 +271,13 @@ const OverviewPage = () => {
             accent="orange"
             value={data.avg_turnaround_days === null ? "—" : `${data.avg_turnaround_days.toFixed(1)}d`}
             hint="raised → closed"
+            sparkline={data.monthly_trend.map((m) => m.closed)}
             href={summaryHref({ status: "Closed" })}
           />
         </div>
 
-        {/* ---- Trend + status ---- */}
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+        {/* ---- Trend beside the status donut (donut centred, so neither card has dead space) ---- */}
+        <div className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-3">
           <ChartCard
             className="xl:col-span-2"
             title={daily ? "Daily activity" : "Monthly activity"}
@@ -293,206 +312,24 @@ const OverviewPage = () => {
               rows: STATUS_SEGMENTS.map((s) => [s.status, byStatus[s.status] ?? 0]),
             }}
           >
-            <DonutChart
-              centerLabel="requisitions"
-              segments={STATUS_SEGMENTS.map((s) => ({
-                key: s.status,
-                label: s.status,
-                value: byStatus[s.status] ?? 0,
-                color: s.color,
-                href: summaryHref({ status: s.status }),
-              }))}
-            />
+            <div className="flex h-full items-center">
+              <DonutChart
+                centerLabel="requisitions"
+                segments={STATUS_SEGMENTS.map((s) => ({
+                  key: s.status,
+                  label: s.status,
+                  value: byStatus[s.status] ?? 0,
+                  color: s.color,
+                  href: summaryHref({ status: s.status }),
+                }))}
+              />
+            </div>
           </ChartCard>
         </div>
 
-        {/* ---- Quality, category, workload ---- */}
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
-          <ChartCard
-            title="Reports by category"
-            subtitle="Report Archive · category from the requisition, else the pump model's"
-            href={reportsHref()}
-            hrefLabel="Archive"
-            table={{
-              columns: ["Category", "Reports", "Share"],
-              rows: data.reports_by_category.map((c) => [c.label, c.count, `${data.total_reports ? Math.round((c.count / data.total_reports) * 100) : 0}%`]),
-            }}
-          >
-            <BarList
-              emptyText="No reports in this range."
-              items={data.reports_by_category.map((c) => ({
-                key: c.key,
-                label: c.label.replace(/^Against\s+/i, ""),
-                value: c.count,
-                detail: `${data.total_reports ? Math.round((c.count / data.total_reports) * 100) : 0}% of ${data.total_reports.toLocaleString()} reports`,
-                href: reportsHref({ category: c.key }),
-              }))}
-            />
-            {data.reports_by_category.some((c) => c.key === "none" || c.key === "multiple") && (
-              <p className="mt-3 text-[11px] text-text-muted">
-                Most reports are imported from older sheets with no requisition. Where the same pump model was requisitioned under
-                one category they take it; under several, they show as “Multiple categories”.
-              </p>
-            )}
-          </ChartCard>
-
-          <ChartCard
-            title="Requisitions by category"
-            subtitle="Requisitions raised per category · click a bar to open them"
-            table={{ columns: ["Category", "Requisitions"], rows: data.by_category.map((c) => [c.label, c.count]) }}
-          >
-            <BarList
-              items={data.by_category.map((c) => ({
-                key: c.label,
-                label: c.label.replace(/^Against\s+/i, ""),
-                value: c.count,
-                href: summaryHref({ category: c.label === "Uncategorised" ? "none" : c.label }),
-              }))}
-            />
-          </ChartCard>
-
-          <ChartCard
-            title="Workload"
-            subtitle="Open requisitions per responsible person"
-            table={{
-              columns: ["Person", "Pending", "In Testing", "Retest Needed", "Total"],
-              rows: data.workload.map((w) => [w.person, w.pending, w.in_testing, w.retest_needed, w.total]),
-            }}
-          >
-            <BarList
-              emptyText="No open requisitions in this range."
-              items={data.workload.map((w) => ({
-                key: w.person,
-                label: w.person,
-                value: w.total,
-                detail: `${w.pending} pending · ${w.in_testing} in testing · ${w.retest_needed} retest needed`,
-                href: summaryHref({ responsible_person: w.person === "Unassigned" ? "none" : w.person, scope: "open" }),
-              }))}
-            />
-          </ChartCard>
-        </div>
-
-        {/* ---- Matrix + source team ---- */}
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-          <ChartCard
-            className="xl:col-span-2"
-            title={`Category × ${per}`}
-            subtitle="Where requisitions came from over time · click a cell to open it"
-            table={{
-              columns: ["Category", ...data.category_matrix.months.map(monthLong)],
-              rows: data.category_matrix.rows.map((r) => [r.category, ...r.counts]),
-            }}
-          >
-            <Heatmap
-              months={data.category_matrix.months}
-              rows={data.category_matrix.rows.map((r) => ({ label: r.category, counts: r.counts }))}
-              cellHref={(category, month) => {
-                if (category === "Uncategorised") return null;
-                const { from, to } = monthRange(month);
-                const params = new URLSearchParams({ category, from, to });
-                return `/dashboard?${params.toString()}`;
-              }}
-            />
-          </ChartCard>
-
-          <div className="flex flex-col gap-5">
-          <ChartCard
-            title="Raised by"
-            subtitle="Who put the requisition in · by account type"
-            table={{ columns: ["Raised by", "Requisitions"], rows: data.by_raiser.map((g) => [RAISED_BY_LABELS[g.group], g.count]) }}
-          >
-            <BarList
-              items={data.by_raiser.map((g) => ({
-                key: g.group,
-                label: RAISED_BY_LABELS[g.group],
-                value: g.count,
-                href: summaryHref({ raised_by: g.group }),
-              }))}
-            />
-          </ChartCard>
-
-          <ChartCard
-            title="By source team"
-            subtitle="The Source Team field on each requisition"
-            table={{ columns: ["Source team", "Requisitions"], rows: data.by_source_team.map((t) => [t.label, t.count]) }}
-          >
-            <BarList
-              items={data.by_source_team.map((t) => ({
-                key: t.label,
-                label: t.label,
-                value: t.count,
-                href: summaryHref({ source_team: t.label === "Unspecified" ? "none" : t.label }),
-              }))}
-            />
-          </ChartCard>
-          </div>
-        </div>
-
-        {/* ---- Deadlines + recent reports ---- */}
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-          <ChartCard
-            className="xl:col-span-2"
-            title="Upcoming deadlines"
-            subtitle="Open requisitions nearest their target date"
-            href={summaryHref({ scope: "open" })}
-            hrefLabel="All open"
-          >
-            {data.upcoming_deadlines.length === 0 ? (
-              <p className="py-6 text-center text-sm text-text-muted">Nothing open in this range. 🎉</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="text-left text-[11px] uppercase tracking-wide text-text-muted">
-                      <th className="pb-2 font-semibold">Model</th>
-                      <th className="pb-2 font-semibold">EC / Quotation No.</th>
-                      <th className="pb-2 font-semibold">Responsible</th>
-                      <th className="pb-2 font-semibold">Status</th>
-                      <th className="pb-2 font-semibold">Target</th>
-                      <th className="pb-2 text-right font-semibold">Due</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.upcoming_deadlines.map((d) => (
-                      <tr key={d.id} className="border-t border-border transition-colors hover:bg-surface-hover">
-                        <td className="py-2.5 pr-3">
-                          <Link href={`/requisitions/${d.requisition_no ?? d.id}`} className="font-semibold text-accent hover:underline">
-                            {d.model}
-                          </Link>
-                          {d.requisition_no && <div className="text-[11px] text-text-faint">{d.requisition_no}</div>}
-                        </td>
-                        <td className="py-2.5 pr-3">
-                          {d.ec_quotation_no ? (
-                            <Link
-                              href={`/dashboard?${new URLSearchParams({ ec: d.ec_quotation_no }).toString()}`}
-                              className="text-[13px] text-text hover:text-accent hover:underline"
-                              title="Show every requisition with this EC / Quotation No."
-                            >
-                              {d.ec_quotation_no}
-                            </Link>
-                          ) : (
-                            <span className="text-text-faint">—</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 pr-3 text-text">{d.responsible_person ?? "—"}</td>
-                        <td className="py-2.5 pr-3">
-                          <span className={`status-pill status-${d.status.replace(/\s+/g, "-").toLowerCase()}`}>{d.status}</span>
-                        </td>
-                        <td className="py-2.5 pr-3 text-text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>
-                          {formatDate(d.target_date)}
-                        </td>
-                        <td className="py-2.5 text-right">
-                          <DeadlineBadge daysLeft={d.days_left} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </ChartCard>
-
-          <div className="flex flex-col gap-5">
+        {/* ---- Everything else flows into independent columns: each card is only as tall as its
+             content and the ones below move up, so there is no blank area inside or between cards. ---- */}
+        <div className="-mb-5 columns-1 gap-5 lg:columns-2 xl:columns-3 *:mb-5 *:break-inside-avoid">
           <ChartCard
             title="Requirement results"
             subtitle="Closed requisitions with a rated target"
@@ -549,6 +386,99 @@ const OverviewPage = () => {
             )}
           </ChartCard>
 
+          <ChartCard
+            title="Requisitions by category"
+            subtitle="Requisitions raised per category · click a bar to open them"
+            table={{ columns: ["Category", "Requisitions"], rows: data.by_category.map((c) => [c.label, c.count]) }}
+          >
+            <BarList
+              items={data.by_category.map((c) => ({
+                key: c.label,
+                label: c.label.replace(/^Against\s+/i, ""),
+                value: c.count,
+                href: summaryHref({ category: c.label === "Uncategorised" ? "none" : c.label }),
+              }))}
+            />
+          </ChartCard>
+
+          <ChartCard
+            title="Reports by category"
+            subtitle="Report Archive · category from the requisition, else the pump model's"
+            href={reportsHref()}
+            hrefLabel="Archive"
+            table={{
+              columns: ["Category", "Reports", "Share"],
+              rows: data.reports_by_category.map((c) => [c.label, c.count, `${data.total_reports ? Math.round((c.count / data.total_reports) * 100) : 0}%`]),
+            }}
+          >
+            <BarList
+              emptyText="No reports in this range."
+              items={data.reports_by_category.map((c) => ({
+                key: c.key,
+                label: c.label.replace(/^Against\s+/i, ""),
+                value: c.count,
+                detail: `${data.total_reports ? Math.round((c.count / data.total_reports) * 100) : 0}% of ${data.total_reports.toLocaleString()} reports`,
+                href: reportsHref({ category: c.key }),
+              }))}
+            />
+            {data.reports_by_category.some((c) => c.key === "none" || c.key === "multiple") && (
+              <p className="mt-3 text-[11px] text-text-muted">
+                Most reports are imported from older sheets with no requisition. Where the same pump model was requisitioned under
+                one category they take it; under several, they show as “Multiple categories”.
+              </p>
+            )}
+          </ChartCard>
+
+          <ChartCard
+            title="Workload"
+            subtitle="Open requisitions per responsible person"
+            table={{
+              columns: ["Person", "Pending", "In Testing", "Retest Needed", "Total"],
+              rows: data.workload.map((w) => [w.person, w.pending, w.in_testing, w.retest_needed, w.total]),
+            }}
+          >
+            <BarList
+              emptyText="No open requisitions in this range."
+              items={data.workload.map((w) => ({
+                key: w.person,
+                label: w.person,
+                value: w.total,
+                detail: `${w.pending} pending · ${w.in_testing} in testing · ${w.retest_needed} retest needed`,
+                href: summaryHref({ responsible_person: w.person === "Unassigned" ? "none" : w.person, scope: "open" }),
+              }))}
+            />
+          </ChartCard>
+
+          <ChartCard
+            title="Raised by"
+            subtitle="Who put the requisition in · by account type"
+            table={{ columns: ["Raised by", "Requisitions"], rows: data.by_raiser.map((g) => [RAISED_BY_LABELS[g.group], g.count]) }}
+          >
+            <BarList
+              items={data.by_raiser.map((g) => ({
+                key: g.group,
+                label: RAISED_BY_LABELS[g.group],
+                value: g.count,
+                href: summaryHref({ raised_by: g.group }),
+              }))}
+            />
+          </ChartCard>
+
+          <ChartCard
+            title="By source team"
+            subtitle="The Source Team field on each requisition"
+            table={{ columns: ["Source team", "Requisitions"], rows: data.by_source_team.map((t) => [t.label, t.count]) }}
+          >
+            <BarList
+              items={data.by_source_team.map((t) => ({
+                key: t.label,
+                label: t.label,
+                value: t.count,
+                href: summaryHref({ source_team: t.label === "Unspecified" ? "none" : t.label }),
+              }))}
+            />
+          </ChartCard>
+
           <ChartCard title="Recent reports" subtitle="Latest filed test reports" href={reportsHref()} hrefLabel="Archive">
             {data.recent_reports.length === 0 ? (
               <p className="py-6 text-center text-sm text-text-muted">No reports in this range.</p>
@@ -573,8 +503,89 @@ const OverviewPage = () => {
               </ul>
             )}
           </ChartCard>
-          </div>
         </div>
+
+        {/* ---- Wide cards run the full width ---- */}
+        <ChartCard
+          title={`Category × ${per}`}
+          subtitle="Where requisitions came from over time · click a cell to open it"
+          table={{
+            columns: ["Category", ...data.category_matrix.months.map(monthLong)],
+            rows: data.category_matrix.rows.map((r) => [r.category, ...r.counts]),
+          }}
+        >
+          <Heatmap
+            months={data.category_matrix.months}
+            rows={data.category_matrix.rows.map((r) => ({ label: r.category, counts: r.counts }))}
+            cellHref={(category, month) => {
+              if (category === "Uncategorised") return null;
+              const { from, to } = monthRange(month);
+              const params = new URLSearchParams({ category, from, to });
+              return `/dashboard?${params.toString()}`;
+            }}
+          />
+        </ChartCard>
+
+        <ChartCard
+          title="Upcoming deadlines"
+          subtitle="Open requisitions nearest their target date"
+          href={summaryHref({ scope: "open" })}
+          hrefLabel="All open"
+        >
+          {data.upcoming_deadlines.length === 0 ? (
+            <p className="py-6 text-center text-sm text-text-muted">Nothing open in this range. 🎉</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wide text-text-muted">
+                    <th className="pb-2 font-semibold">Model</th>
+                    <th className="pb-2 font-semibold">EC / Quotation No.</th>
+                    <th className="pb-2 font-semibold">Responsible</th>
+                    <th className="pb-2 font-semibold">Status</th>
+                    <th className="pb-2 font-semibold">Target</th>
+                    <th className="pb-2 text-right font-semibold">Due</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.upcoming_deadlines.map((d) => (
+                    <tr key={d.id} className="border-t border-border transition-colors hover:bg-surface-hover">
+                      <td className="py-2.5 pr-3">
+                        <Link href={`/requisitions/${d.requisition_no ?? d.id}`} className="font-semibold text-accent hover:underline">
+                          {d.model}
+                        </Link>
+                        {d.requisition_no && <div className="text-[11px] text-text-faint">{d.requisition_no}</div>}
+                      </td>
+                      <td className="py-2.5 pr-3">
+                        {d.ec_quotation_no ? (
+                          <Link
+                            href={`/dashboard?${new URLSearchParams({ ec: d.ec_quotation_no }).toString()}`}
+                            className="text-[13px] text-text hover:text-accent hover:underline"
+                            title="Show every requisition with this EC / Quotation No."
+                          >
+                            {d.ec_quotation_no}
+                          </Link>
+                        ) : (
+                          <span className="text-text-faint">—</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 pr-3 text-text">{d.responsible_person ?? "—"}</td>
+                      <td className="py-2.5 pr-3">
+                        <span className={`status-pill status-${d.status.replace(/\s+/g, "-").toLowerCase()}`}>{d.status}</span>
+                      </td>
+                      <td className="py-2.5 pr-3 text-text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>
+                        {formatDate(d.target_date)}
+                      </td>
+                      <td className="py-2.5 text-right">
+                        <DeadlineBadge daysLeft={d.days_left} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </ChartCard>
       </div>
     </div>
   );

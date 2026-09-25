@@ -12,6 +12,13 @@ import { findRequisitionByIdOrNo } from "@/lib/requisitionLookup";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  try {
+    await decodeToken(req);
+  } catch (e) {
+    if (e instanceof AuthError) return error(e.message, e.statusCode);
+    throw e;
+  }
+
   const { searchParams } = new URL(req.url);
   const model = searchParams.get("model");
   const limit = Math.min(Number(searchParams.get("limit") ?? 200), 500);
@@ -26,7 +33,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   let claims;
   try {
-    claims = decodeToken(req);
+    claims = await decodeToken(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;

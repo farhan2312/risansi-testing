@@ -1,6 +1,7 @@
 import { desc } from "drizzle-orm";
 
-import { json } from "@/lib/api";
+import { error, json } from "@/lib/api";
+import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReports, testRequisitions } from "@/lib/db/schema";
 import { modelDisplayLabel, normalizeModelKey } from "@/lib/modelKey";
@@ -23,6 +24,13 @@ const PAGE_SIZE = 50;
  * to 500 raw report rows regardless of how many distinct pumps that
  * spanned. */
 export async function GET(req: Request) {
+  try {
+    await decodeToken(req);
+  } catch (e) {
+    if (e instanceof AuthError) return error(e.message, e.statusCode);
+    throw e;
+  }
+
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search")?.trim().toLowerCase() ?? "";
   // Overview drill-down: only reports whose test date (created date when

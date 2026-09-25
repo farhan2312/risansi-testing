@@ -42,7 +42,7 @@ function pumpMatchesStatFilter(
 export async function GET(req: Request) {
   let claims;
   try {
-    claims = decodeToken(req);
+    claims = await decodeToken(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;

@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * "no row" rather than 0 -- exactly the bug this sidesteps. */
 export async function GET(req: Request) {
   try {
-    requireAdmin(req);
+    await requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;

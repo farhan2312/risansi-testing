@@ -15,7 +15,7 @@ const STATUSES = new Set(["Open", "In Progress", "Resolved"]);
  * report drops out of the unread count on the bell's next poll. */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    requireAdmin(req);
+    await requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
@@ -34,7 +34,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   let claims;
   try {
-    claims = requireAdmin(req);
+    claims = await requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
@@ -80,7 +80,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   let claims;
   try {
-    claims = requireAdmin(req);
+    claims = await requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;

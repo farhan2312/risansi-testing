@@ -27,7 +27,7 @@ const istStamp = (d: Date | null) =>
  * as a CSV download, newest first. */
 export async function GET(req: Request) {
   try {
-    requireAdmin(req);
+    await requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;

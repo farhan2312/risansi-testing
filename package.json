@@ -16,7 +16,7 @@
     "@hookform/resolvers": "^5.4.0",
     "axios": "^1.18.1",
     "bcryptjs": "^3.0.2",
-    "drizzle-orm": "^0.44.6",
+    "drizzle-orm": "^0.45.3",
     "jsonwebtoken": "^9.0.2",
     "next": "^15.5.7",
     "pg": "^8.16.4",

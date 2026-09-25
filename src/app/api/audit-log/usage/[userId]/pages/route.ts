@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  * schema change was needed for this. */
 export async function GET(req: Request, { params }: { params: Promise<{ userId: string }> }) {
   try {
-    requireAdmin(req);
+    await requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;

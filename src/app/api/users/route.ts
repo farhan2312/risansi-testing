@@ -24,7 +24,7 @@ const ROLES = ["source", "testing", "central-admin", "admin"];
  * those callers need the complete set, not one page of it. */
 export async function GET(req: Request) {
   try {
-    requireAdmin(req);
+    await requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
@@ -102,7 +102,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   let claims;
   try {
-    claims = requireAdmin(req);
+    claims = await requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;

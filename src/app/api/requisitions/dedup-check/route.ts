@@ -1,12 +1,20 @@
 import { desc, eq, ilike, inArray } from "drizzle-orm";
 
 import { error, json, pointToDict, reportToDict } from "@/lib/api";
+import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  try {
+    await decodeToken(req);
+  } catch (e) {
+    if (e instanceof AuthError) return error(e.message, e.statusCode);
+    throw e;
+  }
+
   const { searchParams } = new URL(req.url);
   const model = searchParams.get("model");
   if (!model) {

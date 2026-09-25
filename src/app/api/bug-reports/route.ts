@@ -26,7 +26,7 @@ const SEVERITIES = new Set(["Low", "Medium", "High", "Critical"]);
  * reflect the current filter, not just whichever status/page is loaded. */
 export async function GET(req: Request) {
   try {
-    requireAdmin(req);
+    await requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
@@ -93,7 +93,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   let claims;
   try {
-    claims = decodeToken(req);
+    claims = await decodeToken(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;

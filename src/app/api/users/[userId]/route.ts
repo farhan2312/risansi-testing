@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 
 import { error, json, userToDict } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
-import { AuthError, requireAdmin } from "@/lib/auth";
+import { AuthError, forgetCachedUser, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { testRequisitions, users } from "@/lib/db/schema";
 
@@ -16,7 +16,7 @@ export async function PATCH(
 ) {
   let claims;
   try {
-    claims = requireAdmin(req);
+    claims = await requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
@@ -105,6 +105,8 @@ export async function PATCH(
       details: changes.join("; "),
     });
 
+    // A demotion (or promotion) applies to this account's next request, not after the cache expires.
+    forgetCachedUser(updated.id);
     return json(userToDict(updated));
   }
 
@@ -160,6 +162,8 @@ export async function PATCH(
     details,
   });
 
+  // Deactivating/rejecting cuts the account off on its very next request.
+  forgetCachedUser(updated.id);
   return json(userToDict(updated));
 }
 
@@ -169,7 +173,7 @@ export async function DELETE(
 ) {
   let claims;
   try {
-    claims = requireAdmin(req);
+    claims = await requireAdmin(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
@@ -214,5 +218,6 @@ export async function DELETE(
     entityLabel: user.email,
   });
 
+  forgetCachedUser(user.id);
   return json({ success: true });
 }

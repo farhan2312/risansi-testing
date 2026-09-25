@@ -6,6 +6,13 @@ import "./charts.css";
 
 export type KpiAccent = "blue" | "orange" | "green" | "amber";
 
+/** One arc of a KPI ring. `label` is announced/tooltipped -- the ring never carries meaning by colour alone. */
+export interface RingSegment {
+  value: number;
+  color: string;
+  label: string;
+}
+
 interface KpiCardProps {
   icon: string;
   label: string;
@@ -19,6 +26,8 @@ interface KpiCardProps {
   /** Whether an increase is good news (reports filed) or bad (overdue). */
   upIsGood?: boolean;
   sparkline?: number[];
+  /** A compact segmented ring in the same slot as the sparkline -- for shares (open by status, pass rate). */
+  ring?: RingSegment[];
   /** Decorative tint for the stripe, glow, icon chip and sparkline. */
   accent?: KpiAccent;
   /** Status emphasis (overrides the accent) -- always paired with the icon + label, never color alone. */
@@ -62,7 +71,48 @@ const Sparkline = ({ values }: { values: number[] }) => {
   );
 };
 
-const KpiCard = ({ icon, label, value, hint, href, deltaPct, upIsGood = true, sparkline, accent = "blue", tone = "neutral" }: KpiCardProps) => {
+/** Same footprint as the sparkline (56px), so cards with either line up. */
+const Ring = ({ segments }: { segments: RingSegment[] }) => {
+  const size = 56;
+  const stroke = 8;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const total = segments.reduce((sum, s) => sum + s.value, 0);
+  const gap = segments.filter((s) => s.value > 0).length > 1 ? 3 : 0;
+  let offset = 0;
+  const summary = segments.map((s) => `${s.label}: ${s.value}`).join(", ");
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="flex-shrink-0" role="img" aria-label={summary}>
+      <title>{summary}</title>
+      <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--bg-sunk)" strokeWidth={stroke} />
+        {total > 0 &&
+          segments
+            .filter((s) => s.value > 0)
+            .map((s) => {
+              const len = (s.value / total) * c;
+              const arc = (
+                <circle
+                  key={s.label}
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={r}
+                  fill="none"
+                  stroke={s.color}
+                  strokeWidth={stroke}
+                  strokeDasharray={`${Math.max(0, len - gap)} ${c}`}
+                  strokeDashoffset={-offset}
+                />
+              );
+              offset += len;
+              return arc;
+            })}
+      </g>
+    </svg>
+  );
+};
+
+const KpiCard = ({ icon, label, value, hint, href, deltaPct, upIsGood = true, sparkline, ring, accent = "blue", tone = "neutral" }: KpiCardProps) => {
   const hasDelta = deltaPct !== undefined && deltaPct !== null && Number.isFinite(deltaPct);
   const direction = !hasDelta || deltaPct === 0 ? "flat" : (deltaPct! > 0) === upIsGood ? "good" : "bad";
   const tint = TONE_VAR[tone] ?? ACCENT_VAR[accent];
@@ -83,7 +133,7 @@ const KpiCard = ({ icon, label, value, hint, href, deltaPct, upIsGood = true, sp
         )}
       </div>
 
-      <div className="flex items-end justify-between gap-3">
+      <div className="mt-auto flex items-end justify-between gap-3">
         <div className="min-w-0">
           <div className="kpi-value">{value}</div>
           {(hasDelta || hint) && (
@@ -97,7 +147,7 @@ const KpiCard = ({ icon, label, value, hint, href, deltaPct, upIsGood = true, sp
             </div>
           )}
         </div>
-        {sparkline && sparkline.length > 1 && <Sparkline values={sparkline} />}
+        {ring ? <Ring segments={ring} /> : sparkline && sparkline.length > 1 ? <Sparkline values={sparkline} /> : null}
       </div>
     </>
   );
