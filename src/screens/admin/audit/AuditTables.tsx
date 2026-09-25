@@ -363,7 +363,8 @@ export const ActivityTab = ({ range, entity }: { range: AuditRange; entity?: "us
           <EmptyRow columns={6} text={entity === "user" ? "No account changes match this filter." : "No data changes match this filter."} />
         ) : (
           rows.map((a) => {
-            const href = entityHref(a.entity_type, a.entity_id, a.entity_no);
+            // A deleted item has no page left to open, so its row is plain text.
+            const href = a.event_type === "delete" ? null : entityHref(a.entity_type, a.entity_id, a.entity_no);
             const typeLabel = a.entity_type ? a.entity_type.replace("_", " ").replace(/^./, (c) => c.toUpperCase()) : null;
             const entityText = typeLabel ? `${typeLabel}${a.entity_label ? ` · ${a.entity_label}` : ""}` : "—";
             return (

@@ -12,13 +12,15 @@ interface HeroHeaderProps {
   actions?: ReactNode;
   /** Rendered in a frosted band under the title (filters, a stat strip). */
   children?: ReactNode;
+  /** Tighter padding and title, for dashboards where the page content is the point. */
+  dense?: boolean;
 }
 
 /** The premium page header: gradient card with glow, optional icon tile,
  * eyebrow / title / subtitle, actions, and a footer band. */
-const HeroHeader = ({ icon, eyebrow, title, subtitle, actions, children }: HeroHeaderProps) => (
-  <section className="hero-card">
-    <div className="flex flex-wrap items-start justify-between gap-5 px-9 py-8">
+const HeroHeader = ({ icon, eyebrow, title, subtitle, actions, children, dense = false }: HeroHeaderProps) => (
+  <section className={dense ? "hero-card hero-dense" : "hero-card"}>
+    <div className={`flex flex-wrap justify-between gap-5 ${dense ? "items-center px-6 py-4" : "items-start px-9 py-8"}`}>
       <div className="flex min-w-0 items-start gap-5">
         {icon && (
           <span className="hero-badge" aria-hidden="true">

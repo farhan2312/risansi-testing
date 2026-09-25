@@ -5,6 +5,8 @@ import "./EditPasswordModal.css";
 interface ConfirmModalProps {
   title: string;
   message: string;
+  /** Optional red callout under the message for consequences the user must not miss. */
+  warning?: string;
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
@@ -21,6 +23,7 @@ interface ConfirmModalProps {
 const ConfirmModal = ({
   title,
   message,
+  warning,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   danger = false,
@@ -45,6 +48,15 @@ const ConfirmModal = ({
         </div>
 
         <p style={{ margin: 0, color: "var(--text)", fontSize: 14 }}>{message}</p>
+
+        {warning && (
+          <div role="alert" className="mt-3 flex items-start gap-2.5 rounded-xl border border-neg/30 bg-neg-soft px-3.5 py-3 text-[13px] font-medium leading-snug text-neg-strong">
+            <span aria-hidden="true" className="text-base leading-none">
+              ⚠️
+            </span>
+            <span>{warning}</span>
+          </div>
+        )}
 
         <div className="settings-modal-actions">
           <button type="button" className="btn-secondary" onClick={onCancel} disabled={isConfirming}>

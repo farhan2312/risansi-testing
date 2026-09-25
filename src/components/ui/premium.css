@@ -328,3 +328,17 @@
   cursor: not-allowed;
   transform: none;
 }
+
+/* Dense hero (Overview): about half the height of the default. */
+.hero-card.hero-dense .hero-title {
+  font-size: 22px;
+}
+.hero-dense .hero-subtitle {
+  margin-top: 3px;
+  font-size: 13px;
+}
+.hero-dense .hero-btn {
+  padding: 9px 16px;
+  font-size: 13px;
+  border-radius: 10px;
+}

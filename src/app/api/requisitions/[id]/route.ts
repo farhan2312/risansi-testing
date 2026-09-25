@@ -1,11 +1,12 @@
 import { desc, eq, inArray } from "drizzle-orm";
 
 import { attachmentToDict, error, json, pointToDict, reportToDict, requisitionToDict } from "@/lib/api";
-import { getClientIp, logAudit } from "@/lib/audit";
-import { AuthError, decodeToken } from "@/lib/auth";
+import { getClientIp, getUserAgent, logAudit } from "@/lib/audit";
+import { AuthError, decodeToken, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { pumpTestReportPoints, pumpTestReports, requisitionAttachments, testRequisitions } from "@/lib/db/schema";
+import { auditLogs, pumpTestReportPoints, pumpTestReports, requisitionAttachments, testRequisitions } from "@/lib/db/schema";
 import { findRequisitionByIdOrNo } from "@/lib/requisitionLookup";
+
 
 export const dynamic = "force-dynamic";
 
@@ -138,6 +139,24 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   });
 }
 
+/** "Status: Pending → In Testing · Responsible Person: – → Ravi" -- what an edit actually did, for the audit log. */
+const describeChanges = (
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+  fields: string[],
+): string => {
+  const show = (v: unknown) => {
+    if (v === null || v === undefined || v === "") return "–";
+    const text = v instanceof Date ? v.toISOString().slice(0, 10) : String(v);
+    return text.length > 40 ? text.slice(0, 39) + "…" : text;
+  };
+  const label = (k: string) => k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+  return fields
+    .filter((k) => show(before[k]) !== show(after[k]))
+    .map((k) => label(k) + ": " + show(before[k]) + " → " + show(after[k]))
+    .join(" · ");
+};
+
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   let claims;
   try {
@@ -202,8 +221,66 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     entityType: "requisition",
     entityId: requisition.id,
     entityLabel: requisition.model,
-    details: changedFields.length ? `Changed: ${changedFields.join(", ")}` : null,
+    details: (changedFields.length ? describeChanges(existing, requisition, changedFields) : "") || null,
   });
 
   return json(requisitionToDict(requisition));
+}
+
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  let claims;
+  try {
+    claims = await requireAdmin(req);
+  } catch (e) {
+    if (e instanceof AuthError) {
+      return error(e.statusCode === 403 ? "Only an admin can delete a requisition." : e.message, e.statusCode);
+    }
+    throw e;
+  }
+  const { id: idOrNo } = await params;
+
+  const existing = await findRequisitionByIdOrNo(idOrNo);
+  if (!existing) {
+    return error("Requisition not found", 404);
+  }
+
+  // pump_test_reports.requisition_id is a real foreign key, so a requisition with reports can't go
+  // without orphaning (or failing on) them -- make the admin remove the reports deliberately first.
+  const [linkedReport] = await db
+    .select({ id: pumpTestReports.id })
+    .from(pumpTestReports)
+    .where(eq(pumpTestReports.requisitionId, existing.id))
+    .limit(1);
+  if (linkedReport) {
+    return error("This requisition has test reports filed against it. Delete those reports first, then delete the requisition.", 409);
+  }
+
+  const label = existing.requisitionNo ?? existing.model;
+  const facts = [
+    `Model ${existing.model}`,
+    existing.ecQuotationNo ? `EC/Quotation ${existing.ecQuotationNo}` : null,
+    `status ${existing.status ?? "unknown"}`,
+    existing.submittedBy ? `raised by ${existing.submittedBy}` : null,
+    existing.dateOfRequisition ? `dated ${existing.dateOfRequisition}` : null,
+  ].filter(Boolean);
+
+  // The delete and its audit entry commit together: if the audit row can't be written the requisition
+  // is NOT deleted, so a deletion can never go unrecorded. (requisition_attachments rows go with it,
+  // ON DELETE CASCADE.)
+  await db.transaction(async (tx) => {
+    await tx.delete(testRequisitions).where(eq(testRequisitions.id, existing.id));
+    await tx.insert(auditLogs).values({
+      userId: claims.sub,
+      userEmail: claims.email,
+      eventType: "delete",
+      entityType: "requisition",
+      entityId: existing.id,
+      entityLabel: label,
+      details: `Deleted requisition ${label} · ${facts.join(" · ")}`,
+      ipAddress: getClientIp(req),
+      userAgent: getUserAgent(req),
+    });
+  });
+
+  return json({ ok: true });
 }

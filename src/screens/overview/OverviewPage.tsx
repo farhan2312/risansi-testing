@@ -9,7 +9,7 @@ import { SkeletonPage } from "@/components/ui/Skeleton";
 import HeroHeader from "@/components/ui/HeroHeader";
 import { formatDate } from "@/lib/formUtils";
 import ChartCard from "@/components/charts/ChartCard";
-import KpiCard from "@/components/charts/KpiCard";
+import KpiGroupCard from "@/components/charts/KpiGroupCard";
 import LineChart from "@/components/charts/LineChart";
 import DonutChart from "@/components/charts/DonutChart";
 import BarList from "@/components/charts/BarList";
@@ -20,7 +20,7 @@ import { presetValue, type DateRangeValue, type PresetKey } from "@/lib/dateRang
 import { RAISED_BY_LABELS } from "@/lib/raisedBy";
 import type { PortalOverview, RequisitionStatus } from "@/types/testing";
 
-const OVERVIEW_PRESETS: Exclude<PresetKey, "custom">[] = ["today", "week", "month", "7d", "30d", "90d", "12m", "all"];
+const OVERVIEW_PRESETS: Exclude<PresetKey, "custom">[] = ["today", "week", "month", "7d", "30d", "90d", "all"];
 
 // Color follows the entity: each status keeps its slot on every chart. Ring
 // order Pending -> In Testing -> Closed -> Retest keeps every adjacent pair
@@ -97,14 +97,15 @@ const OverviewPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  const [range, setRange] = useState<DateRangeValue>(() => presetValue("12m"));
+  const [range, setRange] = useState<DateRangeValue>(() => presetValue("all"));
+  const [mine, setMine] = useState(false);
   const preset = range.preset;
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
     setLoadError("");
-    getOverview({ from: range.from || undefined, to: range.to || undefined })
+    getOverview({ from: range.from || undefined, to: range.to || undefined, mine })
       .then((result) => {
         if (!cancelled) setData(result);
       })
@@ -117,7 +118,7 @@ const OverviewPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [range.from, range.to]);
+  }, [range.from, range.to, mine]);
 
   // Every drill-down carries the dashboard's current window with it.
   const summaryHref = useMemo(
@@ -161,18 +162,16 @@ const OverviewPage = () => {
   const rawFirstName = (user?.name ?? user?.email ?? "there").trim().split(" ")[0];
   const firstName = rawFirstName.charAt(0).toUpperCase() + rawFirstName.slice(1);
 
-  const rangeText =
-    preset === "all" || (!range.from && !range.to)
-      ? "all time"
-      : `${range.from ? formatDate(range.from) : "the beginning"} – ${range.to ? formatDate(range.to) : "today"}`;
+  const pctOfAll = (n: number) => (data.total_requisitions ? `${Math.round((n / data.total_requisitions) * 100)}% of all` : "—");
+  const windowLabel = preset === "all" || (!range.from && !range.to) ? "All time" : "In range";
 
   return (
-    <div className="tw-reset mx-auto flex max-w-[1400px] flex-col gap-5 p-2">
-      {/* Greeting + action on top; the filters that scope every widget below sit in the frosted band. */}
+    <div className="tw-reset mx-auto flex max-w-[1400px] flex-col gap-4 p-2">
+      {/* Compact greeting + action; the scope toggle and date filters that drive every widget sit in the band under it. */}
       <HeroHeader
-        eyebrow={TODAY_LABEL}
+        dense
         title={`${timeOfDayGreeting()}, ${firstName}`}
-        subtitle="Requisitions, reports and deadlines at a glance"
+        subtitle={`${TODAY_LABEL} · requisitions, reports and deadlines at a glance`}
         actions={
           <Link href="/dashboard" className="hero-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -182,12 +181,17 @@ const OverviewPage = () => {
           </Link>
         }
       >
-        <div className="flex flex-wrap items-center gap-3 px-9 py-5">
+        <div className="flex flex-wrap items-center gap-3 px-6 py-3">
+          <div className="range-group" role="group" aria-label="Which requisitions">
+            <button type="button" className="range-pill" aria-pressed={!mine} onClick={() => setMine(false)}>
+              All requisitions
+            </button>
+            <button type="button" className="range-pill" aria-pressed={mine} onClick={() => setMine(true)}>
+              Created by me
+            </button>
+          </div>
           <DateRangeFilter presets={OVERVIEW_PRESETS} value={range} onChange={setRange} />
-          <span className="ml-auto text-xs text-text-muted">
-            Showing {rangeText}
-            {isLoading && " · updating…"}
-          </span>
+          {isLoading && <span className="ml-auto text-xs text-text-muted">updating…</span>}
         </div>
       </HeroHeader>
 
@@ -195,84 +199,73 @@ const OverviewPage = () => {
 
       {/* Refetch keeps the frame: the previous render dims rather than flashing a skeleton. */}
       <div className={`flex flex-col gap-5 transition-opacity ${isLoading ? "pointer-events-none opacity-60" : ""}`}>
-        {/* ---- KPI cards ---- */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
-          <KpiCard
-            icon="📋"
-            label="Requisitions raised"
-            accent="blue"
-            value={data.total_requisitions.toLocaleString()}
-            deltaPct={pctChange(data.total_requisitions, prev?.total_requisitions)}
-            hint={prev ? "vs previous period" : undefined}
-            sparkline={data.monthly_trend.map((m) => m.raised)}
-            href={summaryHref()}
-          />
-          <KpiCard
-            icon="⏳"
-            label="Open now"
-            accent="amber"
-            value={openCount.toLocaleString()}
-            hint={`${byStatus.Pending ?? 0} pending · ${byStatus["In Testing"] ?? 0} testing · ${byStatus["Retest Needed"] ?? 0} retest`}
-            ring={[
-              { label: "Pending", value: byStatus.Pending ?? 0, color: "var(--series-1)" },
-              { label: "In Testing", value: byStatus["In Testing"] ?? 0, color: "var(--series-2)" },
-              { label: "Retest Needed", value: byStatus["Retest Needed"] ?? 0, color: "var(--series-4)" },
+        {/* ---- KPI cards: compact, each a header over a pair of figure tiles ---- */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <KpiGroupCard
+            title="Requisitions & reports"
+            icon="folder"
+            tint="var(--series-1)"
+            tiles={[
+              { label: "Requisitions", value: data.total_requisitions.toLocaleString(), sub: windowLabel, href: summaryHref() },
+              {
+                label: "Reports",
+                value: data.total_reports.toLocaleString(),
+                sub: data.total_reports < data.total_reports_all_time ? `of ${data.total_reports_all_time.toLocaleString()} all time` : windowLabel,
+                href: reportsHref(),
+              },
             ]}
-            href={summaryHref({ scope: "open" })}
           />
-          <KpiCard
-            icon="⚠️"
-            label="Overdue"
-            value={data.overdue_count.toLocaleString()}
-            hint={`${data.due_soon_count} due in 5 days`}
-            ring={[
-              { label: "Overdue", value: data.overdue_count, color: "var(--status-critical)" },
-              { label: "Due in 5 days", value: data.due_soon_count, color: "var(--status-warning)" },
-              { label: "On track", value: Math.max(0, openCount - data.overdue_count - data.due_soon_count), color: "var(--status-good)" },
+          <KpiGroupCard
+            title="Pending"
+            icon="clock"
+            tint="var(--series-4)"
+            tiles={[
+              { label: "Requisitions", value: (byStatus.Pending ?? 0).toLocaleString(), sub: pctOfAll(byStatus.Pending ?? 0), href: summaryHref({ status: "Pending" }) },
+              {
+                label: "Overdue",
+                value: data.overdue_count.toLocaleString(),
+                sub: `${data.due_soon_count} due in 5 days`,
+                tone: data.overdue_count > 0 ? "critical" : undefined,
+                href: summaryHref({ scope: "overdue" }),
+              },
             ]}
-            tone={data.overdue_count > 0 ? "critical" : "neutral"}
-            href={summaryHref({ scope: "overdue" })}
           />
-          <KpiCard
-            icon="📄"
-            label="Reports filed"
-            accent="green"
-            value={data.total_reports.toLocaleString()}
-            deltaPct={pctChange(data.total_reports, prev?.total_reports)}
-            hint={
-              data.total_reports < data.total_reports_all_time
-                ? `of ${data.total_reports_all_time.toLocaleString()} all time`
-                : prev
-                  ? "vs previous period"
-                  : undefined
-            }
-            sparkline={data.monthly_trend.map((m) => m.reports)}
-            href={reportsHref()}
+          <KpiGroupCard
+            title="In progress"
+            icon="activity"
+            tint="var(--series-2)"
+            tiles={[
+              { label: "In testing", value: (byStatus["In Testing"] ?? 0).toLocaleString(), sub: pctOfAll(byStatus["In Testing"] ?? 0), href: summaryHref({ status: "In Testing" }) },
+              { label: "Retest needed", value: (byStatus["Retest Needed"] ?? 0).toLocaleString(), sub: pctOfAll(byStatus["Retest Needed"] ?? 0), href: summaryHref({ status: "Retest Needed" }) },
+            ]}
           />
-          <KpiCard
-            icon="✅"
-            label="Pass rate"
-            accent="green"
-            value={metPct === null ? "—" : `${metPct}%`}
-            hint={judged ? `${data.requirement_met} of ${judged} met` : "No judged reports"}
-            ring={
-              judged
-                ? [
-                    { label: "Met rated target", value: data.requirement_met, color: "var(--status-good)" },
-                    { label: "Missed rated target", value: data.requirement_unmet, color: "var(--status-critical)" },
-                  ]
-                : undefined
-            }
-            href={summaryHref({ status: "Closed" })}
+          <KpiGroupCard
+            title="Completed"
+            icon="check"
+            tint="var(--series-3)"
+            tiles={[
+              { label: "Closed", value: (byStatus.Closed ?? 0).toLocaleString(), sub: pctOfAll(byStatus.Closed ?? 0), href: summaryHref({ status: "Closed" }) },
+              {
+                label: "Pass rate",
+                value: metPct === null ? "—" : `${metPct}%`,
+                sub: judged ? `${data.requirement_met} of ${judged} met` : "No judged reports",
+                href: summaryHref({ status: "Closed" }),
+              },
+            ]}
           />
-          <KpiCard
-            icon="⏱️"
-            label="Avg turnaround"
-            accent="orange"
-            value={data.avg_turnaround_days === null ? "—" : `${data.avg_turnaround_days.toFixed(1)}d`}
-            hint="raised → closed"
-            sparkline={data.monthly_trend.map((m) => m.closed)}
-            href={summaryHref({ status: "Closed" })}
+          <KpiGroupCard
+            title="Open & turnaround"
+            icon="timer"
+            tint="var(--accent)"
+            tiles={[
+              { label: "Open now", value: openCount.toLocaleString(), sub: "pending · testing · retest", href: summaryHref({ scope: "open" }) },
+              {
+                label: "Avg turnaround",
+                value: data.avg_turnaround_days === null ? "—" : `${data.avg_turnaround_days.toFixed(1)}d`,
+                sub: "raised → closed",
+                href: summaryHref({ status: "Closed" }),
+              },
+            ]}
           />
         </div>
 

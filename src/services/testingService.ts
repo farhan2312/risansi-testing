@@ -173,8 +173,8 @@ export const listGroupedPumps = async (page = 1, filters?: PumpIndexFilters): Pr
 /** Portal-wide counts for the landing overview page. Optional from/to
  * ("YYYY-MM-DD") narrows every count to that window -- omit both for the
  * all-time snapshot. */
-export const getOverview = async (range?: { from?: string; to?: string }): Promise<PortalOverview> => {
-  const { data } = await apiClient.get<PortalOverview>("/overview", { params: range });
+export const getOverview = async (range?: { from?: string; to?: string; mine?: boolean }): Promise<PortalOverview> => {
+  const { data } = await apiClient.get<PortalOverview>("/overview", { params: { ...range, mine: range?.mine ? 1 : undefined } });
   return data;
 };
 
@@ -220,6 +220,10 @@ export const updateReport = async (
 ): Promise<PumpTestReport> => {
   const { data } = await apiClient.patch<PumpTestReport>(`/reports/${id}`, input);
   return data;
+};
+
+export const deleteRequisition = async (id: string): Promise<void> => {
+  await apiClient.delete(`/requisitions/${id}`);
 };
 
 export const deleteReport = async (id: string): Promise<void> => {

@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import "./DashboardPage.css";
 import { formatDate, targetDateFor } from "@/lib/formUtils";
-import { getRequisitionFilterOptions, listRequisitions, updateRequisition } from "@/services/testingService";
+import { deleteRequisition, getRequisitionFilterOptions, listRequisitions, updateRequisition } from "@/services/testingService";
+import { canDeleteRequisition } from "@/lib/requisitionPermissions";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useAuth } from "@/contexts/AuthContext";
 import Pagination from "@/components/ui/Pagination";
 import { SkeletonTableRows } from "@/components/ui/Skeleton";
@@ -58,6 +60,11 @@ const DashboardPage = () => {
   const [error, setError] = useState("");
   const { user: loggedInUser } = useAuth();
   const canReassign = loggedInUser?.role === "testing";
+  const canDelete = canDeleteRequisition(loggedInUser?.role);
+  // Admin-only delete: the row awaiting confirmation, and a counter that re-runs the list fetch afterwards.
+  const [deleteTarget, setDeleteTarget] = useState<TestRequisition | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [modelFilter, setModelFilter] = useState(ALL);
   // ecInput is the live textbox value; ecFilter is the debounced value that
@@ -145,6 +152,24 @@ const DashboardPage = () => {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await deleteRequisition(deleteTarget.id);
+      setDeleteTarget(null);
+      // Deleting the last row of a later page would leave it empty -- step back one page.
+      if (requisitions.length === 1 && page > 1) setPage(page - 1);
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      const message = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setDeleteTarget(null);
+      setError(message ?? "Could not delete the requisition. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Debounces the free-text EC/Quotation No. field -- everything else
   // (dropdowns, dates) applies immediately on change, same as before.
   useEffect(() => {
@@ -227,6 +252,7 @@ const DashboardPage = () => {
     dateFrom,
     dateTo,
     reportResultFilter,
+    reloadKey,
   ]);
 
   // Filter-bar dropdown options depend only on the status tab, not the
@@ -424,10 +450,11 @@ const DashboardPage = () => {
               <th>Retest Needed</th>
               <th>Submitted By</th>
               <th>Status</th>
+              {canDelete && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
-            {isLoading && <SkeletonTableRows columns={10} />}
+            {isLoading && <SkeletonTableRows columns={canDelete ? 11 : 10} />}
             {!isLoading && requisitions.map((r) => (
               <tr key={r.id}>
                 <td>
@@ -506,10 +533,39 @@ const DashboardPage = () => {
                     </span>
                   )}
                 </td>
+                {canDelete && (
+                  <td>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(r)}
+                      title={`Delete ${r.requisition_no ?? r.model}`}
+                      aria-label={`Delete ${r.requisition_no ?? r.model}`}
+                      className="inline-flex cursor-pointer appearance-none items-center gap-1.5 whitespace-nowrap rounded-lg border border-neg/30 bg-neg-soft px-2.5 py-1.5 text-xs font-semibold text-neg-strong transition hover:border-neg hover:bg-neg hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neg/40"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6" />
+                      </svg>
+                      Delete
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
+      )}
+
+      {deleteTarget && (
+        <ConfirmModal
+          title="Delete requisition"
+          message={`Are you sure you want to delete requisition ${deleteTarget.requisition_no ?? deleteTarget.model} (${deleteTarget.model}, ${deleteTarget.status})?`}
+          warning="This permanently deletes the requisition and all of its attachments. It cannot be undone. The deletion will be recorded in the audit log under your name."
+          confirmLabel="Delete"
+          danger
+          isConfirming={isDeleting}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
 
       <Pagination page={page} totalPages={totalPages} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />

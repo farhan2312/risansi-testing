@@ -71,6 +71,8 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const from = searchParams.get("from") || undefined;
   const to = searchParams.get("to") || undefined;
+  // "Created by me" toggle: only the requisitions I raised, and the reports on them (or that I prepared).
+  const mine = searchParams.get("mine") === "1";
 
   const reqDateCol = sql`coalesce(${testRequisitions.dateOfRequisition}, ${testRequisitions.createdAt}::date)`;
   const reportDateCol = sql`coalesce(${pumpTestReports.testDate}, ${pumpTestReports.createdAt}::date)`;
@@ -84,9 +86,12 @@ export async function GET(req: Request) {
   // Source teams only ever see the requisitions they raised (same rule as
   // GET /api/requisitions), so every requisition figure here is scoped the
   // same way -- otherwise a card's number wouldn't match the list it opens.
-  const ownOnly = claims.role === "source" ? sql`${testRequisitions.createdBy} = ${claims.sub}` : sql`true`;
+  const ownOnly = claims.role === "source" || mine ? sql`${testRequisitions.createdBy} = ${claims.sub}` : sql`true`;
   const reqDateCondition = sql`${dateRange(reqDateCol, from, to)} and ${ownOnly}`;
-  const reportDateCondition = dateRange(reportDateCol, from, to);
+  const reportScope = mine
+    ? sql`(${pumpTestReports.requisitionId} in (select ${testRequisitions.id} from ${testRequisitions} where ${testRequisitions.createdBy} = ${claims.sub}) or ${pumpTestReports.preparedBy} = (select ${users.name} from ${users} where ${users.id} = ${claims.sub}))`
+    : sql`true`;
+  const reportDateCondition = sql`${dateRange(reportDateCol, from, to)} and ${reportScope}`;
   const openCondition = sql`${testRequisitions.status} in ('Pending', 'In Testing', 'Retest Needed')`;
 
   // ---- Trend window: the filtered range (max 24 months), else last 12 ----
@@ -170,7 +175,7 @@ export async function GET(req: Request) {
     db
       .select({ month: monthOf(reportDateCol), n: sql<number>`count(*)::int` })
       .from(pumpTestReports)
-      .where(dateRange(reportDateCol, trendFrom, trendTo))
+      .where(sql`${dateRange(reportDateCol, trendFrom, trendTo)} and ${reportScope}`)
       .groupBy(monthOf(reportDateCol)),
     db
       .select({ month: monthOf(sql`${testRequisitions.closedAt}::date`), n: sql<number>`count(*)::int` })
@@ -250,7 +255,7 @@ export async function GET(req: Request) {
       .select({ remarks: pumpTestReports.remarks, ecNo: pumpTestReports.ecNo })
       .from(pumpTestReports)
       .where(reportDateCondition),
-    db.select({ n: sql<number>`count(*)::int` }).from(pumpTestReports),
+    db.select({ n: sql<number>`count(*)::int` }).from(pumpTestReports).where(reportScope),
   ]);
 
   // ---- Pass/fail -- same rule as the Testing Summary's Green/Red filter ----
@@ -321,7 +326,7 @@ export async function GET(req: Request) {
     const [prev] = await db
       .select({
         reqs: sql<number>`(select count(*)::int from ${testRequisitions} where ${dateRange(reqDateCol, isoDay(prevFrom), isoDay(prevTo))} and ${ownOnly})`,
-        reps: sql<number>`(select count(*)::int from ${pumpTestReports} where ${dateRange(reportDateCol, isoDay(prevFrom), isoDay(prevTo))})`,
+        reps: sql<number>`(select count(*)::int from ${pumpTestReports} where ${dateRange(reportDateCol, isoDay(prevFrom), isoDay(prevTo))} and ${reportScope})`,
       })
       .from(pumpTestReports)
       .limit(1);
