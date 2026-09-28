@@ -42,14 +42,16 @@ const securityHeaders = [
   { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
 ];
 
+// pdfkit is PINNED to 0.15.2 (see package.json) -- 0.20.x rewrote standard-font loading onto Node's
+// package.json `imports` map (`#standard-fonts/Helvetica` etc.), and neither Next's bundler nor
+// Vercel's function runtime resolves that: it 500'd in production with "Cannot find module
+// '#standard-fonts/Helvetica'" (confirmed via a throwaway smoke-test route hitting prod directly),
+// while working fine locally (`next dev`/`next build && next start` don't hit whatever Vercel-side
+// wrapper breaks that resolution). 0.15.2 predates that rewrite and reads its bundled .afm font
+// metrics off disk at runtime instead (fs.readFileSync) -- bundling it would break that path
+// resolution, so it's kept external here, same reason "pg" is.
 const nextConfig: NextConfig = {
-  // NOTE: pdfkit is deliberately NOT here. It's pure JS with the standard-14 font metrics compiled
-  // into .cjs modules (no runtime fs reads), so Next's own bundler can inline it safely -- and it
-  // must, because pdfkit's package.json leans on Node's `imports` (`#fs`, `#zlib`, `#stream`) map,
-  // which Vercel's separate file-tracing step (used for anything left external) does not resolve:
-  // marking it external 500'd in production (crashed before any bytes were sent) while working fine
-  // in dev, where Next always runs everything through its own bundler regardless of this list.
-  serverExternalPackages: ["pg"],
+  serverExternalPackages: ["pg", "pdfkit"],
   outputFileTracingRoot: import.meta.dirname,
   // Don't advertise the framework in every response.
   poweredByHeader: false,
