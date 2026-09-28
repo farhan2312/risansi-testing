@@ -53,7 +53,20 @@ const VE_ME_ACCEPTANCE: Record<string, { ve: number; me: number }> = {
   H100L6: { ve: 75, me: 50 },
 };
 
-const ACCEPTANCE_BY_KEY = new Map(Object.entries(VE_ME_ACCEPTANCE).map(([model, v]) => [normalizeModelKey(model), v]));
+/** Values the underlying readings can't physically produce -- almost always a unit or typing slip in
+ * a reading (e.g. capacity entered in LPH in the m3/hr field, head 47 for 4.7). ME can't exceed 100%
+ * (output power can't beat input power); VE above 150% is far past any measurement tolerance, while
+ * 100-120% is common in the team's own sheets and left alone. The VE & ME Performance page still
+ * shows suspect values, flagged, but never counts them as a model's best, latest or as meeting
+ * acceptance. */
+export const VE_SUSPECT_ABOVE = 150;
+export const ME_SUSPECT_ABOVE = 100;
+
+/** Every model on the acceptance sheet, as written there -- lets the VE & ME Performance page list a
+ * model that has never been tested instead of leaving it out. */
+export const VE_ME_ACCEPTANCE_MODELS = Object.keys(VE_ME_ACCEPTANCE);
+
+const ACCEPTANCE_BY_KEY =new Map(Object.entries(VE_ME_ACCEPTANCE).map(([model, v]) => [normalizeModelKey(model), v]));
 
 /** This model's VE/ME acceptance criteria, or null if the model isn't in the table (nothing to check
  * against -- not the same as "met"). */

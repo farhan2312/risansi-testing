@@ -3,6 +3,7 @@ import type {
   ActionRegistryEntry,
   ArchiveListResult,
   FlatReportListResult,
+  PerformanceResult,
   ArchiveReportSummary,
   BugReport,
   BugReportSeverity,
@@ -300,5 +301,11 @@ export const submitBugReport = async (input: NewBugReportInput): Promise<BugRepo
   const { data } = await apiClient.post<BugReport>("/bug-reports", form, {
     headers: { "Content-Type": undefined },
   });
+  return data;
+};
+
+/** VE & ME Performance page -- every model, its acceptance criteria and every report in date order. */
+export const getPerformance = async (): Promise<PerformanceResult> => {
+  const { data } = await apiClient.get<PerformanceResult>("/performance");
   return data;
 };

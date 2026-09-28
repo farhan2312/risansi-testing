@@ -2,7 +2,8 @@ import { inArray, sql } from "drizzle-orm";
 
 import { reportToDict } from "@/lib/api";
 import { db } from "@/lib/db";
-import { pumpTestReportPoints, pumpTestReports } from "@/lib/db/schema";
+import { pumpTestReportPoints, pumpTestReports, testRequisitions } from "@/lib/db/schema";
+import { reportCategoryOf } from "@/lib/reportCategory";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 
 type ReportRow = typeof pumpTestReports.$inferSelect;
@@ -37,6 +38,16 @@ export async function enrichReports(reports: ReportRow[]) {
     : [];
   const countByReport = new Map(counts.map((c) => [c.reportId, c.count]));
 
+  // A report filed against a requisition takes that requisition's category (lib/reportCategory.ts).
+  const requisitionIds = [...new Set(reports.map((r) => r.requisitionId).filter((id): id is string => !!id))];
+  const requisitionCategories = requisitionIds.length
+    ? await db
+        .select({ id: testRequisitions.id, category: testRequisitions.category })
+        .from(testRequisitions)
+        .where(inArray(testRequisitions.id, requisitionIds))
+    : [];
+  const categoryByRequisition = new Map(requisitionCategories.map((r) => [r.id, r.category]));
+
   const maxes = reportIds.length
     ? await db
         .select({
@@ -49,6 +60,8 @@ export async function enrichReports(reports: ReportRow[]) {
           heads: sql<(string | null)[]>`array_agg(${pumpTestReportPoints.headKgcm2} order by ${pumpTestReportPoints.headKgcm2} asc nulls last)`,
           capacities: sql<(string | null)[]>`array_agg(${pumpTestReportPoints.capacityCalculatedM3hr} order by ${pumpTestReportPoints.headKgcm2} asc nulls last)`,
           powers: sql<(string | null)[]>`array_agg(${pumpTestReportPoints.powerCalculatedKw} order by ${pumpTestReportPoints.headKgcm2} asc nulls last)`,
+          ves: sql<(string | null)[]>`array_agg(${pumpTestReportPoints.volumetricEfficiency}) filter (where ${pumpTestReportPoints.volumetricEfficiency} is not null)`,
+          mes: sql<(string | null)[]>`array_agg(${pumpTestReportPoints.mechanicalEfficiency}) filter (where ${pumpTestReportPoints.mechanicalEfficiency} is not null)`,
         })
         .from(pumpTestReportPoints)
         .where(inArray(pumpTestReportPoints.reportId, reportIds))
@@ -83,11 +96,19 @@ export async function enrichReports(reports: ReportRow[]) {
       pointCount: countByReport.get(r.id) ?? 0,
       requirement_unmet_fields: unmetRequirementLabels(status),
       has_target: hasTarget,
+      report_category: reportCategoryOf({
+        remarks: r.remarks,
+        ecNo: r.ecNo,
+        requisitionCategory: r.requisitionId ? categoryByRequisition.get(r.requisitionId) : null,
+      }),
       max_ve: max?.maxVe === null || max?.maxVe === undefined ? null : Number(max.maxVe),
       max_me: max?.maxMe === null || max?.maxMe === undefined ? null : Number(max.maxMe),
       points_head_kgcm2: toNumArray(max?.heads),
       points_capacity_m3hr: toNumArray(max?.capacities),
       points_power_kw: toNumArray(max?.powers),
+      // Every point's own VE / ME (only the recorded ones) -- the VE & ME Performance page judges each.
+      points_ve: toNumArray(max?.ves).filter((v): v is number => v !== null),
+      points_me: toNumArray(max?.mes).filter((v): v is number => v !== null),
     };
   });
 }

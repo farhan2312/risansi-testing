@@ -19,6 +19,9 @@ export const REQUISITION_CATEGORIES = [
   "Against Quotation Test",
   "Against R&D Trials",
   "Against EC Based",
+  // Testing done to raise a model's VE/ME -- tracked on the VE & ME Performance page, where each
+  // Improvement Project test is compared with the test before it on the same model.
+  "Against Improvement Project",
 ] as const;
 
 /** Label for the EC/Quotation/Offer No. field, tailored to the requisition category. */
@@ -723,4 +726,75 @@ export interface ActionRegistryEntry {
   assigned_by_name: string | null;
   originally_raised_by: string | null;
   created_at: string;
+}
+
+/** One report on the VE & ME Performance page -- its best physically-possible VE / ME point. */
+export interface PerformanceHistoryEntry {
+  id: string;
+  report_no: string | null;
+  date: string;
+  category: string;
+  is_improvement: boolean;
+  ve: number | null;
+  me: number | null;
+  /** Recorded point values too high to be real (see VE_SUSPECT_ABOVE / ME_SUSPECT_ABOVE) -- shown for correction, never judged. */
+  suspect_ve: number[];
+  suspect_me: number[];
+  /** null = no acceptance criteria for this model, or no value to judge. */
+  ve_meets: boolean | null;
+  me_meets: boolean | null;
+  /** The same model's previous report that had VE/ME data -- what an Improvement Project is judged against. */
+  prev_ve: number | null;
+  prev_me: number | null;
+  /** This report's own rated targets, and the best point it reached against each (Capacity/Head:
+   * floor, has to reach rated; Power: ceiling, has to stay under it -- same rule as the report
+   * detail page's red flags). null meets = no rated value to judge against. */
+  rated_capacity: number | null;
+  rated_head: number | null;
+  rated_power_kw: number | null;
+  max_capacity: number | null;
+  max_head: number | null;
+  max_power: number | null;
+  capacity_meets: boolean | null;
+  head_meets: boolean | null;
+  power_meets: boolean | null;
+}
+
+/** GET /api/performance -- one row per model (every tested model + every model on the acceptance sheet). */
+export interface PerformanceModel {
+  model: string;
+  series: "H" | "2H" | "L" | "L6" | "Other";
+  acceptance: { ve: number; me: number } | null;
+  report_count: number;
+  reports_with_data: number;
+  latest: PerformanceHistoryEntry | null;
+  best_ve: number | null;
+  best_me: number | null;
+  /** Latest minus first report's value; null with fewer than two reports carrying data. */
+  ve_change: number | null;
+  me_change: number | null;
+  reports_meeting_both: number | null;
+  improvement_count: number;
+  suspect_count: number;
+  /** Oldest first. */
+  history: PerformanceHistoryEntry[];
+}
+
+export interface PerformanceImprovement {
+  model: string;
+  acceptance: { ve: number; me: number } | null;
+  id: string;
+  report_no: string | null;
+  date: string;
+  ve: number | null;
+  me: number | null;
+  prev_ve: number | null;
+  prev_me: number | null;
+  ve_meets: boolean | null;
+  me_meets: boolean | null;
+}
+
+export interface PerformanceResult {
+  models: PerformanceModel[];
+  improvements: PerformanceImprovement[];
 }

@@ -5,7 +5,7 @@ import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReports } from "@/lib/db/schema";
 import { modelDisplayLabel, normalizeModelKey } from "@/lib/modelKey";
-import { isReportCategoryKey, reportCategoryOf } from "@/lib/reportCategory";
+import { isReportCategoryKey } from "@/lib/reportCategory";
 import { enrichReports } from "@/lib/reportEnrichment";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +58,6 @@ export async function GET(req: Request) {
   const reportResultParam = searchParams.get("report_result");
   const reportResultFilter = reportResultParam === "green" || reportResultParam === "red" ? reportResultParam : null;
   const enriched = enrichedAll
-    .map((r) => ({ ...r, report_category: reportCategoryOf({ remarks: r.remarks, ecNo: r.ec_no }) }))
     .filter(
       (r) =>
         (!fromDay || reportDay(r) >= fromDay) &&
