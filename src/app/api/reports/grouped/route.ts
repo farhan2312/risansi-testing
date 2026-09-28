@@ -53,13 +53,19 @@ export async function GET(req: Request) {
   // by the Overview's "Reports by category" card and this ?category= filter.
   const categoryParam = searchParams.get("category");
   const categoryFilter = isReportCategoryKey(categoryParam) ? categoryParam : null;
+  // Overview's "Requirement results" Met/Missed links: only reports that actually had a rated target
+  // to judge (has_target), split on whether every judged field was met.
+  const reportResultParam = searchParams.get("report_result");
+  const reportResultFilter = reportResultParam === "green" || reportResultParam === "red" ? reportResultParam : null;
   const enriched = enrichedAll
     .map((r) => ({ ...r, report_category: reportCategoryOf({ remarks: r.remarks, ecNo: r.ec_no }) }))
     .filter(
       (r) =>
         (!fromDay || reportDay(r) >= fromDay) &&
         (!toDay || reportDay(r) <= toDay) &&
-        (!categoryFilter || r.report_category === categoryFilter)
+        (!categoryFilter || r.report_category === categoryFilter) &&
+        (!reportResultFilter ||
+          (r.has_target && (reportResultFilter === "red" ? r.requirement_unmet_fields.length > 0 : r.requirement_unmet_fields.length === 0)))
     );
 
   const groups = new Map<string, typeof enriched>();

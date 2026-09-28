@@ -2,6 +2,7 @@ import apiClient from "./apiClient";
 import type {
   ActionRegistryEntry,
   ArchiveListResult,
+  FlatReportListResult,
   ArchiveReportSummary,
   BugReport,
   BugReportSeverity,
@@ -195,7 +196,7 @@ export const listReports = async (model?: string): Promise<ArchiveReportSummary[
 export const listGroupedReports = async (
   page = 1,
   search?: string,
-  range?: { from?: string; to?: string; category?: string }
+  range?: { from?: string; to?: string; category?: string; report_result?: "green" | "red" }
 ): Promise<ArchiveListResult> => {
   const { data } = await apiClient.get<ArchiveListResult>("/reports/grouped", {
     params: {
@@ -204,6 +205,25 @@ export const listGroupedReports = async (
       ...(range?.from ? { from: range.from } : {}),
       ...(range?.to ? { to: range.to } : {}),
       ...(range?.category ? { category: range.category } : {}),
+      ...(range?.report_result ? { report_result: range.report_result } : {}),
+    },
+  });
+  return data;
+};
+
+/** Flat, report-level pagination (50/page) -- unlike listGroupedReports (paginated by pump), used
+ * wherever the point is a straight list of individual reports, e.g. the Overview's Met/Missed drill-down. */
+export const listReportsFlat = async (
+  page = 1,
+  range?: { from?: string; to?: string; category?: string; report_result?: "green" | "red" }
+): Promise<FlatReportListResult> => {
+  const { data } = await apiClient.get<FlatReportListResult>("/reports/list", {
+    params: {
+      page,
+      ...(range?.from ? { from: range.from } : {}),
+      ...(range?.to ? { to: range.to } : {}),
+      ...(range?.category ? { category: range.category } : {}),
+      ...(range?.report_result ? { report_result: range.report_result } : {}),
     },
   });
   return data;

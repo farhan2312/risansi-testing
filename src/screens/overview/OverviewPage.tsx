@@ -163,7 +163,18 @@ const OverviewPage = () => {
   const firstName = rawFirstName.charAt(0).toUpperCase() + rawFirstName.slice(1);
 
   const pctOfAll = (n: number) => (data.total_requisitions ? `${Math.round((n / data.total_requisitions) * 100)}% of all` : "—");
-  const windowLabel = preset === "all" || (!range.from && !range.to) ? "All time" : "In range";
+
+  // Footer row for the "Requisitions by category" table -- same total/completed/pending identity as each row.
+  const categoryTotals = data.requisitions_by_category_status.reduce(
+    (sum, c) => ({
+      requisitions: sum.requisitions + c.requisitions,
+      reports: sum.reports + c.reports,
+      total: sum.total + c.total,
+      completed: sum.completed + c.completed,
+      pending: sum.pending + c.pending,
+    }),
+    { requisitions: 0, reports: 0, total: 0, completed: 0, pending: 0 }
+  );
 
   return (
     <div className="tw-reset mx-auto flex max-w-[1400px] flex-col gap-4 p-2">
@@ -202,16 +213,22 @@ const OverviewPage = () => {
         {/* ---- KPI cards: compact, each a header over a pair of figure tiles ---- */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <KpiGroupCard
-            title="Requisitions & reports"
+            title="Totals"
             icon="folder"
             tint="var(--series-1)"
             tiles={[
-              { label: "Requisitions", value: data.total_requisitions.toLocaleString(), sub: windowLabel, href: summaryHref() },
               {
-                label: "Reports",
-                value: data.total_reports.toLocaleString(),
-                sub: data.total_reports < data.total_reports_all_time ? `of ${data.total_reports_all_time.toLocaleString()} all time` : windowLabel,
-                href: reportsHref(),
+                // Everything on record: requisitions raised plus test reports filed.
+                label: "Total reports",
+                value: (data.total_requisitions + data.total_reports).toLocaleString(),
+                sub: `${data.total_requisitions.toLocaleString()} requisitions + ${data.total_reports.toLocaleString()} reports`,
+              },
+              {
+                // Pendency = requisitions still waiting to start (status Pending) -- not In Testing or Retest.
+                label: "Total pendency",
+                value: (byStatus.Pending ?? 0).toLocaleString(),
+                sub: "requisitions pending",
+                href: summaryHref({ status: "Pending" }),
               },
             ]}
           />
@@ -244,12 +261,18 @@ const OverviewPage = () => {
             icon="check"
             tint="var(--series-3)"
             tiles={[
-              { label: "Closed", value: (byStatus.Closed ?? 0).toLocaleString(), sub: pctOfAll(byStatus.Closed ?? 0), href: summaryHref({ status: "Closed" }) },
+              {
+                // Closed requisitions + every report -- a filed report is finished testing on its own,
+                // same "completed" rule as the Requisitions by category table below.
+                label: "Completed",
+                value: ((byStatus.Closed ?? 0) + data.total_reports).toLocaleString(),
+                sub: `${(byStatus.Closed ?? 0).toLocaleString()} requisitions + ${data.total_reports.toLocaleString()} reports`,
+              },
               {
                 label: "Pass rate",
                 value: metPct === null ? "—" : `${metPct}%`,
-                sub: judged ? `${data.requirement_met} of ${judged} met` : "No judged reports",
-                href: summaryHref({ status: "Closed" }),
+                sub: judged ? `${data.requirement_met} of ${judged} judged reports met` : "No judged reports",
+                href: reportsHref(),
               },
             ]}
           />
@@ -325,9 +348,9 @@ const OverviewPage = () => {
         <div className="-mb-5 columns-1 gap-5 lg:columns-2 xl:columns-3 *:mb-5 *:break-inside-avoid">
           <ChartCard
             title="Requirement results"
-            subtitle="Closed requisitions with a rated target"
-            href={summaryHref({ status: "Closed" })}
-            hrefLabel="Closed"
+            subtitle="Every report with a rated target to check against"
+            href={reportsHref()}
+            hrefLabel="Archive"
             table={{
               columns: ["Result", "Reports"],
               rows: [
@@ -350,16 +373,16 @@ const OverviewPage = () => {
                   </div>
                   <div className="mt-2 flex justify-between text-xs">
                     <Link
-                      href={summaryHref({ status: "Closed", report_result: "green" })}
+                      href={reportsHref({ report_result: "green" })}
                       className="font-semibold text-pos-strong hover:underline"
-                      title="Open the Met requisitions"
+                      title="Open the reports that met their rated target"
                     >
                       ✓ Met {data.requirement_met}
                     </Link>
                     <Link
-                      href={summaryHref({ status: "Closed", report_result: "red" })}
+                      href={reportsHref({ report_result: "red" })}
                       className="font-semibold text-neg-strong hover:underline"
-                      title="Open the Missed requisitions"
+                      title="Open the reports that missed their rated target"
                     >
                       ✕ Missed {data.requirement_unmet}
                     </Link>
@@ -377,21 +400,6 @@ const OverviewPage = () => {
                 </div>
               </div>
             )}
-          </ChartCard>
-
-          <ChartCard
-            title="Requisitions by category"
-            subtitle="Requisitions raised per category · click a bar to open them"
-            table={{ columns: ["Category", "Requisitions"], rows: data.by_category.map((c) => [c.label, c.count]) }}
-          >
-            <BarList
-              items={data.by_category.map((c) => ({
-                key: c.label,
-                label: c.label.replace(/^Against\s+/i, ""),
-                value: c.count,
-                href: summaryHref({ category: c.label === "Uncategorised" ? "none" : c.label }),
-              }))}
-            />
           </ChartCard>
 
           <ChartCard
@@ -499,6 +507,92 @@ const OverviewPage = () => {
         </div>
 
         {/* ---- Wide cards run the full width ---- */}
+        <ChartCard
+          title="Requisitions by category"
+          subtitle="Requisitions raised + reports filed, vs. how much of that is done"
+          table={{
+            columns: ["Category", "Requisitions", "Reports", "Total", "Completed", "Pending"],
+            rows: [
+              ...data.requisitions_by_category_status.map((c) => [c.label, c.requisitions, c.reports, c.total, c.completed, c.pending]),
+              [
+                "Total",
+                categoryTotals.requisitions,
+                categoryTotals.reports,
+                categoryTotals.total,
+                categoryTotals.completed,
+                categoryTotals.pending,
+              ],
+            ],
+          }}
+        >
+          {data.requisitions_by_category_status.length === 0 ? (
+            <p className="py-6 text-center text-sm text-text-muted">No requisitions or reports in this range.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wide text-text-muted">
+                    <th className="pb-2 font-semibold">Category</th>
+                    <th className="pb-2 text-right font-semibold">Total</th>
+                    <th className="pb-2 text-right font-semibold">Completed</th>
+                    <th className="pb-2 text-right font-semibold">Pending</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.requisitions_by_category_status.map((c) => (
+                    <tr key={c.label} className="border-t border-border transition-colors hover:bg-surface-hover">
+                      <td className="py-2.5 pr-3 font-medium text-text">{c.label}</td>
+                      <td
+                        className="py-2.5 pr-3 text-right text-text"
+                        style={{ fontVariantNumeric: "tabular-nums" }}
+                        title={`${c.requisitions} requisition${c.requisitions === 1 ? "" : "s"} + ${c.reports} report${c.reports === 1 ? "" : "s"}`}
+                      >
+                        {c.total}
+                      </td>
+                      <td
+                        className="py-2.5 pr-3 text-right"
+                        style={{ fontVariantNumeric: "tabular-nums" }}
+                        title="Closed requisitions + every report (a filed report is finished testing)"
+                      >
+                        <span className="inline-flex rounded-md bg-pos-soft px-2 py-0.5 font-semibold text-pos-strong">{c.completed}</span>
+                      </td>
+                      <td className="py-2.5 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>
+                        <Link
+                          href={summaryHref({ category: c.label === "Uncategorised" ? "none" : c.label, scope: "open" })}
+                          className={`inline-flex rounded-md px-2 py-0.5 font-semibold hover:underline ${c.pending > 0 ? "bg-neg-soft text-neg-strong" : "bg-bg-sunk text-text-muted"}`}
+                          title="Requisitions raised in this category that aren't Closed yet"
+                        >
+                          {c.pending}
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border-strong font-semibold">
+                    <td className="py-2.5 pr-3 text-text-h">Total</td>
+                    <td
+                      className="py-2.5 pr-3 text-right text-text-h"
+                      style={{ fontVariantNumeric: "tabular-nums" }}
+                      title={`${categoryTotals.requisitions} requisitions + ${categoryTotals.reports} reports`}
+                    >
+                      {categoryTotals.total}
+                    </td>
+                    <td className="py-2.5 pr-3 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>
+                      <span className="inline-flex rounded-md bg-pos-soft px-2 py-0.5 text-pos-strong">{categoryTotals.completed}</span>
+                    </td>
+                    <td className="py-2.5 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>
+                      <span className={`inline-flex rounded-md px-2 py-0.5 ${categoryTotals.pending > 0 ? "bg-neg-soft text-neg-strong" : "bg-bg-sunk text-text-muted"}`}>
+                        {categoryTotals.pending}
+                      </span>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </ChartCard>
+
         <ChartCard
           title={`Category × ${per}`}
           subtitle="Where requisitions came from over time · click a cell to open it"

@@ -5,7 +5,8 @@ import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
 import { RAISED_BY_GROUPS, RAISED_BY_LABELS, raisedByGroup } from "@/lib/raisedBy";
-import { REPORT_CATEGORY_ORDER, reportCategoryLabel, reportCategoryOf } from "@/lib/reportCategory";
+import { REPORT_CATEGORY_NONE, REPORT_CATEGORY_ORDER, reportCategoryLabel, reportCategoryOf } from "@/lib/reportCategory";
+import { REQUISITION_CATEGORIES } from "@/types/testing";
 import { enrichReports } from "@/lib/reportEnrichment";
 import { computeRequirementStatus } from "@/lib/requirementCheck";
 
@@ -183,10 +184,10 @@ export async function GET(req: Request) {
       .where(sql`${testRequisitions.closedAt} is not null and ${ownOnly} and ${dateRange(sql`${testRequisitions.closedAt}::date`, trendFrom, trendTo)}`)
       .groupBy(monthOf(sql`${testRequisitions.closedAt}::date`)),
     db
-      .select({ category: testRequisitions.category, n: sql<number>`count(*)::int` })
+      .select({ category: testRequisitions.category, status: testRequisitions.status, n: sql<number>`count(*)::int` })
       .from(testRequisitions)
       .where(reqDateCondition)
-      .groupBy(testRequisitions.category),
+      .groupBy(testRequisitions.category, testRequisitions.status),
     db
       .select({ team: testRequisitions.sourceTeam, n: sql<number>`count(*)::int` })
       .from(testRequisitions)
@@ -258,19 +259,22 @@ export async function GET(req: Request) {
     db.select({ n: sql<number>`count(*)::int` }).from(pumpTestReports).where(reportScope),
   ]);
 
-  // ---- Pass/fail -- same rule as the Testing Summary's Green/Red filter ----
-  const closedWithReport = await db
+  // ---- Pass/fail -- same rule as the Testing Summary's Green/Red filter, run over EVERY report in
+  // range, not just ones tied to a requisition that reached Closed. Most reports (the bulk-imported
+  // historical ones) have no linked requisition at all, so scoping this to "Closed and joined" left
+  // Pass Rate judged against a handful of requisitions while the report archive held hundreds --
+  // computeRequirementStatus only needs the report's own rated fields + points, never the requisition. ----
+  const reportsForJudging = await db
     .select({
       ratedHead: pumpTestReports.ratedHead,
       ratedCapacity: pumpTestReports.ratedCapacity,
       ratedPowerKw: pumpTestReports.ratedPowerKw,
       reportId: pumpTestReports.id,
     })
-    .from(testRequisitions)
-    .innerJoin(pumpTestReports, sql`${pumpTestReports.requisitionId} = ${testRequisitions.id}`)
-    .where(sql`${testRequisitions.status} = 'Closed' and ${reqDateCondition}`);
+    .from(pumpTestReports)
+    .where(reportDateCondition);
 
-  const reportIds = closedWithReport.map((r) => r.reportId);
+  const reportIds = reportsForJudging.map((r) => r.reportId);
   const maxes = reportIds.length
     ? await db
         .select({
@@ -288,7 +292,7 @@ export async function GET(req: Request) {
   let requirementMet = 0;
   let requirementUnmet = 0;
   const unmetByParameter = { head: 0, capacity: 0, power: 0 };
-  for (const r of closedWithReport) {
+  for (const r of reportsForJudging) {
     const max = maxByReport.get(r.reportId);
     const status = computeRequirementStatus(
       {
@@ -347,6 +351,39 @@ export async function GET(req: Request) {
     count: reportCategoryCounts.get(key) ?? 0,
   }));
 
+  // Requisitions AND reports by category, for the Dashboard's "Requisitions by category" table.
+  // Total = requisitions raised + reports filed in that category (same "everything on record" rule
+  // as the Totals card). Completed = Closed requisitions + every report (a filed report is, by
+  // definition, finished testing -- reports carry no status of their own to be "pending" in).
+  // Pending = requisitions not yet Closed; a report is never counted as pending. That keeps
+  // Total = Completed + Pending exactly, the same identity the Totals card uses.
+  const categoryStatusTotals = new Map<string, { reqTotal: number; reqCompleted: number }>();
+  for (const row of byCategory) {
+    const key = row.category ?? "Uncategorised";
+    const entry = categoryStatusTotals.get(key) ?? { reqTotal: 0, reqCompleted: 0 };
+    entry.reqTotal += toNum(row.n);
+    if (row.status === "Closed") entry.reqCompleted += toNum(row.n);
+    categoryStatusTotals.set(key, entry);
+  }
+  // Requisitions use `null` -> "Uncategorised"; reports use reportCategoryOf's REPORT_CATEGORY_NONE
+  // ("none", labelled "Not stated on the report") -- folded into the same "Uncategorised" row here.
+  const reportCountFor = (key: string) => reportCategoryCounts.get(key) ?? 0;
+  // Fixed category order (matches the intake form), "Uncategorised" last, empty categories omitted.
+  const requisitionsByCategoryStatus = [...REQUISITION_CATEGORIES, "Uncategorised"]
+    .filter((key) => categoryStatusTotals.has(key) || reportCountFor(key === "Uncategorised" ? REPORT_CATEGORY_NONE : key) > 0)
+    .map((key) => {
+      const { reqTotal, reqCompleted } = categoryStatusTotals.get(key) ?? { reqTotal: 0, reqCompleted: 0 };
+      const reports = reportCountFor(key === "Uncategorised" ? REPORT_CATEGORY_NONE : key);
+      return {
+        label: key,
+        total: reqTotal + reports,
+        completed: reqCompleted + reports,
+        pending: reqTotal - reqCompleted,
+        requisitions: reqTotal,
+        reports,
+      };
+    });
+
   const raiserCounts = new Map(RAISED_BY_GROUPS.map((g) => [g, 0]));
   for (const r of raiserRows) {
     const group = raisedByGroup(r.role);
@@ -392,9 +429,10 @@ export async function GET(req: Request) {
     previous_period: previous,
     trend_granularity: daily ? "day" : "month",
     monthly_trend: months.map((m) => ({ month: m, raised: raised(m), reports: filed(m), closed: closed(m) })),
-    by_category: byCategory
-      .map((r) => ({ label: r.category ?? "Uncategorised", count: toNum(r.n) }))
+    by_category: [...categoryStatusTotals.entries()]
+      .map(([label, { reqTotal }]) => ({ label, count: reqTotal }))
       .sort((a, b) => b.count - a.count),
+    requisitions_by_category_status: requisitionsByCategoryStatus,
     total_reports_all_time: toNum(allTimeReports?.n),
     reports_by_category: reportsByCategory,
     by_raiser: RAISED_BY_GROUPS.map((group) => ({ group, label: RAISED_BY_LABELS[group], count: raiserCounts.get(group) ?? 0 })),

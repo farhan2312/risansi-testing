@@ -9,6 +9,7 @@ import "./NewRequisitionPage.css";
 import { normalizeModelOnChange, formatNumber } from "@/lib/formUtils";
 import { capacityToM3hr, headToKgcm2 } from "@/lib/unitConversion";
 import { ratedPowerKwFromRequisition } from "@/lib/requirementCheck";
+import { autoResponsiblePerson } from "@/lib/requisitionAssignment";
 import AttachmentsField from "@/components/ui/AttachmentsField";
 import { createRequisition, listPumpModels, uploadAttachment } from "@/services/testingService";
 import { SkeletonPage } from "@/components/ui/Skeleton";
@@ -20,7 +21,6 @@ import {
   HEAD_UNITS,
   MOTOR_RPM_OPTIONS,
   REQUISITION_CATEGORIES,
-  RESPONSIBLE_PERSONS,
   SOURCE_TEAMS,
 } from "@/types/testing";
 
@@ -74,10 +74,13 @@ const NewRequisitionPage = () => {
     defaultValues: {
       category: REQUISITION_CATEGORIES[0],
       source_team: SOURCE_TEAMS[0],
-      responsible_person: RESPONSIBLE_PERSONS[0],
+      responsible_person: autoResponsiblePerson(REQUISITION_CATEGORIES[0]),
     },
   });
   const category = watch("category");
+  useEffect(() => {
+    setValue("responsible_person", autoResponsiblePerson(category));
+  }, [category, setValue]);
   const modelReg = register("model");
   const headValue = watch("head_kgcm2");
   const headUnit = watch("head_unit");
@@ -221,17 +224,11 @@ const NewRequisitionPage = () => {
           </div>
 
           <div className="field">
-            <label htmlFor="responsible_person">Responsible Person (RES.) *</label>
-            <select id="responsible_person" {...register("responsible_person")}>
-              {RESPONSIBLE_PERSONS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-            {errors.responsible_person && (
-              <span className="field-error">{errors.responsible_person.message}</span>
-            )}
+            <label htmlFor="responsible_person">Responsible Person (RES.)</label>
+            {/* Set by category (EC-based -> Vikash, else Sachin), not picked by hand -- the server enforces the same rule. */}
+            <input id="responsible_person" value={autoResponsiblePerson(category)} readOnly aria-readonly="true" />
+            <input type="hidden" {...register("responsible_person")} />
+            <span className="unit-hint">Assigned automatically from the category.</span>
           </div>
 
           <div className="field">

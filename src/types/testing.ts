@@ -386,6 +386,10 @@ export interface ArchiveListResult extends PaginatedResult<ArchivePumpGroup> {
   total_reports: number;
 }
 
+/** GET /api/reports/list -- flat, report-level pagination (50/page), unlike /reports/grouped's
+ * per-pump pagination. Used for the Overview's Met/Missed drill-down. */
+export type FlatReportListResult = PaginatedResult<ArchiveReportSummary>;
+
 /** One row of GET /api/pumps's paginated (50/page) response -- Report
  * Compilation, same as Report Archive, paginates pump groups rather than
  * raw rows. Carries its own full (unfiltered) reports/requisitions so the
@@ -461,6 +465,19 @@ export interface PortalOverview {
   trend_granularity: "day" | "month";
   monthly_trend: { month: string; raised: number; reports: number; closed: number }[];
   by_category: { label: string; count: number }[];
+  /** Requisitions AND reports by category, for the Dashboard's "Requisitions by category" table.
+   * total = requisitions + reports; completed = Closed requisitions + every report (a report is
+   * always "done"); pending = requisitions not yet Closed (reports are never pending). `requisitions`
+   * / `reports` are the raw counts behind `total`, for a breakdown tooltip. Fixed category order,
+   * "Uncategorised" last, empty categories omitted. */
+  requisitions_by_category_status: {
+    label: string;
+    total: number;
+    completed: number;
+    pending: number;
+    requisitions: number;
+    reports: number;
+  }[];
   by_source_team: { label: string; count: number }[];
   /** Every report in the portal, regardless of the date range. */
   total_reports_all_time: number;

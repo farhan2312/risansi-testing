@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "@/lib/db/schema";
 import { offsetFor, PAGE_SIZE, parsePage } from "@/lib/pagination";
 import { isRaisedByGroup, raisedByGroup } from "@/lib/raisedBy";
+import { autoResponsiblePerson } from "@/lib/requisitionAssignment";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
 
 export const dynamic = "force-dynamic";
@@ -304,6 +305,10 @@ export async function POST(req: Request) {
       values[camelKey] = body[snakeKey];
     }
   }
+
+  // Assignment follows the category (EC-based -> Vikash, everything else -> Sachin), never the
+  // request body -- see lib/requisitionAssignment.ts.
+  values.responsiblePerson = autoResponsiblePerson(values.category as string | undefined);
 
   // "Submitted By" is always the logged-in creator, resolved server-side —
   // never trusted from the request body.

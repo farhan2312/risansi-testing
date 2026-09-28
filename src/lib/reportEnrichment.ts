@@ -74,10 +74,15 @@ export async function enrichReports(reports: ReportRow[]) {
           ]
         : []
     );
+    // Whether this report has anything to judge at all -- a rated field with at least one matching
+    // measured point. A report with no rated targets is neither "met" nor "missed"; without this,
+    // an empty requirement_unmet_fields (met) and "nothing to judge" would look identical.
+    const hasTarget = [status.head, status.capacity, status.power].some((v) => v !== null);
     return {
       ...reportToDict(r),
       pointCount: countByReport.get(r.id) ?? 0,
       requirement_unmet_fields: unmetRequirementLabels(status),
+      has_target: hasTarget,
       max_ve: max?.maxVe === null || max?.maxVe === undefined ? null : Number(max.maxVe),
       max_me: max?.maxMe === null || max?.maxMe === undefined ? null : Number(max.maxMe),
       points_head_kgcm2: toNumArray(max?.heads),
