@@ -127,18 +127,25 @@ export async function GET(req: Request) {
     rowIndex++;
   }
 
-  // Page numbers, now that the total page count is known.
+  // Page numbers, now that the total page count is known. The footer sits in the bottom margin (below
+  // the last content row) -- pdfkit's text() silently inserts a whole extra blank page whenever it thinks
+  // a write doesn't fit above doc.page.margins.bottom, which it does here on every single page, doubling
+  // the page count. Zeroing the bottom margin for just this write is the standard workaround.
   const pageCount = doc.bufferedPageRange().count;
   for (let i = 0; i < pageCount; i++) {
     doc.switchToPage(i);
+    const bottomMargin = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
     doc
       .font("Helvetica")
       .fontSize(8)
       .fillColor("#94a3b8")
-      .text(`Page ${i + 1} of ${pageCount}`, tableLeft, doc.page.height - doc.page.margins.bottom + 8, {
+      .text(`Page ${i + 1} of ${pageCount}`, tableLeft, doc.page.height - bottomMargin + 8, {
         width: tableWidth,
         align: "right",
+        lineBreak: false,
       });
+    doc.page.margins.bottom = bottomMargin;
   }
 
   doc.end();
