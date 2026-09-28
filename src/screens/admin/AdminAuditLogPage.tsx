@@ -53,7 +53,7 @@ const AdminAuditLogPage = () => {
         title="Audit Log"
         subtitle="Full activity trail · who signed in, from where, and everything they did"
         actions={
-          <a href={exportHref} download className="hero-btn" title={`Download ${rangeText} as CSV`}>
+          <a href={exportHref} download className="hero-btn" title={`Download ${rangeText} as PDF`}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
             </svg>

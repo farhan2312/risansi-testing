@@ -43,7 +43,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pg"],
+  // pdfkit reads its bundled .afm font metrics off disk at runtime (fs.readFileSync) -- bundling it
+  // would break that path resolution, same reason "pg" is kept external here.
+  serverExternalPackages: ["pg", "pdfkit"],
   outputFileTracingRoot: import.meta.dirname,
   // Don't advertise the framework in every response.
   poweredByHeader: false,
