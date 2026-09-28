@@ -43,9 +43,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // pdfkit reads its bundled .afm font metrics off disk at runtime (fs.readFileSync) -- bundling it
-  // would break that path resolution, same reason "pg" is kept external here.
-  serverExternalPackages: ["pg", "pdfkit"],
+  // NOTE: pdfkit is deliberately NOT here. It's pure JS with the standard-14 font metrics compiled
+  // into .cjs modules (no runtime fs reads), so Next's own bundler can inline it safely -- and it
+  // must, because pdfkit's package.json leans on Node's `imports` (`#fs`, `#zlib`, `#stream`) map,
+  // which Vercel's separate file-tracing step (used for anything left external) does not resolve:
+  // marking it external 500'd in production (crashed before any bytes were sent) while working fine
+  // in dev, where Next always runs everything through its own bundler regardless of this list.
+  serverExternalPackages: ["pg"],
   outputFileTracingRoot: import.meta.dirname,
   // Don't advertise the framework in every response.
   poweredByHeader: false,
