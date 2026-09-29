@@ -25,6 +25,7 @@ const NAV_ITEMS: { href: string; label: string; hideFor?: string[] }[] = [
   { href: "/pumps", label: "Report Compilation" },
   { href: "/reports", label: "Report Archive" },
   { href: "/performance", label: "VE & ME Performance" },
+  { href: "/calendar", label: "Testing Calendar" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -56,6 +57,7 @@ const pageTrail = (pathname: string): Crumb[] => {
   }
   if (pathname === "/reports") return [{ label: "Report Archive" }];
   if (pathname === "/performance") return [{ label: "VE & ME Performance" }];
+  if (pathname === "/calendar") return [{ label: "Testing Calendar" }];
   if (pathname === "/reports/new/observation") {
     return [{ label: "Report Archive", href: "/reports" }, { label: "New Observation Sheet" }];
   }

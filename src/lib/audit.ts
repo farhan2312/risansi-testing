@@ -9,7 +9,7 @@ import { db } from "./db";
 import { auditLogs } from "./db/schema";
 
 export type AuditEventType = "login" | "login_failed" | "logout" | "create" | "update" | "delete";
-export type AuditEntityType = "requisition" | "report" | "attachment" | "user" | "bug_report";
+export type AuditEntityType = "requisition" | "report" | "attachment" | "user" | "bug_report" | "calendar_event";
 
 export interface AuditParams {
   userId?: string | null;

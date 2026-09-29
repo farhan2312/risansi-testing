@@ -798,3 +798,29 @@ export interface PerformanceResult {
   models: PerformanceModel[];
   improvements: PerformanceImprovement[];
 }
+
+/** One event on the Testing Calendar. Everyone signed in can see it; only the Testing role can
+ * create/update/delete (enforced server-side, /api/calendar-events). */
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  /** The pump model this event is about, if any -- not every event is (a team meeting isn't). */
+  model: string | null;
+  event_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_by_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NewCalendarEventInput {
+  title: string;
+  event_date: string;
+  model?: string;
+  start_time?: string;
+  end_time?: string;
+  notes?: string;
+}

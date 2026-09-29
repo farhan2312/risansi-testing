@@ -378,3 +378,29 @@ export const actionRegistry = pgTable("action_registry", {
   originallyRaisedBy: varchar("originally_raised_by", { length: 100 }),
   createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
 });
+
+// Testing Calendar (sidebar "Testing Calendar"): pump-testing-related events on a date, e.g. a
+// scheduled test, equipment calibration, a team meeting -- not tied to any requisition/report.
+// Everyone signed in can see it; only the Testing role can create/update/delete an event (enforced in
+// the API routes, same "Only the testing team can ___" rule the report-delete route already uses).
+// createdBy is a REAL FK (unlike test_requisitions.createdBy, which schema.ts doesn't model) since
+// this table is new and entirely this app's own -- ON DELETE SET NULL so removing a user's account
+// never blocks or cascades into deleting their calendar events; createdByName is a name snapshot,
+// same convention as test_requisitions.submitted_by, so the event stays attributable either way.
+export const calendarEvents = pgTable("calendar_events", {
+  id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  title: varchar("title", { length: 200 }).notNull(),
+  // The pump model this event is about, if any -- free text (same quick-pick list as a requisition's
+  // Model field), not required (a team meeting or calibration isn't about one model).
+  model: varchar("model", { length: 100 }),
+  eventDate: date("event_date").notNull(),
+  // Free text like "10:00 AM", same convention as pump_test_reports.pump_started_at -- both optional,
+  // an all-day event has neither.
+  startTime: varchar("start_time", { length: 20 }),
+  endTime: varchar("end_time", { length: 20 }),
+  notes: text("notes"),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdByName: varchar("created_by_name", { length: 100 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).$defaultFn(() => new Date()),
+});
