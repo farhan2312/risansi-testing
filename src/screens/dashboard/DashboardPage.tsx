@@ -464,7 +464,8 @@ const DashboardPage = () => {
       {!isLoading && requisitions.length === 0 ? (
         <p className="dashboard-empty">{emptyMessage}</p>
       ) : (
-        <table className="requisition-table">
+        <div className="requisition-table-wrap">
+        <table className="requisition-table requisition-table--summary">
           <thead>
             <tr>
               <th>Model</th>
@@ -477,7 +478,7 @@ const DashboardPage = () => {
               <th>Retest Needed</th>
               <th>Submitted By</th>
               <th>Status</th>
-              {canDelete && <th>Actions</th>}
+              {canDelete && <th className="col-sticky-end">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -561,7 +562,7 @@ const DashboardPage = () => {
                   )}
                 </td>
                 {canDelete && (
-                  <td>
+                  <td className="col-sticky-end">
                     <button
                       type="button"
                       onClick={() => setDeleteTarget(r)}
@@ -587,6 +588,7 @@ const DashboardPage = () => {
             )}
           </tbody>
         </table>
+        </div>
       )}
 
       {deleteTarget && (

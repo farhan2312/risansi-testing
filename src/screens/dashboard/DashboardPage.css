@@ -181,6 +181,16 @@
   color: var(--text-muted);
 }
 
+/* The table is wider than most screens: it scrolls sideways inside this wrapper (the page itself never
+ * does -- .testing-main clips x-overflow), so no column is ever cut off at the right edge. */
+.requisition-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
 .requisition-table {
   width: 100%;
   border-collapse: collapse;
@@ -190,10 +200,39 @@
   box-shadow: var(--shadow);
 }
 
+/* Testing Summary only: the scroll wrapper supplies the card look, and the table itself must not clip
+ * (overflow: hidden on it would stop the pinned Actions column from sticking). */
+.testing-layout .testing-main .requisition-table.requisition-table--summary {
+  min-width: 1080px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Dates, retest and status stay on one line; long text columns (category, EC no.) wrap. */
+.requisition-table--summary td:nth-child(6),
+.requisition-table--summary td:nth-child(7),
+.requisition-table--summary td:nth-child(8),
+.requisition-table--summary td:nth-child(10) {
+  white-space: nowrap;
+}
+
+/* The Actions column stays pinned to the right edge while the rest scrolls beneath it. */
+.requisition-table .col-sticky-end {
+  position: sticky;
+  right: 0;
+  background: var(--surface);
+  box-shadow: -6px 0 8px -6px rgba(0, 0, 0, 0.12);
+}
+.requisition-table th.col-sticky-end {
+  background: var(--bg-sunk);
+}
+
 .requisition-table th,
 .requisition-table td {
   text-align: left;
-  padding: 10px 14px;
+  padding: 10px 12px;
   font-size: 13px;
   border-bottom: 1px solid var(--border-soft);
 }
