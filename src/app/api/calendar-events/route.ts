@@ -11,14 +11,18 @@ export const dynamic = "force-dynamic";
 const dayParam = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
 
 /** Testing Calendar: pump-testing-related events (a scheduled test, calibration, a team meeting),
- * not tied to any requisition/report. Everyone signed in can see it; only the Testing role can
- * create one (see PATCH/DELETE on /api/calendar-events/[id] for the same rule on edit/delete). */
+ * not tied to any requisition/report. Testing-role only -- both to see it and to create/update/delete
+ * (see PATCH/DELETE on /api/calendar-events/[id] for the same rule on edit/delete). */
 export async function GET(req: Request) {
+  let claims;
   try {
-    await decodeToken(req);
+    claims = await decodeToken(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
+  }
+  if (claims.role !== "testing") {
+    return error("Only the testing team can view the calendar.", 403);
   }
 
   const { searchParams } = new URL(req.url);

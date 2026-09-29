@@ -30,7 +30,11 @@ const formatTimeRange = (e: CalendarEvent) => {
 
 const CalendarPage = () => {
   const { user } = useAuth();
-  const canManage = user?.role === "testing";
+  // Testing-only, both to view and to manage -- the nav link is already hidden for every other role
+  // (DashboardLayout's hideFor), and the API itself refuses a non-testing GET, so this is the same
+  // rule enforced a third time for anyone who still lands here directly.
+  const canView = user?.role === "testing";
+  const canManage = canView;
 
   const today = useMemo(() => new Date(), []);
   const [cursor, setCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
@@ -51,6 +55,10 @@ const CalendarPage = () => {
   const load = () => setReloadKey((k) => k + 1);
 
   useEffect(() => {
+    if (!canView) {
+      setIsLoading(false);
+      return;
+    }
     let cancelled = false;
     setIsLoading(true);
     setError("");
@@ -67,7 +75,7 @@ const CalendarPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [rangeFrom, rangeTo, reloadKey]);
+  }, [rangeFrom, rangeTo, reloadKey, canView]);
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
@@ -90,6 +98,15 @@ const CalendarPage = () => {
       setIsDeleting(false);
     }
   };
+
+  if (!canView) {
+    return (
+      <div className="tw-reset mx-auto max-w-[1400px] p-2">
+        <PageHeader icon="📅" title="Testing Calendar" subtitle="This calendar is only visible to the testing team." />
+        <p className="text-sm text-text-muted">You don&apos;t have access to this page.</p>
+      </div>
+    );
+  }
 
   if (isLoading && events.length === 0) return <SkeletonPage />;
 

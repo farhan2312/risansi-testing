@@ -25,7 +25,7 @@ const NAV_ITEMS: { href: string; label: string; hideFor?: string[] }[] = [
   { href: "/pumps", label: "Report Compilation" },
   { href: "/reports", label: "Report Archive" },
   { href: "/performance", label: "VE & ME Performance" },
-  { href: "/calendar", label: "Testing Calendar" },
+  { href: "/calendar", label: "Testing Calendar", hideFor: ["admin", "central-admin", "source"] },
 ];
 
 const ROLE_LABELS: Record<string, string> = {

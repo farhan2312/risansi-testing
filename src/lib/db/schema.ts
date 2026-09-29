@@ -381,8 +381,8 @@ export const actionRegistry = pgTable("action_registry", {
 
 // Testing Calendar (sidebar "Testing Calendar"): pump-testing-related events on a date, e.g. a
 // scheduled test, equipment calibration, a team meeting -- not tied to any requisition/report.
-// Everyone signed in can see it; only the Testing role can create/update/delete an event (enforced in
-// the API routes, same "Only the testing team can ___" rule the report-delete route already uses).
+// Testing-role only, both to view and to create/update/delete (enforced in the API routes, same
+// "Only the testing team can ___" rule the report-delete route already uses).
 // createdBy is a REAL FK (unlike test_requisitions.createdBy, which schema.ts doesn't model) since
 // this table is new and entirely this app's own -- ON DELETE SET NULL so removing a user's account
 // never blocks or cascades into deleting their calendar events; createdByName is a name snapshot,

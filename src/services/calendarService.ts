@@ -1,8 +1,8 @@
 import apiClient from "./apiClient";
 import type { CalendarEvent, NewCalendarEventInput } from "../types/testing";
 
-/** Every event in range (inclusive) -- omit both for everything. Everyone signed in can call this;
- * only the Testing role can create/update/delete (see the create/update/delete calls below). */
+/** Every event in range (inclusive) -- omit both for everything. Testing role only -- the API
+ * rejects everyone else, same as create/update/delete below. */
 export const listCalendarEvents = async (range?: { from?: string; to?: string }): Promise<CalendarEvent[]> => {
   const { data } = await apiClient.get<CalendarEvent[]>("/calendar-events", { params: range });
   return data;
