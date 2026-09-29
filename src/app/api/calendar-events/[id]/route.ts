@@ -3,14 +3,19 @@ import { eq } from "drizzle-orm";
 import { calendarEventToDict, error, json } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
+import { canManageCalendar } from "@/lib/calendarPermissions";
 import { db } from "@/lib/db";
 import { calendarEvents } from "@/lib/db/schema";
+import { CALENDAR_EVENT_STATUSES, RESPONSIBLE_PERSONS } from "@/types/testing";
 
 export const dynamic = "force-dynamic";
 
 const FIELD_MAP: Record<string, string> = {
   title: "title",
   model: "model",
+  ec_quotation_no: "ecQuotationNo",
+  responsible_person: "responsiblePerson",
+  status: "status",
   event_date: "eventDate",
   start_time: "startTime",
   end_time: "endTime",
@@ -25,8 +30,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
   }
-  if (claims.role !== "testing") {
-    return error("Only the testing team can update calendar events.", 403);
+  if (!canManageCalendar(claims.role)) {
+    return error("Only an admin can update calendar events.", 403);
   }
 
   const { id } = await params;
@@ -42,6 +47,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   if (body.title !== undefined && !String(body.title).trim()) {
     return error("'title' cannot be blank", 400);
+  }
+  if (body.responsible_person !== undefined && !RESPONSIBLE_PERSONS.includes(String(body.responsible_person).trim() as (typeof RESPONSIBLE_PERSONS)[number])) {
+    return error(`'responsible_person' must be one of: ${RESPONSIBLE_PERSONS.join(", ")}`, 400);
+  }
+  if (body.status !== undefined && !CALENDAR_EVENT_STATUSES.includes(body.status as never)) {
+    return error(`'status' must be one of: ${CALENDAR_EVENT_STATUSES.join(", ")}`, 400);
   }
 
   const values: Record<string, unknown> = {};
@@ -79,8 +90,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
   }
-  if (claims.role !== "testing") {
-    return error("Only the testing team can delete calendar events.", 403);
+  if (!canManageCalendar(claims.role)) {
+    return error("Only an admin can delete calendar events.", 403);
   }
 
   const { id } = await params;

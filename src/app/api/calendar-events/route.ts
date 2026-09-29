@@ -3,26 +3,24 @@ import { and, asc, eq, gte, lte } from "drizzle-orm";
 import { calendarEventToDict, error, json } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
+import { canManageCalendar } from "@/lib/calendarPermissions";
 import { db } from "@/lib/db";
 import { calendarEvents, users } from "@/lib/db/schema";
+import { CALENDAR_EVENT_STATUSES, RESPONSIBLE_PERSONS } from "@/types/testing";
 
 export const dynamic = "force-dynamic";
 
 const dayParam = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
 
 /** Testing Calendar: pump-testing-related events (a scheduled test, calibration, a team meeting),
- * not tied to any requisition/report. Testing-role only -- both to see it and to create/update/delete
- * (see PATCH/DELETE on /api/calendar-events/[id] for the same rule on edit/delete). */
+ * not tied to any requisition/report. Everyone signed in can view it; only Admin can create/update/
+ * delete (see PATCH/DELETE on /api/calendar-events/[id] for the same rule on edit/delete). */
 export async function GET(req: Request) {
-  let claims;
   try {
-    claims = await decodeToken(req);
+    await decodeToken(req);
   } catch (e) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
-  }
-  if (claims.role !== "testing") {
-    return error("Only the testing team can view the calendar.", 403);
   }
 
   const { searchParams } = new URL(req.url);
@@ -49,8 +47,8 @@ export async function POST(req: Request) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
   }
-  if (claims.role !== "testing") {
-    return error("Only the testing team can create calendar events.", 403);
+  if (!canManageCalendar(claims.role)) {
+    return error("Only an admin can create calendar events.", 403);
   }
 
   let body: Record<string, unknown>;
@@ -64,6 +62,11 @@ export async function POST(req: Request) {
   const eventDate = typeof body.event_date === "string" ? body.event_date.trim() : "";
   if (!title) return error("'title' is required", 400);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) return error("'event_date' must be a YYYY-MM-DD date", 400);
+  const responsiblePerson = typeof body.responsible_person === "string" ? body.responsible_person.trim() : "";
+  if (!RESPONSIBLE_PERSONS.includes(responsiblePerson as (typeof RESPONSIBLE_PERSONS)[number])) {
+    return error(`'responsible_person' must be one of: ${RESPONSIBLE_PERSONS.join(", ")}`, 400);
+  }
+  const status = typeof body.status === "string" && CALENDAR_EVENT_STATUSES.includes(body.status as never) ? body.status : "Planned";
 
   const [creator] = await db.select().from(users).where(eq(users.id, claims.sub)).limit(1);
   const createdByName = creator?.name ?? claims.email;
@@ -73,7 +76,10 @@ export async function POST(req: Request) {
     .values({
       title,
       eventDate,
+      status,
       model: typeof body.model === "string" && body.model.trim() ? body.model.trim() : null,
+      ecQuotationNo: typeof body.ec_quotation_no === "string" && body.ec_quotation_no.trim() ? body.ec_quotation_no.trim() : null,
+      responsiblePerson,
       startTime: typeof body.start_time === "string" && body.start_time.trim() ? body.start_time.trim() : null,
       endTime: typeof body.end_time === "string" && body.end_time.trim() ? body.end_time.trim() : null,
       notes: typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null,

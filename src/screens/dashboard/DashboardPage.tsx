@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import "./DashboardPage.css";
@@ -9,7 +9,6 @@ import { deleteRequisition, getRequisitionFilterOptions, listRequisitions, updat
 import { canDeleteRequisition } from "@/lib/requisitionPermissions";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useAuth } from "@/contexts/AuthContext";
-import Pagination from "@/components/ui/Pagination";
 import { SkeletonTableRows } from "@/components/ui/Skeleton";
 import PageHeader, { pageHeaderButton } from "@/components/ui/PageHeader";
 import { RAISED_BY_GROUPS, RAISED_BY_LABELS, RAISED_BY_SHORT } from "@/lib/raisedBy";
@@ -22,7 +21,6 @@ import {
 } from "@/types/testing";
 
 const ALL = "All";
-const PAGE_SIZE = 25;
 
 const STATUS_TABS: { label: string; value: RequisitionStatus | "All" }[] = [
   { label: "All", value: "All" },
@@ -57,14 +55,14 @@ const DashboardPage = () => {
     return STATUS_TABS.some((t) => t.value === fromQuery) ? (fromQuery as RequisitionStatus) : "All";
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const { user: loggedInUser } = useAuth();
   const canReassign = loggedInUser?.role === "testing";
   const canDelete = canDeleteRequisition(loggedInUser?.role);
-  // Admin-only delete: the row awaiting confirmation, and a counter that re-runs the list fetch afterwards.
+  // Admin-only delete: the row awaiting confirmation.
   const [deleteTarget, setDeleteTarget] = useState<TestRequisition | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
 
   const [modelFilter, setModelFilter] = useState(ALL);
   // ecInput is the live textbox value; ecFilter is the debounced value that
@@ -157,10 +155,11 @@ const DashboardPage = () => {
     setIsDeleting(true);
     try {
       await deleteRequisition(deleteTarget.id);
+      // Scroll pagination has no "page" to step back to -- just drop the row from what's
+      // already loaded and adjust the running total, instead of re-fetching everything.
+      setRequisitions((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+      setTotal((prev) => Math.max(0, prev - 1));
       setDeleteTarget(null);
-      // Deleting the last row of a later page would leave it empty -- step back one page.
-      if (requisitions.length === 1 && page > 1) setPage(page - 1);
-      setReloadKey((k) => k + 1);
     } catch (e) {
       const message = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
       setDeleteTarget(null);
@@ -201,7 +200,11 @@ const DashboardPage = () => {
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
+    // Page 1 (a fresh load or a filter change) replaces the list and shows the skeleton; page > 1
+    // (scrolling further down) appends and only shows the small "Loading more" row at the bottom,
+    // so the rows already on screen don't disappear while the next batch comes in.
+    if (page === 1) setIsLoading(true);
+    else setIsLoadingMore(true);
     setError("");
 
     listRequisitions(activeStatus === "All" ? undefined : activeStatus, page, {
@@ -222,7 +225,7 @@ const DashboardPage = () => {
     })
       .then((result) => {
         if (cancelled) return;
-        setRequisitions(result.entries);
+        setRequisitions((prev) => (page === 1 ? result.entries : [...prev, ...result.entries]));
         setTotal(result.total);
         if (result.report_result_counts) setReportResultCounts(result.report_result_counts);
       })
@@ -230,7 +233,9 @@ const DashboardPage = () => {
         if (!cancelled) setError("Could not load testing summaries.");
       })
       .finally(() => {
-        if (!cancelled) setIsLoading(false);
+        if (cancelled) return;
+        setIsLoading(false);
+        setIsLoadingMore(false);
       });
 
     return () => {
@@ -252,7 +257,6 @@ const DashboardPage = () => {
     dateFrom,
     dateTo,
     reportResultFilter,
-    reloadKey,
   ]);
 
   // Filter-bar dropdown options depend only on the status tab, not the
@@ -280,10 +284,33 @@ const DashboardPage = () => {
     );
   };
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const emptyMessage = hasActiveFilters
     ? "No testing summaries match these filters."
     : "No testing summaries in this status.";
+
+  // Scroll pagination: load the next 25 automatically once the sentinel row at the bottom of the
+  // table scrolls into view, instead of Prev/Next page buttons. Guards against firing while a page
+  // is already in flight, and against firing again once every row is loaded.
+  const hasMore = requisitions.length < total;
+  const sentinelRef = useRef<HTMLTableRowElement | null>(null);
+  const loadingRef = useRef(false);
+  loadingRef.current = isLoading || isLoadingMore;
+  const hasMoreRef = useRef(hasMore);
+  hasMoreRef.current = hasMore;
+
+  const handleIntersect = useCallback<IntersectionObserverCallback>((entries) => {
+    if (entries[0]?.isIntersecting && !loadingRef.current && hasMoreRef.current) {
+      setPage((p) => p + 1);
+    }
+  }, []);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(handleIntersect, { rootMargin: "400px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [handleIntersect, requisitions.length]);
 
   return (
     <div className="dashboard-page">
@@ -551,6 +578,13 @@ const DashboardPage = () => {
                 )}
               </tr>
             ))}
+            {!isLoading && requisitions.length > 0 && (
+              <tr ref={sentinelRef}>
+                <td colSpan={canDelete ? 11 : 10} className="dashboard-load-more-row">
+                  {isLoadingMore ? "Loading more…" : hasMore ? "" : `All ${total.toLocaleString()} loaded`}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       )}
@@ -567,8 +601,6 @@ const DashboardPage = () => {
           onCancel={() => setDeleteTarget(null)}
         />
       )}
-
-      <Pagination page={page} totalPages={totalPages} total={total} pageSize={PAGE_SIZE} onPageChange={setPage} />
     </div>
   );
 };

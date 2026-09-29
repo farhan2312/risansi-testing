@@ -381,8 +381,8 @@ export const actionRegistry = pgTable("action_registry", {
 
 // Testing Calendar (sidebar "Testing Calendar"): pump-testing-related events on a date, e.g. a
 // scheduled test, equipment calibration, a team meeting -- not tied to any requisition/report.
-// Testing-role only, both to view and to create/update/delete (enforced in the API routes, same
-// "Only the testing team can ___" rule the report-delete route already uses).
+// Everyone signed in can see it; only Admin can create/update/delete an event (enforced in the API
+// routes, same "Only ___ can ___" pattern the report-delete route already uses).
 // createdBy is a REAL FK (unlike test_requisitions.createdBy, which schema.ts doesn't model) since
 // this table is new and entirely this app's own -- ON DELETE SET NULL so removing a user's account
 // never blocks or cascades into deleting their calendar events; createdByName is a name snapshot,
@@ -393,6 +393,16 @@ export const calendarEvents = pgTable("calendar_events", {
   // The pump model this event is about, if any -- free text (same quick-pick list as a requisition's
   // Model field), not required (a team meeting or calibration isn't about one model).
   model: varchar("model", { length: 100 }),
+  // The EC/Quotation No. this event relates to, if any -- searched against the same numbers already
+  // on requisitions/reports (see GET /api/calendar-events/ec-options), free text either way so an
+  // event can still name one that isn't in the portal yet.
+  ecQuotationNo: varchar("ec_quotation_no", { length: 100 }),
+  // Who the event is for -- the calendar's row grouping (RESPONSIBLE_PERSONS, "Sachin" / "Vikash"),
+  // same free-text convention as test_requisitions.responsible_person; null = unassigned, its own row.
+  responsiblePerson: varchar("responsible_person", { length: 100 }),
+  // 'Planned' | 'Completed' -- app-level enum (see CALENDAR_EVENT_STATUSES in types/testing.ts), not
+  // a DB constraint, same convention this schema uses everywhere else for a fixed-choice text column.
+  status: varchar("status", { length: 20 }).notNull().default("Planned"),
   eventDate: date("event_date").notNull(),
   // Free text like "10:00 AM", same convention as pump_test_reports.pump_started_at -- both optional,
   // an all-day event has neither.

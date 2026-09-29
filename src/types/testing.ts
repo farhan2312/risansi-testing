@@ -799,13 +799,21 @@ export interface PerformanceResult {
   improvements: PerformanceImprovement[];
 }
 
-/** One event on the Testing Calendar. Everyone signed in can see it; only the Testing role can
- * create/update/delete (enforced server-side, /api/calendar-events). */
+export const CALENDAR_EVENT_STATUSES = ["Planned", "Completed"] as const;
+export type CalendarEventStatus = (typeof CALENDAR_EVENT_STATUSES)[number];
+
+/** One event on the Testing Calendar. Everyone signed in can see it; only Admin can create/update/
+ * delete (enforced server-side, /api/calendar-events). */
 export interface CalendarEvent {
   id: string;
   title: string;
   /** The pump model this event is about, if any -- not every event is (a team meeting isn't). */
   model: string | null;
+  /** The EC/Quotation No. this event relates to, if any -- see GET /api/calendar-events/ec-options. */
+  ec_quotation_no: string | null;
+  /** Who it's for -- the calendar's row grouping (RESPONSIBLE_PERSONS); null = unassigned. */
+  responsible_person: string | null;
+  status: CalendarEventStatus;
   event_date: string;
   start_time: string | null;
   end_time: string | null;
@@ -820,7 +828,16 @@ export interface NewCalendarEventInput {
   title: string;
   event_date: string;
   model?: string;
+  ec_quotation_no?: string;
+  responsible_person?: string;
+  status?: CalendarEventStatus;
   start_time?: string;
   end_time?: string;
   notes?: string;
+}
+
+/** One row of GET /api/calendar-events/ec-options. */
+export interface CalendarEcOption {
+  ec_quotation_no: string;
+  model: string | null;
 }

@@ -171,6 +171,16 @@
   font-size: 14px;
 }
 
+/* Scroll-pagination sentinel row -- invisible until there's something to say (loading the next
+ * batch, or confirming every row is in). Height still matters even when empty: the IntersectionObserver
+ * needs a real element to watch to know when it's scrolled near the bottom. */
+.dashboard-load-more-row {
+  padding: 10px 12px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
 .requisition-table {
   width: 100%;
   border-collapse: collapse;
