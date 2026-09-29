@@ -3,6 +3,7 @@
 import Link from "next/link";
 import PerformanceCurve from "./PerformanceCurve";
 import { computeRequirementStatus, unmetRequirementLabels } from "@/lib/requirementCheck";
+import { veMeAcceptanceFor } from "@/lib/veMeAcceptance";
 import type { PumpTestReport, PumpTestReportPoint } from "@/types/testing";
 import { formatDate, formatNumber, installedPowerLabel } from "@/lib/formUtils";
 
@@ -146,6 +147,11 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
   // by falling short of the rating, Power by going over it.
   const requirementStatus = computeRequirementStatus(report, report.points);
   const unmetLabels = unmetRequirementLabels(requirementStatus);
+
+  // VE/ME acceptance is a flat per-model threshold (the testing team's own table), checked per test
+  // point -- unlike Head/Capacity/Power above, which judge the report as a whole against one rated
+  // value. Only the specific point that falls short turns red, never the whole row or report.
+  const veMeAcceptance = veMeAcceptanceFor(report.model);
 
   return (
     <>
@@ -297,6 +303,16 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
                   row.field === "power_calculated_kw"
                     ? "Measured power exceeded the rated power"
                     : "Testing did not reach this rated value";
+
+                // VE/ME: per-point, against this model's own acceptance threshold -- a row can be a
+                // mix of met and missed points, so each cell is judged on its own.
+                const veMeThreshold =
+                  veMeAcceptance && row.field === "volumetric_efficiency"
+                    ? veMeAcceptance.ve
+                    : veMeAcceptance && row.field === "mechanical_efficiency"
+                      ? veMeAcceptance.me
+                      : null;
+
                 return (
                   <tr key={`${row.label}-${row.unit ?? ""}`}>
                     <td className="row-label-col" title={row.formula}>
@@ -309,11 +325,20 @@ const ReportDetailSections = ({ report }: { report: PumpTestReport }) => {
                       )}
                     </td>
                     <td className="row-unit-col">{row.unit ?? ""}</td>
-                    {points.map((p, i) => (
-                      <td key={p.id ?? i} className={rowNotMet ? "requirement-cell-not-met" : "highlight"}>
-                        {fmtNum(p[row.field])}
-                      </td>
-                    ))}
+                    {points.map((p, i) => {
+                      const value = p[row.field];
+                      const belowThreshold = veMeThreshold !== null && typeof value === "number" && value < veMeThreshold;
+                      const cellNotMet = rowNotMet || belowThreshold;
+                      return (
+                        <td
+                          key={p.id ?? i}
+                          className={cellNotMet ? "requirement-cell-not-met" : "highlight"}
+                          title={belowThreshold ? `Below the ${report.model} acceptance criteria of ${veMeThreshold}%` : undefined}
+                        >
+                          {fmtNum(value)}
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })}

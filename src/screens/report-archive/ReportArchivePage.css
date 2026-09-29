@@ -161,6 +161,13 @@
   color: var(--neg);
 }
 
+/* Flags a single Max VE / Max ME cell that's below the model's own acceptance criteria -- only that
+ * field turns red, never the whole row (a report can miss VE/ME while still meeting Head/Capacity/Power). */
+.nested-report-table td.requirement-cell-not-met {
+  background: var(--neg-soft);
+  color: var(--neg);
+}
+
 .nested-report-table .requirement-flag {
   margin-left: 4px;
   cursor: help;

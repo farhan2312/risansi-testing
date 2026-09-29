@@ -253,8 +253,9 @@ export async function GET(req: Request) {
       .groupBy(users.role),
     // Category-wise reports: each in-range report's own remarks / EC number (see lib/reportCategory.ts).
     db
-      .select({ remarks: pumpTestReports.remarks, ecNo: pumpTestReports.ecNo })
+      .select({ remarks: pumpTestReports.remarks, ecNo: pumpTestReports.ecNo, requisitionCategory: testRequisitions.category })
       .from(pumpTestReports)
+      .leftJoin(testRequisitions, sql`${testRequisitions.id} = ${pumpTestReports.requisitionId}`)
       .where(reportDateCondition),
     db.select({ n: sql<number>`count(*)::int` }).from(pumpTestReports).where(reportScope),
   ]);

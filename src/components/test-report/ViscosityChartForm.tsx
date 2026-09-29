@@ -16,6 +16,7 @@ import {
   type SharedReportDraft,
 } from "@/lib/reportDraft";
 import { computeRequirementStatus } from "@/lib/requirementCheck";
+import { veMeAcceptanceFor } from "@/lib/veMeAcceptance";
 import PageHeader from "@/components/ui/PageHeader";
 import {
   MOTOR_RPM_OPTIONS,
@@ -437,6 +438,11 @@ const ViscosityChartForm = ({
   const ratedRpmVal = useWatch({ control, name: "rated_rpm" });
   const kVal = useWatch({ control, name: "k_for_given_cps" });
   const watchedPoints = useWatch({ control, name: "points" });
+  const watchedModel = useWatch({ control, name: "model" });
+  // VE/ME acceptance: a flat per-model threshold (the testing team's own table), checked live per
+  // point as the tester types -- lockedModel wins when this report is filled against a requisition
+  // (the model field is disabled then), otherwise whatever's typed into the Model field.
+  const veMeAcceptance = veMeAcceptanceFor(lockedModel ?? watchedModel);
   const pumpStartedAt = useWatch({ control, name: "pump_started_at" });
   const pumpStoppedAt = useWatch({ control, name: "pump_stopped_at" });
   const totalRun = computeTotalRun(pumpStartedAt ?? "", pumpStoppedAt ?? "");
@@ -904,8 +910,18 @@ const ViscosityChartForm = ({
                       {fmt(computed?.powerCalculatedKw ?? null)}
                     </td>
                     <td className="computed-cell">{fmt(computed?.theoreticalPowerKw ?? null)}</td>
-                    <td className="computed-cell">{fmt(computed?.volumetricEfficiency ?? null)}</td>
-                    <td className="computed-cell">{fmt(computed?.mechanicalEfficiency ?? null)}</td>
+                    <td
+                      className={`computed-cell ${veMeAcceptance && computed?.volumetricEfficiency != null && computed.volumetricEfficiency < veMeAcceptance.ve ? "requirement-cell-not-met" : ""}`}
+                      title={veMeAcceptance && computed?.volumetricEfficiency != null && computed.volumetricEfficiency < veMeAcceptance.ve ? `Below the ${lockedModel ?? watchedModel} acceptance criteria of ${veMeAcceptance.ve}%` : undefined}
+                    >
+                      {fmt(computed?.volumetricEfficiency ?? null)}
+                    </td>
+                    <td
+                      className={`computed-cell ${veMeAcceptance && computed?.mechanicalEfficiency != null && computed.mechanicalEfficiency < veMeAcceptance.me ? "requirement-cell-not-met" : ""}`}
+                      title={veMeAcceptance && computed?.mechanicalEfficiency != null && computed.mechanicalEfficiency < veMeAcceptance.me ? `Below the ${lockedModel ?? watchedModel} acceptance criteria of ${veMeAcceptance.me}%` : undefined}
+                    >
+                      {fmt(computed?.mechanicalEfficiency ?? null)}
+                    </td>
                     <td className="computed-cell">{fmt(computed?.theoreticalCapacityAtMeasuredRpm ?? null)}</td>
                     <td className="computed-cell">{fmt(computed?.slipWater ?? null)}</td>
                     <td className="computed-cell">{fmt(computed?.slipViscous ?? null)}</td>

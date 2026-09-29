@@ -35,6 +35,7 @@ export const isReportCategoryKey = (value: string | null | undefined): value is 
 // First match wins, so the more specific patterns come first. Each is tested
 // against the words after "Category:" (or against the EC number text).
 const CATEGORY_PATTERNS: [RegExp, string][] = [
+  [/improvement/i, "Against Improvement Project"],
   [/die\s*pin\s*rework/i, "Against Die Pin Rework"],
   [/new\s*die\s*pin/i, "Against New Die Pin"],
   [/qu[ao]tation/i, "Against Quotation Test"], // "Quotation test" and the sheets' "Quatation test"
@@ -48,13 +49,19 @@ const fromWords = (words: string): string | null => {
   return null;
 };
 
-/** The category a report states for itself, or "none". */
-export function reportCategoryOf(report: { remarks: string | null; ecNo: string | null }): string {
+/** The category a report states for itself, or "none". A report filed against a requisition takes
+ * that requisition's category (pass it as `requisitionCategory`) -- the requisition is where the
+ * category was actually chosen. Standalone reports (every legacy import) have no requisition, so
+ * for them only the report's own remarks / EC number count, as before. */
+export function reportCategoryOf(report: { remarks: string | null; ecNo: string | null; requisitionCategory?: string | null }): string {
   const note = /Category:\s*(.+?)\s*$/i.exec(report.remarks ?? "");
   if (note) {
     const fromNote = fromWords(note[1]);
     if (fromNote) return fromNote;
   }
+
+  const fromRequisition = report.requisitionCategory ? fromWords(report.requisitionCategory.replace(/^Against\s+/i, "")) : null;
+  if (fromRequisition) return fromRequisition;
 
   const ec = (report.ecNo ?? "").trim();
   if (ec) {

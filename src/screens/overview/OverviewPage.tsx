@@ -11,26 +11,15 @@ import { formatDate } from "@/lib/formUtils";
 import ChartCard from "@/components/charts/ChartCard";
 import KpiGroupCard from "@/components/charts/KpiGroupCard";
 import LineChart from "@/components/charts/LineChart";
-import DonutChart from "@/components/charts/DonutChart";
 import BarList from "@/components/charts/BarList";
 import Heatmap, { monthRange } from "@/components/charts/Heatmap";
 import { monthLong } from "@/components/charts/chartUtils";
 import DateRangeFilter from "@/components/ui/DateRangeFilter";
 import { presetValue, type DateRangeValue, type PresetKey } from "@/lib/dateRangePresets";
 import { RAISED_BY_LABELS } from "@/lib/raisedBy";
-import type { PortalOverview, RequisitionStatus } from "@/types/testing";
+import type { PortalOverview } from "@/types/testing";
 
 const OVERVIEW_PRESETS: Exclude<PresetKey, "custom">[] = ["today", "week", "month", "7d", "30d", "90d", "all"];
-
-// Color follows the entity: each status keeps its slot on every chart. Ring
-// order Pending -> In Testing -> Closed -> Retest keeps every adjacent pair
-// on the validated adjacent list (orange and yellow never touch).
-const STATUS_SEGMENTS: { status: RequisitionStatus; color: string }[] = [
-  { status: "Pending", color: "var(--series-1)" },
-  { status: "In Testing", color: "var(--series-2)" },
-  { status: "Closed", color: "var(--series-3)" },
-  { status: "Retest Needed", color: "var(--series-4)" },
-];
 
 const FORMAT_LABELS: Record<string, string> = {
   observation: "Observation Sheet",
@@ -292,56 +281,28 @@ const OverviewPage = () => {
           />
         </div>
 
-        {/* ---- Trend beside the status donut (donut centred, so neither card has dead space) ---- */}
-        <div className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-3">
-          <ChartCard
-            className="xl:col-span-2"
-            title={daily ? "Daily activity" : "Monthly activity"}
-            subtitle={`Requisitions raised, reports filed and requisitions closed per ${per}${daily ? " · last 7 days at least" : ""}`}
-            legend={[
-              { label: "Raised", color: "var(--series-1)", shape: "line" },
-              { label: "Reports filed", color: "var(--series-2)", shape: "line" },
-              { label: "Closed", color: "var(--series-3)", shape: "line" },
+        <ChartCard
+          title={daily ? "Daily activity" : "Monthly activity"}
+          subtitle={`Requisitions raised, reports filed and requisitions closed per ${per}${daily ? " · last 7 days at least" : ""}`}
+          legend={[
+            { label: "Raised", color: "var(--series-1)", shape: "line" },
+            { label: "Reports filed", color: "var(--series-2)", shape: "line" },
+            { label: "Closed", color: "var(--series-3)", shape: "line" },
+          ]}
+          table={{
+            columns: [bucket, "Raised", "Reports filed", "Closed"],
+            rows: data.monthly_trend.map((m) => [monthLong(m.month), m.raised, m.reports, m.closed]),
+          }}
+        >
+          <LineChart
+            months={months}
+            series={[
+              { key: "raised", label: "Raised", color: "var(--series-1)", values: data.monthly_trend.map((m) => m.raised) },
+              { key: "reports", label: "Reports filed", color: "var(--series-2)", values: data.monthly_trend.map((m) => m.reports) },
+              { key: "closed", label: "Closed", color: "var(--series-3)", values: data.monthly_trend.map((m) => m.closed) },
             ]}
-            table={{
-              columns: [bucket, "Raised", "Reports filed", "Closed"],
-              rows: data.monthly_trend.map((m) => [monthLong(m.month), m.raised, m.reports, m.closed]),
-            }}
-          >
-            <LineChart
-              months={months}
-              series={[
-                { key: "raised", label: "Raised", color: "var(--series-1)", values: data.monthly_trend.map((m) => m.raised) },
-                { key: "reports", label: "Reports filed", color: "var(--series-2)", values: data.monthly_trend.map((m) => m.reports) },
-                { key: "closed", label: "Closed", color: "var(--series-3)", values: data.monthly_trend.map((m) => m.closed) },
-              ]}
-            />
-          </ChartCard>
-
-          <ChartCard
-            title="Requisitions by status"
-            subtitle="Click a segment to open that status"
-            href={summaryHref()}
-            hrefLabel="Summary"
-            table={{
-              columns: ["Status", "Requisitions"],
-              rows: STATUS_SEGMENTS.map((s) => [s.status, byStatus[s.status] ?? 0]),
-            }}
-          >
-            <div className="flex h-full items-center">
-              <DonutChart
-                centerLabel="requisitions"
-                segments={STATUS_SEGMENTS.map((s) => ({
-                  key: s.status,
-                  label: s.status,
-                  value: byStatus[s.status] ?? 0,
-                  color: s.color,
-                  href: summaryHref({ status: s.status }),
-                }))}
-              />
-            </div>
-          </ChartCard>
-        </div>
+          />
+        </ChartCard>
 
         {/* ---- Everything else flows into independent columns: each card is only as tall as its
              content and the ones below move up, so there is no blank area inside or between cards. ---- */}
@@ -399,34 +360,6 @@ const OverviewPage = () => {
                   />
                 </div>
               </div>
-            )}
-          </ChartCard>
-
-          <ChartCard
-            title="Reports by category"
-            subtitle="Report Archive · category as stated on each report"
-            href={reportsHref()}
-            hrefLabel="Archive"
-            table={{
-              columns: ["Category", "Reports", "Share"],
-              rows: data.reports_by_category.map((c) => [c.label, c.count, `${data.total_reports ? Math.round((c.count / data.total_reports) * 100) : 0}%`]),
-            }}
-          >
-            <BarList
-              emptyText="No reports in this range."
-              items={data.reports_by_category.map((c) => ({
-                key: c.key,
-                label: c.label.replace(/^Against\s+/i, ""),
-                value: c.count,
-                detail: `${data.total_reports ? Math.round((c.count / data.total_reports) * 100) : 0}% of ${data.total_reports.toLocaleString()} reports`,
-                href: reportsHref({ category: c.key }),
-              }))}
-            />
-            {data.reports_by_category.some((c) => c.key === "none") && (
-              <p className="mt-3 text-[11px] text-text-muted">
-                The category is whatever each report states itself (imported sheets carry it in their remarks). Reports that
-                don&apos;t state one are counted under “Not stated on the report”.
-              </p>
             )}
           </ChartCard>
 

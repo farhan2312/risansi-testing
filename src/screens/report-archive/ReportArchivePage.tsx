@@ -11,6 +11,7 @@ import Pagination from "@/components/ui/Pagination";
 import { SkeletonTableRows } from "@/components/ui/Skeleton";
 import PageHeader from "@/components/ui/PageHeader";
 import { isReportCategoryKey, reportCategoryLabel } from "@/lib/reportCategory";
+import { veMeAcceptanceFor } from "@/lib/veMeAcceptance";
 
 const PAGE_SIZE = 50;
 
@@ -296,8 +297,23 @@ const ReportArchivePage = () => {
                                   <td>{formatNumber(r.rated_rpm)}</td>
                                   <td>{formatNumber(r.rated_power_kw)}</td>
                                   <td>{r.pointCount}</td>
-                                  <td>{r.max_ve !== null ? `${r.max_ve.toFixed(1)}%` : "-"}</td>
-                                  <td>{r.max_me !== null ? `${r.max_me.toFixed(1)}%` : "-"}</td>
+                                  {(() => {
+                                    // Below this model's own VE/ME acceptance criteria, even at its best point --
+                                    // only these two cells turn red, never the whole row.
+                                    const acceptance = veMeAcceptanceFor(r.model);
+                                    const veLow = acceptance !== null && r.max_ve !== null && r.max_ve < acceptance.ve;
+                                    const meLow = acceptance !== null && r.max_me !== null && r.max_me < acceptance.me;
+                                    return (
+                                      <>
+                                        <td className={veLow ? "requirement-cell-not-met" : undefined} title={veLow ? `Below the ${r.model} acceptance criteria of ${acceptance!.ve}%` : undefined}>
+                                          {r.max_ve !== null ? `${r.max_ve.toFixed(1)}%` : "-"}
+                                        </td>
+                                        <td className={meLow ? "requirement-cell-not-met" : undefined} title={meLow ? `Below the ${r.model} acceptance criteria of ${acceptance!.me}%` : undefined}>
+                                          {r.max_me !== null ? `${r.max_me.toFixed(1)}%` : "-"}
+                                        </td>
+                                      </>
+                                    );
+                                  })()}
                                   <td>
                                     <Link href={`/reports/${r.report_no ?? r.id}/curve`}>View Curve</Link>
                                   </td>

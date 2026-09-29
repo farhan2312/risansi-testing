@@ -22,6 +22,7 @@ type UserRow = typeof schema.users.$inferSelect;
 type AttachmentRow = typeof schema.requisitionAttachments.$inferSelect;
 type BugReportRow = typeof schema.bugReports.$inferSelect;
 type ActionRegistryRow = typeof schema.actionRegistry.$inferSelect;
+type CalendarEventRow = typeof schema.calendarEvents.$inferSelect;
 
 /** Mirrors sales-portal-next's _user_to_dict(): raw snake_case columns, minus password_hash. */
 export function userToDict(u: UserRow) {
@@ -235,5 +236,21 @@ export function actionRegistryToDict(a: ActionRegistryRow) {
     assigned_by_name: a.assignedByName,
     originally_raised_by: a.originallyRaisedBy,
     created_at: a.createdAt,
+  };
+}
+
+export function calendarEventToDict(e: CalendarEventRow) {
+  return {
+    id: e.id,
+    title: e.title,
+    model: e.model,
+    event_date: e.eventDate,
+    start_time: e.startTime,
+    end_time: e.endTime,
+    notes: e.notes,
+    created_by: e.createdBy,
+    created_by_name: e.createdByName,
+    created_at: e.createdAt,
+    updated_at: e.updatedAt,
   };
 }
