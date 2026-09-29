@@ -410,76 +410,117 @@ export const PerformanceView = ({ data }: { data: PerformanceResult }) => {
   );
 };
 
-/** Every Improvement Project test next to the model's previous test: before, after, and the verdict. */
-const ImprovementTracker = ({ improvements }: { improvements: PerformanceImprovement[] }) => (
-  <ChartCard
-    title="Improvement Projects"
-    subtitle="Each Improvement Project test compared with the same model's previous test"
-    table={{
-      columns: ["Model", "Report", "Date", "VE before", "VE after", "ME before", "ME after", "Verdict"],
-      rows: improvements.map((i) => [i.model, i.report_no ?? "", i.date, pct(i.prev_ve), pct(i.ve), pct(i.prev_me), pct(i.me), verdictOf(i).label]),
-    }}
-  >
-    {improvements.length === 0 ? (
-      <div className="rounded-lg border border-dashed border-border px-4 py-5 text-sm text-text-muted">
-        <p className="m-0 font-semibold text-text">No Improvement Project tests yet.</p>
-        <p className="m-0 mt-1">
-          To track one, raise a requisition with the category <strong>Against Improvement Project</strong>. When its report is filed, it shows up here
-          next to that model&apos;s previous test, with VE and ME before and after, and whether it now meets the acceptance criteria.
-        </p>
-        <Link href="/requisitions/new" className="mt-3 inline-block font-semibold text-accent hover:underline">
-          Raise an Improvement Project requisition →
-        </Link>
-      </div>
-    ) : (
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="text-left text-[11px] uppercase tracking-wide text-text-muted">
-              <th className="pb-2 font-semibold">Model</th>
-              <th className="pb-2 font-semibold">Report</th>
-              <th className="pb-2 font-semibold">Date</th>
-              <th className="pb-2 text-right font-semibold">VE before → after</th>
-              <th className="pb-2 text-right font-semibold">ME before → after</th>
-              <th className="pb-2 pl-4 font-semibold">Verdict</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...improvements].sort((a, b) => b.date.localeCompare(a.date)).map((i) => {
-              const verdict = verdictOf(i);
-              return (
-                <tr key={i.id} className="border-t border-border">
-                  <td className="py-2.5 pr-3 font-semibold text-text">{i.model}</td>
-                  <td className="py-2.5 pr-3">
-                    <Link href={`/reports/${i.report_no ?? i.id}`} className="font-semibold text-accent hover:underline">
-                      {i.report_no ?? "View"}
-                    </Link>
-                  </td>
-                  <td className="py-2.5 pr-3 text-text-muted" style={tabular}>
-                    {formatDate(i.date)}
-                  </td>
-                  <td className="py-2.5 pr-3 text-right" style={tabular}>
-                    {pct(i.prev_ve)} → <span className={valueClass(i.ve_meets)}>{pct(i.ve)}</span> <Delta value={delta(i.ve, i.prev_ve)} />
-                  </td>
-                  <td className="py-2.5 pr-3 text-right" style={tabular}>
-                    {pct(i.prev_me)} → <span className={valueClass(i.me_meets)}>{pct(i.me)}</span> <Delta value={delta(i.me, i.prev_me)} />
-                  </td>
-                  <td className="py-2.5 pl-4">
-                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${VERDICT_CLASS[verdict.tone]}`}>{verdict.label}</span>
-                    {i.acceptance && (
-                      <span className="ml-2 text-xs text-text-muted">
-                        {i.ve_meets && i.me_meets ? "now meets acceptance" : "still below acceptance"}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    )}
-  </ChartCard>
-);
+/** Improvement Projects grouped by model: click a model to drop down its reports, then click a report to open it. */
+const ImprovementTracker = ({ improvements }: { improvements: PerformanceImprovement[] }) => {
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
+  const toggle = (model: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(model)) next.add(model);
+      return next;
+    });
+
+  const groups = useMemo(() => {
+    const byModel = new Map<string, PerformanceImprovement[]>();
+    for (const i of improvements) byModel.set(i.model, [...(byModel.get(i.model) ?? []), i]);
+    return [...byModel.entries()]
+      .map(([model, items]) => ({ model, items: [...items].sort((a, b) => b.date.localeCompare(a.date)) }))
+      .sort((a, b) => b.items[0].date.localeCompare(a.items[0].date));
+  }, [improvements]);
+
+  return (
+    <ChartCard
+      title="Improvement Projects"
+      subtitle="Improvement Project tests and any report with VE or ME below acceptance · click a model to see its reports"
+      table={{
+        columns: ["Model", "Report", "Date", "VE before", "VE after", "ME before", "ME after", "Verdict"],
+        rows: improvements.map((i) => [i.model, i.report_no ?? "", i.date, pct(i.prev_ve), pct(i.ve), pct(i.prev_me), pct(i.me), verdictOf(i).label]),
+      }}
+    >
+      {groups.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border px-4 py-5 text-sm text-text-muted">
+          <p className="m-0 font-semibold text-text">No Improvement Project tests yet.</p>
+          <p className="m-0 mt-1">
+            To track one, raise a requisition with the category <strong>Against Improvement Project</strong>. When its report is filed, it shows up here
+            next to that model&apos;s previous test, with VE and ME before and after, and whether it now meets the acceptance criteria.
+          </p>
+          <Link href="/requisitions/new" className="mt-3 inline-block font-semibold text-accent hover:underline">
+            Raise an Improvement Project requisition →
+          </Link>
+        </div>
+      ) : (
+        <ul className="flex flex-col">
+          {groups.map(({ model, items }) => {
+            const isOpen = open.has(model);
+            const latest = verdictOf(items[0]);
+            return (
+              <li key={model} className="border-t border-border first:border-t-0">
+                <button
+                  type="button"
+                  onClick={() => toggle(model)}
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-surface-hover"
+                >
+                  <span className="flex items-center gap-2">
+                    <span aria-hidden="true" className={`inline-block text-xs text-text-muted transition-transform ${isOpen ? "rotate-90" : ""}`}>▶</span>
+                    <span className="text-sm font-semibold text-text">{model}</span>
+                    <span className="rounded-full bg-bg-sunk px-2 py-0.5 text-xs font-semibold text-text-muted">
+                      {items.length} report{items.length === 1 ? "" : "s"}
+                    </span>
+                  </span>
+                  <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${VERDICT_CLASS[latest.tone]}`}>{latest.label}</span>
+                </button>
+                {isOpen && (
+                  <div className="overflow-x-auto pb-2 pl-6">
+                    <table className="w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="text-left text-[11px] uppercase tracking-wide text-text-muted">
+                          <th className="pb-2 font-semibold">Report</th>
+                          <th className="pb-2 font-semibold">Date</th>
+                          <th className="pb-2 text-right font-semibold">VE before → after</th>
+                          <th className="pb-2 text-right font-semibold">ME before → after</th>
+                          <th className="pb-2 pl-4 font-semibold">Verdict</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((i) => {
+                          const verdict = verdictOf(i);
+                          return (
+                            <tr key={i.id} className="border-t border-border">
+                              <td className="py-2 pr-3">
+                                <Link href={`/reports/${i.report_no ?? i.id}`} className="font-semibold text-accent hover:underline">
+                                  {i.report_no ?? "View"} ↗
+                                </Link>
+                              </td>
+                              <td className="py-2 pr-3 text-text-muted" style={tabular}>
+                                {formatDate(i.date)}
+                              </td>
+                              <td className="py-2 pr-3 text-right" style={tabular}>
+                                {pct(i.prev_ve)} → <span className={valueClass(i.ve_meets)}>{pct(i.ve)}</span> <Delta value={delta(i.ve, i.prev_ve)} />
+                              </td>
+                              <td className="py-2 pr-3 text-right" style={tabular}>
+                                {pct(i.prev_me)} → <span className={valueClass(i.me_meets)}>{pct(i.me)}</span> <Delta value={delta(i.me, i.prev_me)} />
+                              </td>
+                              <td className="py-2 pl-4">
+                                <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${VERDICT_CLASS[verdict.tone]}`}>{verdict.label}</span>
+                                {i.acceptance && (
+                                  <span className="ml-2 text-xs text-text-muted">{i.ve_meets && i.me_meets ? "now meets acceptance" : "still below acceptance"}</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </ChartCard>
+  );
+};
 
 export default PerformancePage;

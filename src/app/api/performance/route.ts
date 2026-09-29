@@ -36,7 +36,8 @@ const maxOf = (values: (number | null)[] | undefined): number | null => {
  * Covers every model that has a report AND every model in the acceptance sheet, so a model that has
  * never been tested (or has no VE/ME recorded) still shows up rather than silently missing.
  *
- * Improvement tracking: a report in the "Against Improvement Project" category is compared with the
+ * Improvement tracking: a report in the "Against Improvement Project" category, or any report whose VE or
+ * ME is below its model's acceptance criteria, is compared with the
  * model's previous report that has VE/ME data -- before vs. after, and whether it now meets acceptance.
  */
 export async function GET(req: Request) {
@@ -79,6 +80,8 @@ export async function GET(req: Request) {
       const suspect_ve = (r.points_ve ?? []).filter((v) => v > VE_SUSPECT_ABOVE).map((v) => round1(v)!);
       const suspect_me = (r.points_me ?? []).filter((v) => v > ME_SUSPECT_ABOVE).map((v) => round1(v)!);
       const hasData = ve !== null || me !== null;
+      const veMeets = acceptance && ve !== null ? ve >= acceptance.ve : null;
+      const meMeets = acceptance && me !== null ? me >= acceptance.me : null;
       // Capacity/Head are floor targets (the best point has to reach the rated value), Power is a
       // ceiling (the best point has to stay under it) -- same rule as computeRequirementStatus, already
       // applied once by enrichReports into requirement_unmet_fields, reused here rather than re-derived.
@@ -92,13 +95,15 @@ export async function GET(req: Request) {
         report_no: r.report_no,
         date: dayOf(r),
         category: r.report_category ?? "none",
-        is_improvement: r.report_category === IMPROVEMENT,
         ve,
         me,
         suspect_ve,
         suspect_me,
-        ve_meets: acceptance && ve !== null ? ve >= acceptance.ve : null,
-        me_meets: acceptance && me !== null ? me >= acceptance.me : null,
+        ve_meets: veMeets,
+        me_meets: meMeets,
+        // Filed as an Improvement Project, or a VE or ME below the model's acceptance table -- either way
+        // the report goes straight into the Improvement Projects list.
+        is_improvement: r.report_category === IMPROVEMENT || veMeets === false || meMeets === false,
         prev_ve: prev?.ve ?? null,
         prev_me: prev?.me ?? null,
         rated_capacity: ratedCapacity,

@@ -14,6 +14,7 @@ import LineChart from "@/components/charts/LineChart";
 import BarList from "@/components/charts/BarList";
 import Heatmap, { monthRange } from "@/components/charts/Heatmap";
 import { monthLong } from "@/components/charts/chartUtils";
+import DrillDownModal from "@/components/ui/DrillDownModal";
 import DateRangeFilter from "@/components/ui/DateRangeFilter";
 import { presetValue, type DateRangeValue, type PresetKey } from "@/lib/dateRangePresets";
 import { RAISED_BY_LABELS } from "@/lib/raisedBy";
@@ -89,6 +90,15 @@ const OverviewPage = () => {
   const [range, setRange] = useState<DateRangeValue>(() => presetValue("all"));
   const [mine, setMine] = useState(false);
   const preset = range.preset;
+  // Clicking any card / bar / cell whose link is a filtered list opens that list here instead of leaving the dashboard.
+  const [drillHref, setDrillHref] = useState<string | null>(null);
+  const openDrillDown = (e: React.MouseEvent) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const target = (e.target as HTMLElement).closest("a")?.getAttribute("href");
+    if (!target || !/^\/(dashboard|reports)\?/.test(target)) return;
+    e.preventDefault();
+    setDrillHref(target);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -166,7 +176,8 @@ const OverviewPage = () => {
   );
 
   return (
-    <div className="tw-reset mx-auto flex max-w-[1400px] flex-col gap-4 p-2">
+    <div className="tw-reset mx-auto flex max-w-[1400px] flex-col gap-4 p-2" onClick={openDrillDown}>
+      {drillHref && <DrillDownModal href={drillHref} onClose={() => setDrillHref(null)} />}
       {/* Compact greeting + action; the scope toggle and date filters that drive every widget sit in the band under it. */}
       <HeroHeader
         dense
@@ -211,6 +222,7 @@ const OverviewPage = () => {
                 label: "Total reports",
                 value: (data.total_requisitions + data.total_reports).toLocaleString(),
                 sub: `${data.total_requisitions.toLocaleString()} requisitions + ${data.total_reports.toLocaleString()} reports`,
+                href: reportsHref({ view: "all" }),
               },
               {
                 // Pendency = requisitions still waiting to start (status Pending) -- not In Testing or Retest.
@@ -256,12 +268,13 @@ const OverviewPage = () => {
                 label: "Completed",
                 value: ((byStatus.Closed ?? 0) + data.total_reports).toLocaleString(),
                 sub: `${(byStatus.Closed ?? 0).toLocaleString()} requisitions + ${data.total_reports.toLocaleString()} reports`,
+                href: summaryHref({ status: "Closed" }),
               },
               {
                 label: "Pass rate",
                 value: metPct === null ? "—" : `${metPct}%`,
                 sub: judged ? `${data.requirement_met} of ${judged} judged reports met` : "No judged reports",
-                href: reportsHref(),
+                href: reportsHref({ view: "all" }),
               },
             ]}
           />
