@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import "../dashboard/DashboardPage.css"; // reuses .status-pill / .status-* colors
-import { getOverview } from "@/services/testingService";
+import { getOverview, listPumpModels } from "@/services/testingService";
 import { useAuth } from "@/contexts/AuthContext";
 import { SkeletonPage } from "@/components/ui/Skeleton";
 import HeroHeader from "@/components/ui/HeroHeader";
@@ -18,7 +18,9 @@ import DrillDownModal from "@/components/ui/DrillDownModal";
 import DateRangeFilter from "@/components/ui/DateRangeFilter";
 import { presetValue, type DateRangeValue, type PresetKey } from "@/lib/dateRangePresets";
 import { RAISED_BY_LABELS } from "@/lib/raisedBy";
-import type { PortalOverview } from "@/types/testing";
+import { REQUISITION_CATEGORIES, type PortalOverview, type RequisitionStatus } from "@/types/testing";
+
+const STATUS_OPTIONS: RequisitionStatus[] = ["Pending", "In Testing", "Retest Needed", "Closed"];
 
 const OVERVIEW_PRESETS: Exclude<PresetKey, "custom">[] = ["today", "week", "month", "7d", "30d", "90d", "all"];
 
@@ -90,6 +92,17 @@ const OverviewPage = () => {
   const [range, setRange] = useState<DateRangeValue>(() => presetValue("all"));
   const [mine, setMine] = useState(false);
   const preset = range.preset;
+  // Category / model / status narrow every card, chart and list below; "" = no filter.
+  const [category, setCategory] = useState("");
+  const [model, setModel] = useState("");
+  const [status, setStatus] = useState("");
+  const [modelOptions, setModelOptions] = useState<string[]>([]);
+  const filtersActive = !!(category || model || status);
+  useEffect(() => {
+    listPumpModels()
+      .then(setModelOptions)
+      .catch(() => setModelOptions([]));
+  }, []);
   // Clicking any card / bar / cell whose link is a filtered list opens that list here instead of leaving the dashboard.
   const [drillHref, setDrillHref] = useState<string | null>(null);
   const openDrillDown = (e: React.MouseEvent) => {
@@ -104,7 +117,14 @@ const OverviewPage = () => {
     let cancelled = false;
     setIsLoading(true);
     setLoadError("");
-    getOverview({ from: range.from || undefined, to: range.to || undefined, mine })
+    getOverview({
+      from: range.from || undefined,
+      to: range.to || undefined,
+      mine,
+      category: category || undefined,
+      model: model || undefined,
+      status: status || undefined,
+    })
       .then((result) => {
         if (!cancelled) setData(result);
       })
@@ -117,7 +137,7 @@ const OverviewPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [range.from, range.to, mine]);
+  }, [range.from, range.to, mine, category, model, status]);
 
   // Every drill-down carries the dashboard's current window with it.
   const summaryHref = useMemo(
@@ -125,11 +145,14 @@ const OverviewPage = () => {
       const params = new URLSearchParams();
       if (range.from) params.set("from", range.from);
       if (range.to) params.set("to", range.to);
+      if (category) params.set("category", category);
+      if (model) params.set("model", model);
+      if (status) params.set("status", status);
       for (const [k, v] of Object.entries(extra)) params.set(k, v);
       const qs = params.toString();
       return `/dashboard${qs ? `?${qs}` : ""}`;
     },
-    [range.from, range.to]
+    [range.from, range.to, category, model, status]
   );
 
   // Report Archive, narrowed to reports tested inside the same window.
@@ -138,11 +161,14 @@ const OverviewPage = () => {
       const params = new URLSearchParams();
       if (range.from) params.set("from", range.from);
       if (range.to) params.set("to", range.to);
+      if (category) params.set("category", category);
+      if (model) params.set("model", model);
+      if (status) params.set("status", status);
       for (const [k, v] of Object.entries(extra)) params.set(k, v);
       const qs = params.toString();
       return `/reports${qs ? `?${qs}` : ""}`;
     },
-    [range.from, range.to]
+    [range.from, range.to, category, model, status]
   );
 
   if (isLoading && !data) return <SkeletonPage cards={3} />;
@@ -203,6 +229,46 @@ const OverviewPage = () => {
           </div>
           <DateRangeFilter presets={OVERVIEW_PRESETS} value={range} onChange={setRange} />
           {isLoading && <span className="ml-auto text-xs text-text-muted">updating…</span>}
+        </div>
+        <div className="flex flex-wrap items-center gap-3 border-t border-border px-6 py-3">
+          <select className="dash-filter-select" aria-label="Category" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="">All categories</option>
+            {REQUISITION_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+            <option value="none">Uncategorised</option>
+          </select>
+          <select className="dash-filter-select" aria-label="Model" value={model} onChange={(e) => setModel(e.target.value)}>
+            <option value="">All models</option>
+            {modelOptions.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+          <select className="dash-filter-select" aria-label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">All statuses</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          {filtersActive && (
+            <button
+              type="button"
+              className="text-xs font-semibold text-accent hover:underline"
+              onClick={() => {
+                setCategory("");
+                setModel("");
+                setStatus("");
+              }}
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       </HeroHeader>
 

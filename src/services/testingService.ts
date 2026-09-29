@@ -175,7 +175,14 @@ export const listGroupedPumps = async (page = 1, filters?: PumpIndexFilters): Pr
 /** Portal-wide counts for the landing overview page. Optional from/to
  * ("YYYY-MM-DD") narrows every count to that window -- omit both for the
  * all-time snapshot. */
-export const getOverview = async (range?: { from?: string; to?: string; mine?: boolean }): Promise<PortalOverview> => {
+export const getOverview = async (range?: {
+  from?: string;
+  to?: string;
+  mine?: boolean;
+  category?: string;
+  model?: string;
+  status?: string;
+}): Promise<PortalOverview> => {
   const { data } = await apiClient.get<PortalOverview>("/overview", { params: { ...range, mine: range?.mine ? 1 : undefined } });
   return data;
 };
@@ -216,7 +223,7 @@ export const listGroupedReports = async (
  * wherever the point is a straight list of individual reports, e.g. the Overview's Met/Missed drill-down. */
 export const listReportsFlat = async (
   page = 1,
-  range?: { from?: string; to?: string; category?: string; report_result?: "green" | "red" }
+  range?: { from?: string; to?: string; category?: string; report_result?: "green" | "red"; model?: string; status?: string }
 ): Promise<FlatReportListResult> => {
   const { data } = await apiClient.get<FlatReportListResult>("/reports/list", {
     params: {
@@ -225,6 +232,8 @@ export const listReportsFlat = async (
       ...(range?.to ? { to: range.to } : {}),
       ...(range?.category ? { category: range.category } : {}),
       ...(range?.report_result ? { report_result: range.report_result } : {}),
+      ...(range?.model ? { model: range.model } : {}),
+      ...(range?.status ? { status: range.status } : {}),
     },
   });
   return data;

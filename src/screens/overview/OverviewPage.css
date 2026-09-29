@@ -214,3 +214,21 @@
 .overview-card-link:hover {
   text-decoration: underline;
 }
+
+/* Category / Model / Status filters in the Dashboard hero band. */
+.dash-filter-select {
+  min-width: 150px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dash-filter-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

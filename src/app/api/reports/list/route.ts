@@ -4,6 +4,7 @@ import { error, json } from "@/lib/api";
 import { AuthError, decodeToken } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pumpTestReports } from "@/lib/db/schema";
+import { normalizeModelKey } from "@/lib/modelKey";
 import { isReportCategoryKey } from "@/lib/reportCategory";
 import { enrichReports } from "@/lib/reportEnrichment";
 
@@ -38,6 +39,10 @@ export async function GET(req: Request) {
   const categoryFilter = isReportCategoryKey(categoryParam) ? categoryParam : null;
   const reportResultParam = searchParams.get("report_result");
   const reportResultFilter = reportResultParam === "green" || reportResultParam === "red" ? reportResultParam : null;
+  const modelParam = searchParams.get("model")?.trim();
+  const modelKey = modelParam ? normalizeModelKey(modelParam) : null;
+  // A report carries no status; "finished testing" reports count as Closed, so any other status has none.
+  const statusParam = searchParams.get("status");
   const rawPage = Number(searchParams.get("page"));
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
 
@@ -51,6 +56,8 @@ export async function GET(req: Request) {
         (!fromDay || reportDay(r) >= fromDay) &&
         (!toDay || reportDay(r) <= toDay) &&
         (!categoryFilter || r.report_category === categoryFilter) &&
+        (!modelKey || normalizeModelKey(r.model) === modelKey) &&
+        (!statusParam || statusParam === "Closed") &&
         (!reportResultFilter ||
           (r.has_target && (reportResultFilter === "red" ? r.requirement_unmet_fields.length > 0 : r.requirement_unmet_fields.length === 0)))
     )

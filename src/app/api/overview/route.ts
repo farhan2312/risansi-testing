@@ -7,6 +7,7 @@ import { pumpTestReportPoints, pumpTestReports, testRequisitions, users } from "
 import { RAISED_BY_GROUPS, RAISED_BY_LABELS, raisedByGroup } from "@/lib/raisedBy";
 import { REPORT_CATEGORY_NONE, REPORT_CATEGORY_ORDER, reportCategoryLabel, reportCategoryOf } from "@/lib/reportCategory";
 import { REQUISITION_CATEGORIES } from "@/types/testing";
+import { normalizeModelKey } from "@/lib/modelKey";
 import { enrichReports } from "@/lib/reportEnrichment";
 import { computeRequirementStatus } from "@/lib/requirementCheck";
 
@@ -50,7 +51,10 @@ const monthKeys = (start: Date, end: Date): string[] => {
  * Optional `?from=YYYY-MM-DD&to=YYYY-MM-DD` narrows everything to that
  * window: requisitions by `date_of_requisition` (falling back to
  * `created_at`), reports/points by the report's `test_date` (same fallback).
- * Omit both for the all-time snapshot. The monthly trend / matrix span the
+ * Omit both for the all-time snapshot. Optional `category`, `model` and `status` narrow every figure
+ * further (category "none" = uncategorised; a report has no status of its own, so `status=Closed` keeps
+ * reports -- a filed report is finished testing -- and any other status leaves them out).
+ * Omit all three for everything. The monthly trend / matrix span the
  * filtered window (capped at the latest 24 months), or the last 12 months
  * when unfiltered. A window of 31 days or less trends per day instead
  * (`trend_granularity: "day"`, keys are YYYY-MM-DD, padded back to at least
@@ -75,6 +79,11 @@ export async function GET(req: Request) {
   // "Created by me" toggle: only the requisitions I raised, and the reports on them (or that I prepared).
   const mine = searchParams.get("mine") === "1";
 
+  const categoryParam = searchParams.get("category") || undefined;
+  const modelParam = searchParams.get("model")?.trim() || undefined;
+  const statusParam = searchParams.get("status") || undefined;
+  const modelKeySql = (col: ReturnType<typeof sql>) => sql`upper(regexp_replace(${col}, '[^A-Za-z0-9]', '', 'g'))`;
+
   const reqDateCol = sql`coalesce(${testRequisitions.dateOfRequisition}, ${testRequisitions.createdAt}::date)`;
   const reportDateCol = sql`coalesce(${pumpTestReports.testDate}, ${pumpTestReports.createdAt}::date)`;
   const effTargetCol = sql`coalesce(${testRequisitions.targetDate}, ${reqDateCol} + 7)`;
@@ -87,11 +96,35 @@ export async function GET(req: Request) {
   // Source teams only ever see the requisitions they raised (same rule as
   // GET /api/requisitions), so every requisition figure here is scoped the
   // same way -- otherwise a card's number wouldn't match the list it opens.
-  const ownOnly = claims.role === "source" || mine ? sql`${testRequisitions.createdBy} = ${claims.sub}` : sql`true`;
+  const reqFilters: ReturnType<typeof sql>[] = [];
+  if (claims.role === "source" || mine) reqFilters.push(sql`${testRequisitions.createdBy} = ${claims.sub}`);
+  if (statusParam) reqFilters.push(sql`${testRequisitions.status} = ${statusParam}`);
+  if (categoryParam) reqFilters.push(categoryParam === "none" ? sql`${testRequisitions.category} is null` : sql`${testRequisitions.category} = ${categoryParam}`);
+  if (modelParam) reqFilters.push(sql`${modelKeySql(sql`${testRequisitions.model}`)} = ${normalizeModelKey(modelParam)}`);
+  const ownOnly = reqFilters.length ? sql.join(reqFilters, sql` and `) : sql`true`;
   const reqDateCondition = sql`${dateRange(reqDateCol, from, to)} and ${ownOnly}`;
-  const reportScope = mine
-    ? sql`(${pumpTestReports.requisitionId} in (select ${testRequisitions.id} from ${testRequisitions} where ${testRequisitions.createdBy} = ${claims.sub}) or ${pumpTestReports.preparedBy} = (select ${users.name} from ${users} where ${users.id} = ${claims.sub}))`
-    : sql`true`;
+  // A report's category is derived (remarks / EC no. / linked requisition), not a column, so the matching
+  // report ids are worked out here once and every report query is restricted to them.
+  let categoryReportIds: string[] | null = null;
+  if (categoryParam) {
+    const candidates = await db
+      .select({ id: pumpTestReports.id, remarks: pumpTestReports.remarks, ecNo: pumpTestReports.ecNo, requisitionCategory: testRequisitions.category })
+      .from(pumpTestReports)
+      .leftJoin(testRequisitions, sql`${testRequisitions.id} = ${pumpTestReports.requisitionId}`);
+    categoryReportIds = candidates.filter((r) => reportCategoryOf(r) === categoryParam).map((r) => r.id);
+  }
+  const reportFilters: ReturnType<typeof sql>[] = [];
+  if (mine) {
+    reportFilters.push(
+      sql`(${pumpTestReports.requisitionId} in (select ${testRequisitions.id} from ${testRequisitions} where ${testRequisitions.createdBy} = ${claims.sub}) or ${pumpTestReports.preparedBy} = (select ${users.name} from ${users} where ${users.id} = ${claims.sub}))`
+    );
+  }
+  if (statusParam && statusParam !== "Closed") reportFilters.push(sql`false`);
+  if (modelParam) reportFilters.push(sql`${modelKeySql(sql`${pumpTestReports.model}`)} = ${normalizeModelKey(modelParam)}`);
+  if (categoryReportIds) {
+    reportFilters.push(categoryReportIds.length ? sql`${pumpTestReports.id} in (${sql.join(categoryReportIds.map((id) => sql`${id}`), sql`, `)})` : sql`false`);
+  }
+  const reportScope = reportFilters.length ? sql.join(reportFilters, sql` and `) : sql`true`;
   const reportDateCondition = sql`${dateRange(reportDateCol, from, to)} and ${reportScope}`;
   const openCondition = sql`${testRequisitions.status} in ('Pending', 'In Testing', 'Retest Needed')`;
 

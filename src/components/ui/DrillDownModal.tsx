@@ -31,6 +31,7 @@ const describe = (params: URLSearchParams, kind: "requisitions" | "reports"): st
     ["source_team", "Source team"],
     ["responsible_person", "Responsible"],
     ["raised_by", "Raised by"],
+    ["model", "Model"],
     ["ec", "EC / Quotation"],
   ] as const) {
     const v = params.get(key);
@@ -81,6 +82,8 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
         to: params.get("to") || undefined,
         category: params.get("category") || undefined,
         report_result: result === "green" || result === "red" ? result : undefined,
+        model: params.get("model") || undefined,
+        status: params.get("status") || undefined,
       })
         .then((r) => {
           if (cancelled) return;
@@ -92,6 +95,7 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
     } else {
       const status = params.get("status");
       const filters: RequisitionFilters = {
+        model: params.get("model") || undefined,
         ec_quotation_no: params.get("ec") || undefined,
         scope: (params.get("scope") as RequisitionFilters["scope"]) || undefined,
         category: params.get("category") || undefined,
