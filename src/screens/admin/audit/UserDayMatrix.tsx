@@ -3,6 +3,12 @@
 import { avatarColor } from "@/lib/avatar";
 import { dayOfMonth, personInitials, weekdayInitial, dayShort } from "./auditFormat";
 
+/** Saturday / Sunday, from the YYYY-MM-DD key (UTC parse, so the weekday can't shift with the viewer's zone). */
+const isWeekend = (day: string) => {
+  const dow = new Date(`${day}T00:00:00Z`).getUTCDay();
+  return dow === 0 || dow === 6;
+};
+
 export interface MatrixRow {
   key: string;
   email: string | null;
@@ -38,12 +44,15 @@ const UserDayMatrix = ({ days, rows, formatCell, formatTotal, footer, emptyText 
     <div className="overflow-x-auto">
       <div className="grid items-center gap-x-[3px] gap-y-[3px]" style={{ gridTemplateColumns: columns, minWidth: 190 + days.length * 44 + 84 }}>
         <div className="pb-1 text-[11px] font-semibold uppercase tracking-wide text-text-muted">User</div>
-        {days.map((d) => (
-          <div key={d} className="pb-1 text-center text-[11px] leading-tight text-text-muted" title={dayShort(d)}>
-            <div>{weekdayInitial(d)}</div>
-            <div className="font-semibold text-text">{dayOfMonth(d)}</div>
-          </div>
-        ))}
+        {days.map((d) => {
+          const weekend = isWeekend(d);
+          return (
+            <div key={d} className={`pb-1 text-center text-[11px] leading-tight ${weekend ? "text-neg" : "text-text-muted"}`} title={dayShort(d)}>
+              <div>{weekdayInitial(d)}</div>
+              <div className={`font-semibold ${weekend ? "text-neg" : "text-text"}`}>{dayOfMonth(d)}</div>
+            </div>
+          );
+        })}
         <div className="pb-1 text-right text-[11px] font-semibold uppercase tracking-wide text-text-muted">Total</div>
 
         {rows.map((row) => (
@@ -100,6 +109,17 @@ const UserDayMatrix = ({ days, rows, formatCell, formatTotal, footer, emptyText 
             </div>
           </>
         )}
+      </div>
+      <div className="mt-4 flex items-center justify-end gap-1.5 text-[11px] text-text-muted">
+        Less
+        {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+          <span
+            key={t}
+            className="h-3 w-3 rounded-sm"
+            style={{ background: t === 0 ? "var(--bg-sunk)" : `color-mix(in oklab, var(--seq-hi) ${Math.round(15 + t * 85)}%, var(--seq-lo))` }}
+          />
+        ))}
+        More ({formatCell(max)})
       </div>
     </div>
   );

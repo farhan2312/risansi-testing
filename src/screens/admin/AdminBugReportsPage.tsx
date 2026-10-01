@@ -6,7 +6,7 @@ import "./AdminBugReportsPage.css";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import BugReportDetailModal from "@/components/ui/BugReportDetailModal";
 import { Skeleton } from "@/components/ui/Skeleton";
-import PageHeader from "@/components/ui/PageHeader";
+import AdminPageHeader, { StatCard } from "@/components/ui/AdminPageHeader";
 import { timeAgo } from "@/lib/formUtils";
 import { avatarColor, initialsOf } from "@/lib/avatar";
 import {
@@ -19,10 +19,10 @@ import {
 import type { BugReport, BugReportStatus } from "@/types/testing";
 
 const PAGE_SIZE = 10;
-const COLUMNS: { status: BugReportStatus; title: string; dotClass: string }[] = [
-  { status: "Open", title: "Open", dotClass: "status-open" },
-  { status: "In Progress", title: "In Progress", dotClass: "status-in-progress" },
-  { status: "Resolved", title: "Resolved", dotClass: "status-resolved" },
+const COLUMNS: { status: BugReportStatus; title: string; dotClass: string; subtitle: string }[] = [
+  { status: "Open", title: "Open", dotClass: "status-open", subtitle: "Reported, not yet picked up" },
+  { status: "In Progress", title: "In Progress", dotClass: "status-in-progress", subtitle: "Being worked on" },
+  { status: "Resolved", title: "Resolved", dotClass: "status-resolved", subtitle: "Fixed & closed" },
 ];
 const DOT_COLORS: Record<string, string> = {
   "status-open": "var(--info)",
@@ -70,21 +70,17 @@ const BugCard = ({ report: r, isDragging, onDragStart, onDragEnd, onDelete, onOp
       }}
       onDragEnd={onDragEnd}
     >
-      <div className="bug-card-top">
-        <span className={`bug-card-icon ${r.type === "bug" ? "bug-card-icon-bug" : "bug-card-icon-feature"}`}>
-          {r.type === "bug" ? "🐛" : "✨"}
-        </span>
-        <span className="bug-card-title">
-          {!r.is_read && <span className="bug-unread-dot" aria-label="Unread" />}
-          {r.title}
-        </span>
-      </div>
-      {r.description && <div className="bug-card-description">{r.description}</div>}
-      <div className="bug-card-tags">
-        <span className={severityPillClass(r.severity)}>{r.severity}</span>
+      <div className="bug-card-meta">
+        <span className={`bug-card-severity bug-card-severity-${r.severity.toLowerCase()}`}>{r.severity}</span>
+        <span className={`bug-card-type ${r.type === "bug" ? "bug-card-type-bug" : "bug-card-type-feature"}`}>{r.type === "bug" ? "Bug" : "Feature"}</span>
         {r.page && <span className="bug-page-tag">{r.page}</span>}
         {r.has_screenshot && <span className="bug-attachment-icon">📎</span>}
       </div>
+      <div className="bug-card-title">
+        {!r.is_read && <span className="bug-unread-dot" aria-label="Unread" />}
+        {r.title}
+      </div>
+      {r.description && <div className="bug-card-description">{r.description}</div>}
       <div className="bug-card-footer">
         <div className="bug-card-reporter">
           <span className="bug-avatar" style={{ background: avatarColor(reporterName) }}>
@@ -125,6 +121,7 @@ const BugCard = ({ report: r, isDragging, onDragStart, onDragEnd, onDelete, onOp
 interface KanbanColumnProps {
   status: BugReportStatus;
   title: string;
+  subtitle: string;
   dotClass: string;
   column: ColumnState;
   draggingId: string | null;
@@ -142,6 +139,7 @@ interface KanbanColumnProps {
 const KanbanColumn = ({
   status,
   title,
+  subtitle,
   dotClass,
   column,
   draggingId,
@@ -176,6 +174,7 @@ const KanbanColumn = ({
 
   return (
     <div
+      style={{ borderTopColor: DOT_COLORS[dotClass] }}
       className={`bug-kanban-column ${isDragOver ? "drag-over" : ""}`}
       onDragOver={(e) => {
         e.preventDefault();
@@ -189,8 +188,12 @@ const KanbanColumn = ({
       }}
     >
       <div className="bug-kanban-column-header">
-        <span className="bug-kanban-column-dot" style={{ background: DOT_COLORS[dotClass] }} />
-        <span className="bug-kanban-column-title">{title}</span>
+        <div className="bug-kanban-column-heading">
+          <span className="bug-kanban-column-title" style={{ color: DOT_COLORS[dotClass] }}>
+            {title}
+          </span>
+          <span className="bug-kanban-column-subtitle">{subtitle}</span>
+        </div>
         <span className="bug-kanban-column-count">{column.isLoading ? "-" : column.total}</span>
       </div>
       <div className="bug-kanban-column-body" ref={bodyRef}>
@@ -382,58 +385,53 @@ const AdminBugReportsPage = () => {
   };
 
   const anyLoading = COLUMNS.some(({ status }) => columns[status].isLoading);
-  const openCount = columns.Open.total + columns["In Progress"].total;
   const totalCount = COLUMNS.reduce((sum, { status }) => sum + columns[status].total, 0);
 
   return (
-    <div className="admin-requests-page">
-      <PageHeader
-        icon="🐛"
-        title="Bug Reports"
-        subtitle='Reports filed from the "Report a Bug" widget · drag a card to change its status.'
-        actions={
-          !anyLoading && (
-            <div className="bug-header-stats">
-              <span className="bug-header-stat">
-                <strong>{openCount}</strong> open
-              </span>
-              <span className="bug-header-stat">
-                <strong>{totalCount}</strong> total
-              </span>
-            </div>
-          )
-        }
+    <div className="admin-requests-page tw-reset flex flex-col gap-5">
+      <AdminPageHeader
+        title="Bug Tracker"
+        subtitle="Reports filed from the “Report a Bug” widget. Drag a card across the columns as you work on it and close it."
       />
 
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Total reports" value={anyLoading ? "–" : totalCount} />
+        <StatCard label="Open" value={anyLoading ? "–" : columns.Open.total} tone="accent" sub="Not yet picked up" />
+        <StatCard label="In progress" value={anyLoading ? "–" : columns["In Progress"].total} tone="warn" sub="Being worked on" />
+        <StatCard label="Resolved" value={anyLoading ? "–" : columns.Resolved.total} tone="pos" sub="Fixed & closed" />
+      </div>
+
       <div className="bug-toolbar">
-        <input
-          type="text"
-          placeholder="Search title, description, reporter, page..."
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-        />
+        <span className="bug-toolbar-label">Filter</span>
         <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}>
           <option value="">All types</option>
           <option value="bug">Bug</option>
           <option value="feature">Feature</option>
         </select>
         <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value as typeof severityFilter)}>
-          <option value="">All severities</option>
+          <option value="">Severity</option>
           <option value="Low">Low</option>
           <option value="Medium">Medium</option>
           <option value="High">High</option>
           <option value="Critical">Critical</option>
         </select>
+        <input
+          type="text"
+          placeholder="Search title / reporter…"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+        />
       </div>
 
       {error && <p className="error-message">{error}</p>}
 
       <div className="bug-kanban">
-        {COLUMNS.map(({ status, title, dotClass }) => (
+        {COLUMNS.map(({ status, title, dotClass, subtitle }) => (
           <KanbanColumn
             key={status}
             status={status}
             title={title}
+            subtitle={subtitle}
             dotClass={dotClass}
             column={columns[status]}
             draggingId={draggedCard?.id ?? null}

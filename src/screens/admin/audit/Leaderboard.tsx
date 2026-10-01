@@ -4,6 +4,7 @@ import ChartCard from "@/components/charts/ChartCard";
 import "@/components/ui/premium.css";
 import { avatarColor } from "@/lib/avatar";
 import { personInitials, ROLE_LABELS } from "./auditFormat";
+import { auditIcons } from "./auditIcons";
 import type { AuditLeader } from "@/types/testing";
 
 interface LeaderboardProps {
@@ -26,6 +27,8 @@ const Leaderboard = ({ title, subtitle, leaders, formatValue, shareOf, valueLabe
 
   return (
     <ChartCard
+      variant="panel"
+      icon={auditIcons.trophy()}
       title={title}
       subtitle={subtitle}
       table={{
@@ -58,7 +61,7 @@ const Leaderboard = ({ title, subtitle, leaders, formatValue, shareOf, valueLabe
                     {l.role ? (ROLE_LABELS[l.role] ?? l.role) : "Removed user"} · {l.share_pct}% {shareOf}
                   </div>
                 </div>
-                <div className="text-right text-[22px] font-extrabold leading-none tracking-tight text-text-h" style={{ fontVariantNumeric: "tabular-nums" }}>
+                <div className="text-right font-mono text-[17px] font-semibold leading-none text-text-h" style={{ fontVariantNumeric: "tabular-nums" }}>
                   {formatValue(l.value)}
                 </div>
               </div>

@@ -11,7 +11,7 @@ import {
   windowFor,
 } from "@/lib/auditRange";
 import { db } from "@/lib/db";
-import { auditLogs, userSessions, users } from "@/lib/db/schema";
+import { auditLogs, pageViews, userSessions, users } from "@/lib/db/schema";
 import { parseUserAgent } from "@/lib/userAgent";
 
 export const dynamic = "force-dynamic";
@@ -235,6 +235,32 @@ export async function GET(req: Request) {
     db.select({ seconds: sessionSeconds }).from(userSessions).where(windowCondition(userSessions.loginAt, range)),
   ]);
 
+  // ---- Adoption: how many of the live accounts actually use the portal ----
+  const [accountRows, everSessionRows, everLoginRows, rangeActivityRows, rangeSessionRows, [sessionCount], [pageViewCount]] = await Promise.all([
+    db.select({ id: users.id }).from(users).where(sql`${users.status} = 'active'`),
+    db.selectDistinct({ id: userSessions.userId }).from(userSessions),
+    db.selectDistinct({ id: auditLogs.userId }).from(auditLogs).where(sql`${auditLogs.eventType} = 'login' and ${auditLogs.userId} is not null`),
+    db.selectDistinct({ id: auditLogs.userId }).from(auditLogs).where(sql`${inRange} and ${notFailed} and ${auditLogs.userId} is not null`),
+    db.selectDistinct({ id: userSessions.userId }).from(userSessions).where(windowCondition(userSessions.loginAt, range)),
+    db.select({ n: sql<number>`count(*)::int` }).from(userSessions).where(windowCondition(userSessions.loginAt, range)),
+    db.select({ n: sql<number>`count(*)::int` }).from(pageViews).where(windowCondition(pageViews.viewedAt, range)),
+  ]);
+  const accountIds = new Set(accountRows.map((r) => r.id));
+  const everSignedIn = new Set([...everSessionRows, ...everLoginRows].map((r) => r.id).filter((id): id is string => !!id));
+  const activeInRange = new Set([...rangeActivityRows, ...rangeSessionRows].map((r) => r.id).filter((id): id is string => !!id));
+  const sessionTotalSeconds = Math.round(toNum(timeTotal?.seconds));
+  const adoption = {
+    accounts: accountIds.size,
+    active_users: [...accountIds].filter((id) => activeInRange.has(id)).length,
+    never_signed_in: [...accountIds].filter((id) => !everSignedIn.has(id) && !activeInRange.has(id)).length,
+    dormant: [...accountIds].filter((id) => everSignedIn.has(id) && !activeInRange.has(id)).length,
+    sessions: toNum(sessionCount?.n),
+    avg_session_seconds: toNum(sessionCount?.n) ? Math.round(sessionTotalSeconds / toNum(sessionCount?.n)) : 0,
+    active_seconds: sessionTotalSeconds,
+    page_views: toNum(pageViewCount?.n),
+    window_days: range.fromDay && range.toDay ? daysBetween(range.fromDay, range.toDay).length : null,
+  };
+
   // ---- Range-wide event totals + action breakdown ----
   const eventTypes = { actions: 0, sign_ins: 0, failed_sign_ins: 0, sign_outs: 0 };
   let requisitionsCreated = 0;
@@ -451,6 +477,7 @@ export async function GET(req: Request) {
           }
         : null,
     },
+    adoption,
     daily: dailySeries,
     event_types: eventTypes,
     action_breakdown: actionBreakdown,

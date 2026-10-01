@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getAuditOverview } from "@/services/adminService";
 import { SkeletonPage } from "@/components/ui/Skeleton";
 import ChartCard from "@/components/charts/ChartCard";
-import KpiCard from "@/components/charts/KpiCard";
 import StackedBarChart, { type BarSeries } from "@/components/charts/StackedBarChart";
 import DonutChart from "@/components/charts/DonutChart";
 import BarList from "@/components/charts/BarList";
 import Heatmap from "@/components/charts/Heatmap";
 import Segmented from "./Segmented";
+import { auditIcons } from "./auditIcons";
 import Leaderboard from "./Leaderboard";
 import UserDayMatrix, { type MatrixRow } from "./UserDayMatrix";
 import {
@@ -29,9 +29,6 @@ type UserMatrixMode = "active" | "actions";
 type CreatedMode = "both" | "requisitions" | "reports";
 type SystemMode = "browser" | "os";
 
-const pctChange = (now: number, before: number | undefined) =>
-  before === undefined ? null : before === 0 ? (now === 0 ? 0 : null) : ((now - before) / before) * 100;
-
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const pct = (n: number, total: number) => (total ? Math.round((n / total) * 100) : 0);
 
@@ -39,10 +36,31 @@ const DEVICE_COLORS = { Desktop: "var(--series-1)", Mobile: "var(--series-2)", T
 const BROWSER_COLORS = { Chrome: "var(--series-1)", Edge: "var(--series-2)", Firefox: "var(--series-3)", Safari: "var(--series-4)" };
 const OS_COLORS = { Windows: "var(--series-1)", macOS: "var(--series-2)", Android: "var(--series-3)", iOS: "var(--series-4)" };
 
+const ADOPTION_TONES = {
+  default: "text-text-h",
+  accent: "text-accent",
+  pos: "text-pos-strong",
+  warn: "text-warn",
+  neg: "text-neg-strong",
+} as const;
+
+/** One cell of the Adoption strip: small uppercase label, big monospace figure, one muted line. */
+const AdoptionTile = ({ label, value, sub, tone = "default" }: { label: string; value: string; sub: string; tone?: keyof typeof ADOPTION_TONES }) => (
+  <div className="flex flex-col gap-1.5 px-5 py-4">
+    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">{label}</div>
+    <div className={`font-mono text-[30px] font-medium leading-none tabular-nums ${ADOPTION_TONES[tone]}`}>{value}</div>
+    <div className="text-xs leading-snug text-text-muted">{sub}</div>
+  </div>
+);
+
+/** "30 days · 2026-09-02 to 2026-10-01" style caption for a panel header. */
+const rangeLabel = (days: string[]) =>
+  days.length ? `${days.length} day${days.length === 1 ? "" : "s"} · ${days[0]} to ${days[days.length - 1]}` : "no days in range";
+
 /** A small "icon chip + label + headline + detail" card for the insight strip. */
-const InsightCard = ({ icon, label, value, detail }: { icon: string; label: string; value: string; detail: string }) => (
-  <div className="flex items-center gap-3.5 rounded-2xl border border-border bg-surface p-4 shadow-sm">
-    <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-accent-soft text-lg" aria-hidden="true">
+const InsightCard = ({ icon, label, value, detail }: { icon: ReactNode; label: string; value: string; detail: string }) => (
+  <div className="flex items-center gap-3.5 rounded-xl border border-border bg-surface px-4 py-3.5 shadow-sm">
+    <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-accent text-white" aria-hidden="true">
       {icon}
     </span>
     <div className="min-w-0">
@@ -141,11 +159,9 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
   if (isLoading && !data) return <SkeletonPage cards={3} />;
   if (!data) return <p className="text-sm font-medium text-neg">{error || "Nothing to show."}</p>;
 
-  const { kpis, insights, event_types: ev } = data;
-  const prev = kpis.previous ?? undefined;
+  const { kpis, insights, event_types: ev, adoption } = data;
   const totalEvents = ev.actions + ev.sign_ins + ev.failed_sign_ins + ev.sign_outs;
   const clipped = data.days.length > data.matrix_days.length;
-  const spark = (pick: (d: AuditOverview["daily"][number]) => number) => data.daily.map(pick);
 
   // ---- Event types ----
   const eventSegments = [
@@ -213,55 +229,51 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
     <div className={`flex flex-col gap-5 transition-opacity ${isLoading ? "pointer-events-none opacity-60" : ""}`}>
       {error && <p className="text-sm font-medium text-neg">{error}</p>}
 
-      {/* ---- Headline numbers ---- */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          icon="📋"
-          label="Requisitions created"
-          accent="blue"
-          value={kpis.requisitions_created.toLocaleString()}
-          deltaPct={pctChange(kpis.requisitions_created, prev?.requisitions_created)}
-          hint={prev ? "vs previous period" : undefined}
-          sparkline={spark((d) => d.requisitions)}
-        />
-        <KpiCard
-          icon="📄"
-          label="Reports created"
-          accent="green"
-          value={kpis.reports_created.toLocaleString()}
-          deltaPct={pctChange(kpis.reports_created, prev?.reports_created)}
-          hint={prev ? "vs previous period" : undefined}
-          sparkline={spark((d) => d.reports)}
-        />
-        <KpiCard
-          icon="🔑"
-          label="Sign-ins"
-          accent="orange"
-          value={kpis.sign_ins.toLocaleString()}
-          deltaPct={pctChange(kpis.sign_ins, prev?.sign_ins)}
-          hint={`${kpis.failed_sign_ins} failed`}
-          tone={kpis.failed_sign_ins > 0 ? "warning" : "neutral"}
-          sparkline={spark((d) => d.sign_ins)}
-        />
-        <KpiCard
-          icon="🌐"
-          label="IP addresses"
-          accent="amber"
-          value={kpis.distinct_ips.toLocaleString()}
-          hint="distinct addresses seen in this range"
-        />
-      </div>
+      {/* ---- Adoption: who actually uses the portal ---- */}
+      <section className="viz-root overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-border px-5 py-3.5">
+          <h2 className="m-0 font-mono text-xs font-bold uppercase tracking-[0.14em] text-accent">Adoption</h2>
+          <p className="m-0 text-xs text-text-muted">{rangeLabel(data.days)}</p>
+        </div>
+        <div className="grid grid-cols-2 divide-border md:grid-cols-4 xl:grid-cols-7 xl:divide-x [&>*]:border-b [&>*]:border-border xl:[&>*]:border-b-0">
+          <AdoptionTile
+            label="Active users"
+            value={adoption.active_users.toLocaleString()}
+            tone="pos"
+            sub={`of ${adoption.accounts} accounts · ${pct(adoption.active_users, adoption.accounts)}%`}
+          />
+          <AdoptionTile label="Never signed in" value={adoption.never_signed_in.toLocaleString()} tone={adoption.never_signed_in > 0 ? "neg" : "default"} sub="accounts with no login ever" />
+          <AdoptionTile
+            label="Dormant"
+            value={adoption.dormant.toLocaleString()}
+            tone={adoption.dormant > 0 ? "warn" : "default"}
+            sub={`signed in once, nothing in ${adoption.window_days ? `${adoption.window_days} days` : "this range"}`}
+          />
+          <AdoptionTile
+            label="Sessions"
+            value={adoption.sessions.toLocaleString()}
+            sub={adoption.sessions ? `avg ${Math.max(1, Math.round(adoption.avg_session_seconds / 60))} min each` : "no sessions"}
+          />
+          <AdoptionTile
+            label="Active hours"
+            value={(Math.round((adoption.active_seconds / 3600) * 10) / 10).toLocaleString()}
+            sub={`${adoption.page_views.toLocaleString()} page views`}
+          />
+          <AdoptionTile label="Records touched" value={ev.actions.toLocaleString()} tone="accent" sub="things created, edited or deleted" />
+          <AdoptionTile label="Sign-ins" value={kpis.sign_ins.toLocaleString()} sub={`${kpis.failed_sign_ins.toLocaleString()} failed`} />
+        </div>
+      </section>
 
       {/* ---- Insights ---- */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <InsightCard
-          icon="📅"
+          icon={auditIcons.calendar()}
           label="Busiest day"
           value={insights.busiest_day ? dayShort(insights.busiest_day.day) : "—"}
           detail={insights.busiest_day ? `${insights.busiest_day.events.toLocaleString()} events · ${insights.busiest_day.users} user${insights.busiest_day.users === 1 ? "" : "s"}` : "No activity in this range"}
         />
         <InsightCard
-          icon="🔥"
+          icon={auditIcons.flame()}
           label="Peak hour (IST)"
           value={insights.peak_hour ? hourSlot(insights.peak_hour.hour) : "—"}
           detail={
@@ -271,7 +283,7 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
           }
         />
         <InsightCard
-          icon="🏆"
+          icon={auditIcons.users()}
           label="Most active user"
           value={mostActive ? (mostActive.email ?? mostActive.name ?? "Unknown user") : "—"}
           detail={mostActive ? `${formatDuration(mostActive.active_seconds)} active · ${mostActive.actions.toLocaleString()} actions` : "No activity in this range"}
@@ -303,9 +315,11 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
       {/* ---- Trend + event types ---- */}
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <ChartCard
+          variant="panel"
           className="xl:col-span-2"
           title="Activity trend"
-          subtitle={`${trend!.subtitle}${data.daily_capped ? ` · latest ${data.days.length} days` : ""}`}
+          icon={auditIcons.pulse()}
+          subtitle={`Per IST day · ${data.days.length} day${data.days.length === 1 ? "" : "s"}${data.daily_capped ? " (latest)" : ""}`}
           legend={trend!.series.map((s) => ({ label: s.label, color: s.color, shape: "rect" as const }))}
           table={trend!.table}
           actions={
@@ -326,7 +340,9 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
         </ChartCard>
 
         <ChartCard
+          variant="panel"
           title="Event types"
+          icon={auditIcons.shield()}
           subtitle="Sign-ins, failures and actions"
           table={{
             columns: ["Type", "Events", "Share"],
@@ -340,8 +356,10 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
       {/* ---- When people work + action breakdown ---- */}
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <ChartCard
+          variant="panel"
           className="xl:col-span-2"
           title="When people work"
+          icon={auditIcons.flame()}
           subtitle="Events by weekday and hour, IST · failed sign-ins excluded"
           table={{
             columns: ["Hour (IST)", ...WEEKDAYS],
@@ -360,7 +378,9 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
         </ChartCard>
 
         <ChartCard
+          variant="panel"
           title="Action breakdown"
+          icon={auditIcons.grid()}
           subtitle="What was done"
           table={{
             columns: ["Action", "Count", "Share"],
@@ -381,7 +401,9 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
 
       {/* ---- Daily user activity ---- */}
       <ChartCard
+        variant="panel"
         title="Daily user activity"
+        icon={auditIcons.users()}
         subtitle={`Each user's ${userMatrixMode === "active" ? "session time" : "actions"} per IST day — hover a cell for details${clipped ? ` · latest ${data.matrix_days.length} days` : ""}`}
         table={{
           columns: ["User", ...data.matrix_days.map(dayShort), "Total"],
@@ -413,7 +435,9 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
 
       {/* ---- Created per user ---- */}
       <ChartCard
+        variant="panel"
         title="Requisitions & reports created"
+        icon={auditIcons.tag()}
         subtitle={`Who created what, per IST day${clipped ? ` · latest ${data.matrix_days.length} days` : ""}`}
         table={{
           columns: ["User", ...data.matrix_days.map(dayShort), "Total"],
@@ -448,7 +472,9 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
         {hasClientData && (
           <>
             <ChartCard
+              variant="panel"
               title="Devices"
+              icon={auditIcons.monitor()}
               subtitle="Desktop, mobile or tablet · share of sign-ins"
               table={{ columns: ["Device", "Sign-ins"], rows: data.devices.map((d) => [d.label, d.count]) }}
             >
@@ -463,7 +489,9 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
             </ChartCard>
 
             <ChartCard
+              variant="panel"
               title={systemMode === "browser" ? "Browsers" : "Operating systems"}
+              icon={auditIcons.monitor()}
               subtitle="Share of sign-ins"
               table={{ columns: [systemMode === "browser" ? "Browser" : "OS", "Sign-ins"], rows: systemItems.map((d) => [d.label, d.count]) }}
               actions={
@@ -488,7 +516,9 @@ const AuditOverviewTab = ({ range }: { range: AuditRange }) => {
         )}
 
         <ChartCard
+          variant="panel"
           title="IP addresses"
+          icon={auditIcons.globe()}
           subtitle="Where activity came from · top 10"
           table={{
             columns: ["IP address", "Events", "Users", "Failed", "Last seen"],

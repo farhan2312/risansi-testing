@@ -41,9 +41,13 @@ const formatTimeRange = (e: CalendarEvent) => {
 /** Status sets both the card's accent color and its badge -- the same visual rule used consistently
  * across the card, never color alone (the badge always carries the word too). */
 const STATUS_STYLE: Record<CalendarEvent["status"], { border: string; bg: string; badge: string }> = {
-  Completed: { border: "border-l-pos-strong", bg: "bg-pos-soft", badge: "bg-pos text-white" },
-  Planned: { border: "border-l-accent", bg: "bg-accent-soft", badge: "bg-accent text-white" },
+  Completed: { border: "border-l-pos-strong", bg: "bg-pos-soft", badge: "text-pos-strong" },
+  Planned: { border: "border-l-accent", bg: "bg-bg-sunk", badge: "text-text-muted" },
 };
+
+/** "% done" chip: red while most of the week is still ahead, amber midway, green when mostly done. */
+const doneChipClass = (pct: number) =>
+  pct >= 80 ? "border-pos-strong/30 bg-pos-soft text-pos-strong" : pct >= 50 ? "border-warn/30 bg-warn-soft text-warn" : "border-neg-strong/30 bg-neg-soft text-neg-strong";
 
 const dayLabel = (d: Date) => d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 
@@ -182,92 +186,118 @@ const CalendarPage = () => {
 
       {error && <p className="text-sm font-medium text-neg">{error}</p>}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="viz-root inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-xs font-semibold text-text">
-          {visibleEvents.length} event{visibleEvents.length === 1 ? "" : "s"}
-        </span>
-        {visibleEvents.length > 0 && (
-          <span className="viz-root inline-flex items-center gap-1.5 rounded-full bg-pos-soft px-3 py-1 text-xs font-semibold text-pos-strong">
-            {completedPct}% done
-          </span>
-        )}
-        <div className="range-group" role="group" aria-label="Status">
-          {(["All", "Planned", "Completed"] as const).map((s) => (
-            <button key={s} type="button" className="range-pill" aria-pressed={statusFilter === s} onClick={() => setStatusFilter(s)}>
-              {s}
-            </button>
-          ))}
+      <div className="viz-root overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="m-0 text-lg font-bold text-text-h">{rangeTitle}</h2>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center rounded-full border border-border bg-bg-sunk px-3 py-0.5 text-xs text-text-muted">
+                <strong className="mr-1 font-bold text-text-h">{visibleEvents.length}</strong> event{visibleEvents.length === 1 ? "" : "s"}
+              </span>
+              {visibleEvents.length > 0 && (
+                <span className={`inline-flex items-center rounded-full border px-3 py-0.5 text-xs font-semibold ${doneChipClass(completedPct)}`}>
+                  <strong className="mr-1 font-bold">{completedPct}%</strong> done
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="range-group" role="group" aria-label="Status">
+            {(["All", "Planned", "Completed"] as const).map((st) => (
+              <button key={st} type="button" className="range-pill" aria-pressed={statusFilter === st} onClick={() => setStatusFilter(st)}>
+                {st}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-
-      <div className="viz-root rounded-2xl border border-border bg-surface p-4 shadow-sm">
-        <h2 className="m-0 mb-3 text-lg font-bold text-text-h">{rangeTitle}</h2>
 
         {mode === "week" ? (
           <div className={`overflow-x-auto transition-opacity ${isLoading ? "opacity-60" : ""}`}>
-            <div className="grid min-w-[900px] grid-cols-[140px_repeat(7,1fr)] gap-px overflow-hidden rounded-lg border border-border bg-border">
-              <div className="bg-bg-sunk px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">Person</div>
+            <div className="grid min-w-[1000px] grid-cols-[150px_repeat(7,minmax(0,1fr))]">
+              <div className="sticky left-0 z-10 border-b border-border bg-bg-sunk px-4 py-3 text-[11px] font-bold uppercase tracking-[0.1em] text-text-muted">Person</div>
               {days.map((day) => {
                 const iso = localIsoDay(day);
+                const isToday = iso === todayIso;
                 return (
-                  <div key={iso} className={`px-2 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide ${iso === todayIso ? "bg-accent-soft text-accent-ink" : "bg-bg-sunk text-text-muted"}`}>
+                  <div
+                    key={iso}
+                    className={`border-b border-l border-border px-3 py-3 text-center text-xs font-semibold ${isToday ? "bg-accent-soft text-accent" : "bg-bg-sunk text-text-muted"}`}
+                  >
                     {day.toLocaleDateString("en-GB", { weekday: "short" })}, {day.getDate()} {MONTH_NAMES[day.getMonth()].slice(0, 3)}
                   </div>
                 );
               })}
 
-              {CALENDAR_ROWS.map((person) => (
-                <Fragment key={person}>
-                  <div className="flex flex-col justify-center bg-surface px-2 py-2">
-                    <span className="text-sm font-bold text-text-h">{person}</span>
-                  </div>
-                  {days.map((day) => {
-                    const iso = localIsoDay(day);
-                    const cellEvents = eventsByPersonAndDay.get(person)?.get(iso) ?? [];
-                    return (
-                      <div key={`${person}-${iso}`} className={`flex min-h-[92px] flex-col gap-1.5 bg-surface p-1.5 ${iso === todayIso ? "bg-accent-soft/20" : ""}`}>
-                        {cellEvents.map((e) => (
-                          <button
-                            key={e.id}
-                            type="button"
-                            onClick={() => setEditing(e)}
-                            className={`group relative rounded-md border-l-[3px] ${STATUS_STYLE[e.status].border} ${STATUS_STYLE[e.status].bg} px-2 py-1.5 text-left shadow-sm hover:brightness-95`}
-                          >
-                            <div className="truncate pr-4 text-[12px] font-semibold text-text-h">{e.title}</div>
-                            <div className="truncate text-[11px] text-text-muted">
-                              {e.ec_quotation_no ? `EC ${e.ec_quotation_no}` : e.model ? e.model : formatTimeRange(e) ? "Event" : "Event"}
-                              {formatTimeRange(e) && ` · ${formatTimeRange(e)}`}
+              {CALENDAR_ROWS.map((person, rowIndex) => {
+                const personEvents = eventsByPersonAndDay.get(person);
+                const weekCount = days.reduce((n, d) => n + (personEvents?.get(localIsoDay(d))?.length ?? 0), 0);
+                const lastRow = rowIndex === CALENDAR_ROWS.length - 1;
+                return (
+                  <Fragment key={person}>
+                    <div className={`sticky left-0 z-10 flex flex-col justify-start bg-surface px-4 py-3.5 ${lastRow ? "" : "border-b border-border"}`}>
+                      <span className="text-sm font-bold text-text-h">{person}</span>
+                      <span className="text-xs text-text-muted">
+                        {weekCount} this {mode}
+                      </span>
+                    </div>
+                    {days.map((day) => {
+                      const iso = localIsoDay(day);
+                      const cellEvents = personEvents?.get(iso) ?? [];
+                      const isToday = iso === todayIso;
+                      return (
+                        <div
+                          key={`${person}-${iso}`}
+                          className={`group/cell flex min-h-[110px] flex-col gap-2 border-l border-border p-2 ${lastRow ? "" : "border-b"} ${isToday ? "bg-accent-soft/40" : "bg-surface"}`}
+                        >
+                          {cellEvents.map((e) => (
+                            <div
+                              key={e.id}
+                              className={`relative rounded-lg border-l-[3px] ${STATUS_STYLE[e.status].border} ${STATUS_STYLE[e.status].bg} `}
+                            >
+                              <button type="button" onClick={() => setEditing(e)} className="block w-full px-2.5 py-2 pr-8 text-left">
+                                <div className="truncate text-[13px] font-bold uppercase leading-tight text-text-h" title={e.title}>
+                                  {e.title}
+                                </div>
+                                <div className="mt-0.5 truncate text-xs text-text-muted">
+                                  {e.ec_quotation_no ? e.ec_quotation_no : e.model ? e.model : "Event"}
+                                  {formatTimeRange(e) && ` · ${formatTimeRange(e)}`}
+                                </div>
+                                <div className={`mt-1.5 text-[11px] font-bold uppercase tracking-wider ${STATUS_STYLE[e.status].badge}`}>{e.status}</div>
+                              </button>
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditing(e)}
+                                  className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-md border border-border bg-surface text-xs text-text-muted shadow-sm hover:border-accent hover:text-accent"
+                                  title="Edit"
+                                  aria-label={`Edit ${e.title}`}
+                                >
+                                  ✎
+                                </button>
+                              )}
                             </div>
-                            <span className={`mt-1 inline-block rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wide ${STATUS_STYLE[e.status].badge}`}>{e.status}</span>
-                            {canManage && (
-                              <span
-                                className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded text-text-muted opacity-0 group-hover:opacity-100"
-                                title="Edit"
-                                aria-hidden="true"
-                              >
-                                ✎
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                        {canManage && (
-                          <button
-                            type="button"
-                            onClick={() => setCreatingOn(iso)}
-                            className="rounded-md border border-dashed border-border py-1 text-[11px] text-text-faint hover:border-accent hover:text-accent"
-                          >
-                            + Add
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </Fragment>
-              ))}
+                          ))}
+                          {canManage && (
+                            <button
+                              type="button"
+                              onClick={() => setCreatingOn(iso)}
+                              className={`rounded-lg border border-dashed border-border text-[11px] font-medium text-text-faint transition hover:border-accent hover:text-accent ${
+                                cellEvents.length === 0 ? "min-h-[56px] flex-1" : "py-1 opacity-0 group-hover/cell:opacity-100 focus-visible:opacity-100"
+                              }`}
+                            >
+                              + Add
+                            </button>
+                          )}
+                          {!canManage && cellEvents.length === 0 && <div className="min-h-[56px] flex-1 rounded-lg border border-dashed border-border/70" />}
+                        </div>
+                      );
+                    })}
+                  </Fragment>
+                );
+              })}
             </div>
           </div>
         ) : (
-          <div className={`grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border transition-opacity ${isLoading ? "opacity-60" : ""}`}>
+          <div className={`m-4 grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-border bg-border transition-opacity ${isLoading ? "opacity-60" : ""}`}>
             {WEEKDAYS.map((d) => (
               <div key={d} className="bg-bg-sunk px-2 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-text-muted">
                 {d}

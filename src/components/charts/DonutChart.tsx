@@ -56,7 +56,7 @@ const DonutChart = ({ segments, centerLabel, size = 196 }: DonutChartProps) => {
   const activeSeg = segments.find((s) => s.key === active);
 
   return (
-    <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center">
+    <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4">
       <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
         <svg width={size} height={size} role="img" aria-label={`${centerLabel}: ${total}`}>
           {total === 0 ? (
@@ -95,7 +95,7 @@ const DonutChart = ({ segments, centerLabel, size = 196 }: DonutChartProps) => {
         </div>
       </div>
 
-      <ul className="flex w-full min-w-0 flex-col gap-1">
+      <ul className="flex min-w-[190px] flex-1 flex-col gap-1">
         {segments.map((s) => {
           const pct = total ? Math.round((s.value / total) * 100) : 0;
           const row = (
@@ -105,7 +105,7 @@ const DonutChart = ({ segments, centerLabel, size = 196 }: DonutChartProps) => {
               <span className="text-sm font-semibold text-text-h" style={{ fontVariantNumeric: "tabular-nums" }}>
                 {s.value}
               </span>
-              <span className="w-10 text-right text-xs text-text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>
+              <span className="w-10 text-right font-mono text-xs text-text-muted" style={{ fontVariantNumeric: "tabular-nums" }}>
                 {pct}%
               </span>
             </>

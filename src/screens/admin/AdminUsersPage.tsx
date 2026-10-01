@@ -11,13 +11,12 @@ import {
   type UserStats,
 } from "@/services/adminService";
 import { useAuth } from "@/contexts/AuthContext";
-import { avatarColor, initialsOf } from "@/lib/avatar";
 import AddUserModal from "@/components/ui/AddUserModal";
 import EditUserModal from "@/components/ui/EditUserModal";
 import AdminSetPasswordModal from "@/components/ui/AdminSetPasswordModal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import Pagination from "@/components/ui/Pagination";
-import PageHeader, { pageHeaderButton } from "@/components/ui/PageHeader";
+import AdminPageHeader from "@/components/ui/AdminPageHeader";
 import { SkeletonTableRows } from "@/components/ui/Skeleton";
 
 const PAGE_SIZE = 25;
@@ -62,8 +61,6 @@ const STATUS_PILL_CLASSES: Record<string, string> = {
 const smallBtnBase =
   "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60";
 const smallBtnSecondary = `${smallBtnBase} border border-border bg-surface text-text hover:bg-surface-hover`;
-const iconBtn =
-  "inline-flex h-7 w-7 items-center justify-center rounded-md text-sm transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-60";
 
 const formatShortDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -198,49 +195,53 @@ const AdminUsersPage = () => {
 
   return (
     <div className="min-h-screen bg-bg-app p-10">
-      <PageHeader
-        icon="👥"
-        title="Users & Access"
-        subtitle={isLoading ? "Loading…" : `${stats.total} users · ${stats.active} active${stats.pending > 0 ? ` · ${stats.pending} pending` : ""}`}
-        actions={
-          <>
-            <input
-              type="text"
-              placeholder="Search name, email, role..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submitSearch()}
-              className="min-w-[220px] rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-text-h outline-none focus:border-accent focus:ring-2 focus:ring-accent-line"
-            />
-            <select
-              value={statusFilter}
-              onChange={(e) => changeStatusFilter(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text"
-            >
-              <option value="all">All status</option>
-              <option value="active">Active</option>
-              <option value="pending">Pending</option>
-              <option value="inactive">Inactive</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            <select
-              value={roleFilter}
-              onChange={(e) => changeRoleFilter(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text"
-            >
-              <option value="all">All roles</option>
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {ROLE_LABELS[r]}
-                </option>
-              ))}
-            </select>
-            <button type="button" onClick={() => setShowAddUser(true)} className={pageHeaderButton("primary")}>
-              <span aria-hidden="true">+</span> Add User
-            </button>
-          </>
-        }
-      />
+      <div className="flex flex-col gap-5">
+        <AdminPageHeader
+          title="Users & Access"
+          subtitle={isLoading ? "Loading…" : `${stats.total} users · ${stats.active} active${stats.pending > 0 ? ` · ${stats.pending} pending` : ""}`}
+        />
+
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="text"
+            placeholder="Search name, email, role..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submitSearch()}
+            className="h-10 min-w-[260px] max-w-[380px] flex-1 rounded-lg border border-border bg-bg-sunk px-3.5 text-sm text-text-h outline-none placeholder:text-text-faint focus:border-accent focus:ring-2 focus:ring-accent-line"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => changeStatusFilter(e.target.value)}
+            className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text"
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="pending">Pending</option>
+            <option value="inactive">Inactive</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <select
+            value={roleFilter}
+            onChange={(e) => changeRoleFilter(e.target.value)}
+            className="h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text"
+          >
+            <option value="all">All roles</option>
+            {ROLES.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABELS[r]}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setShowAddUser(true)}
+            className="ml-auto h-10 rounded-lg bg-accent px-4 text-sm font-semibold text-white transition hover:bg-accent-hover"
+          >
+            + Add User
+          </button>
+        </div>
+      </div>
 
       {error && <p className="mb-4 text-sm font-medium text-neg">{error}</p>}
 
@@ -305,52 +306,44 @@ const AdminUsersPage = () => {
       )}
 
       {(isLoading || (!error && users.length > 0)) && (
-        <div className="overflow-hidden rounded-lg border border-border shadow-sm">
+        <div className="mt-5 overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-bg-sunk">
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">User</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Role</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Status</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Requested</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Reviewed</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-text-muted">Actions</th>
+                <th className="px-5 py-3.5 text-left font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">User</th>
+                <th className="px-5 py-3.5 text-left font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">Role</th>
+                <th className="px-5 py-3.5 text-left font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">Status</th>
+                <th className="px-5 py-3.5 text-left font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">Active</th>
+                <th className="px-5 py-3.5 text-left font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">Requested</th>
+                <th className="px-5 py-3.5 text-left font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">Reviewed</th>
+                <th className="px-5 py-3.5 text-left font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-surface">
-              {isLoading && <SkeletonTableRows columns={6} cellClassName="px-4 py-3.5" />}
+              {isLoading && <SkeletonTableRows columns={7} cellClassName="px-5 py-4" />}
               {!isLoading &&
                 users.map((u) => {
                   const displayName = u.name ?? u.email;
                   return (
                     <tr key={u.id} className="border-t border-border transition-colors hover:bg-surface-hover">
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <span
-                            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                            style={{ background: avatarColor(displayName) }}
-                          >
-                            {initialsOf(displayName)}
-                          </span>
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-semibold text-text-h">{u.name ?? u.email}</div>
-                            <div className="truncate text-xs text-text-muted">{u.email}</div>
-                          </div>
-                        </div>
+                      <td className="px-5 py-4">
+                        <div className="truncate text-sm font-semibold text-text-h">{displayName}</div>
+                        <div className="truncate font-mono text-[11px] text-text-muted">{u.email}</div>
                       </td>
-                      <td className="px-4 py-3.5">
-                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${ROLE_PILL_CLASSES[u.role] ?? "bg-surface-hover text-text-muted"}`}>
+                      <td className="px-5 py-4">
+                        <span className="inline-block whitespace-nowrap rounded border border-border bg-bg-sunk px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-text">
                           {ROLE_LABELS[u.role] ?? u.role}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_PILL_CLASSES[u.status] ?? "bg-surface-hover text-text-muted"}`}>
+                      <td className="px-5 py-4">
+                        <span className={`inline-flex items-center gap-1.5 rounded border border-current/20 px-2 py-0.5 font-mono text-[11px] font-semibold uppercase tracking-wide ${STATUS_PILL_CLASSES[u.status] ?? "bg-surface-hover text-text-muted"}`}>
                           <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT_CLASSES[u.status] ?? "bg-text-faint"}`} />
                           {STATUS_LABELS[u.status] ?? u.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 text-sm text-text-muted">{formatShortDate(u.created_at)}</td>
-                      <td className="px-4 py-3.5">
+                      <td className={`px-5 py-4 text-sm font-semibold ${u.status === "active" ? "text-pos-strong" : "text-text-muted"}`}>{u.status === "active" ? "Yes" : "No"}</td>
+                      <td className="px-5 py-4 text-sm text-text-muted">{formatShortDate(u.created_at)}</td>
+                      <td className="px-5 py-4">
                         {u.reviewed_at ? (
                           <div className="flex flex-col gap-0.5">
                             <span className="text-xs text-text-muted">
@@ -362,15 +355,15 @@ const AdminUsersPage = () => {
                           <span className="text-text-faint">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3.5">
-                        <div className="flex flex-wrap items-center gap-1.5">
+                      <td className="px-5 py-4">
+                        <div className="flex flex-nowrap items-center justify-end gap-2 whitespace-nowrap">
                           {u.status === "active" && u.id !== currentUserId && (
                             <button
                               className={smallBtnSecondary}
                               disabled={togglingId === u.id}
                               onClick={() => handleToggleActive(u, false)}
                             >
-                              ⏸ Deactivate
+                              Deactivate
                             </button>
                           )}
                           {u.status === "inactive" && (
@@ -379,44 +372,22 @@ const AdminUsersPage = () => {
                               disabled={togglingId === u.id}
                               onClick={() => handleToggleActive(u, true)}
                             >
-                              ▶ Activate
+                              Activate
                             </button>
                           )}
                           <button className={smallBtnSecondary} onClick={() => setEditTarget(u)}>
-                            ✏️ Edit
+                            Edit
                           </button>
-                          <button
-                            className={iconBtn}
-                            onClick={() => setPasswordTarget(u)}
-                            title="Reset Password"
-                            aria-label="Reset Password"
-                          >
-                            🔑
+                          <button className={smallBtnSecondary} onClick={() => setPasswordTarget(u)}>
+                            Reset password
                           </button>
                           {u.id !== currentUserId && (
                             <button
-                              className={`${iconBtn} text-neg`}
+                              className={`${smallBtnBase} border border-neg/50 bg-surface text-neg-strong hover:bg-neg-soft`}
                               disabled={deletingId === u.id}
                               onClick={() => setDeleteTarget(u)}
-                              title="Delete"
-                              aria-label="Delete"
                             >
-                              <svg
-  xmlns="http://www.w3.org/2000/svg"
-  viewBox="0 0 24 24"
-  fill="none"
-  stroke="currentColor"
-  strokeWidth="2"
-  strokeLinecap="round"
-  strokeLinejoin="round"
-  className="w-5 h-5 text-red-500 hover:text-red-700 cursor-pointer transition-colors"
->
-  <path d="M3 6h18" />
-  <path d="M8 6V4h8v2" />
-  <path d="M19 6l-1 14H6L5 6" />
-  <path d="M10 11v5" />
-  <path d="M14 11v5" />
-</svg>
+                              Delete
                             </button>
                           )}
                         </div>

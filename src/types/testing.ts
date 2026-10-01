@@ -670,6 +670,19 @@ export interface AuditOverview {
   daily_capped: boolean;
   /** The latest <= 14 of `days` -- the per-user grids' columns. */
   matrix_days: string[];
+  /** How much of the live user base actually uses the portal in this range. */
+  adoption: {
+    accounts: number;
+    active_users: number;
+    never_signed_in: number;
+    dormant: number;
+    sessions: number;
+    avg_session_seconds: number;
+    active_seconds: number;
+    page_views: number;
+    /** Length of the range in days -- null when it is open-ended ("all time"). */
+    window_days: number | null;
+  };
   kpis: {
     requisitions_created: number;
     reports_created: number;
