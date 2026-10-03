@@ -12,6 +12,7 @@ import {
 } from "@/lib/auditRange";
 import { db } from "@/lib/db";
 import { auditLogs, pageViews, userSessions, users } from "@/lib/db/schema";
+import { activeGapTable, gapsInWindow } from "@/lib/activeTime";
 import { parseUserAgent } from "@/lib/userAgent";
 
 export const dynamic = "force-dynamic";
@@ -91,10 +92,11 @@ export async function GET(req: Request) {
   const inMatrix = windowCondition(auditLogs.createdAt, matrixWindow);
 
   const dayOfAudit = sql<string>`to_char(${ist(auditLogs.createdAt)}, 'YYYY-MM-DD')`;
-  const dayOfSession = sql<string>`to_char(${ist(userSessions.loginAt)}, 'YYYY-MM-DD')`;
   const dowExpr = sql<number>`extract(dow from ${ist(auditLogs.createdAt)})::int`;
   const hourExpr = sql<number>`extract(hour from ${ist(auditLogs.createdAt)})::int`;
-  const sessionSeconds = sql<number>`coalesce(sum(extract(epoch from (coalesce(${userSessions.logoutAt}, ${userSessions.lastSeenAt}) - ${userSessions.loginAt}))), 0)::float`;
+  // Active time = gaps of <= 15 min between a user's consecutive recorded actions (lib/activeTime.ts).
+  const istDay = sql`to_char(g.at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD')`;
+  const activeFor = (userId: string) => sql`g.user_id = ${userId}`;
   const isAction = sql`${auditLogs.eventType} in ('create', 'update', 'delete')`;
   const isReqCreate = sql`${auditLogs.eventType} = 'create' and ${auditLogs.entityType} = 'requisition'`;
   const isReportCreate = sql`${auditLogs.eventType} = 'create' and ${auditLogs.entityType} = 'report'`;
@@ -135,10 +137,11 @@ export async function GET(req: Request) {
       .where(sql`${inChart} and ${notFailed} and ${auditLogs.userId} is not null`)
       .groupBy(dayOfAudit),
     db
-      .select({ day: dayOfSession, seconds: sessionSeconds })
-      .from(userSessions)
-      .where(windowCondition(userSessions.loginAt, chartWindow))
-      .groupBy(dayOfSession),
+      .execute<{ day: string; seconds: number }>(
+        sql`select ${istDay} as day, coalesce(sum(g.secs), 0)::float as seconds
+            from ${activeGapTable(chartWindow)} where ${gapsInWindow(chartWindow)} group by 1`
+      )
+      .then((r) => r.rows),
     db
       .select({ dow: dowExpr, hour: hourExpr, n: sql<number>`count(*)::int` })
       .from(auditLogs)
@@ -158,10 +161,11 @@ export async function GET(req: Request) {
       .where(sql`${inMatrix} and ${auditLogs.userId} is not null`)
       .groupBy(auditLogs.userId, dayOfAudit),
     db
-      .select({ userId: userSessions.userId, day: dayOfSession, seconds: sessionSeconds })
-      .from(userSessions)
-      .where(windowCondition(userSessions.loginAt, matrixWindow))
-      .groupBy(userSessions.userId, dayOfSession),
+      .execute<{ userId: string; day: string; seconds: number }>(
+        sql`select g.user_id as "userId", ${istDay} as day, coalesce(sum(g.secs), 0)::float as seconds
+            from ${activeGapTable(matrixWindow)} where ${gapsInWindow(matrixWindow)} group by 1, 2`
+      )
+      .then((r) => r.rows),
     db
       .select({
         userId: auditLogs.userId,
@@ -221,18 +225,17 @@ export async function GET(req: Request) {
       .orderBy(sql`4 desc`)
       .limit(3),
     db
-      .select({
-        userId: userSessions.userId,
-        email: sql<string | null>`max(${userSessions.userEmail})`,
-        name: sql<string | null>`max(${userSessions.userName})`,
-        value: sessionSeconds,
-      })
-      .from(userSessions)
-      .where(windowCondition(userSessions.loginAt, range))
-      .groupBy(userSessions.userId)
-      .orderBy(sql`4 desc`)
-      .limit(3),
-    db.select({ seconds: sessionSeconds }).from(userSessions).where(windowCondition(userSessions.loginAt, range)),
+      .execute<{ userId: string; email: string | null; name: string | null; value: number }>(
+        sql`select g.user_id as "userId", max(g.user_email) as email, max(g.user_name) as name, coalesce(sum(g.secs), 0)::float as value
+            from ${activeGapTable(range)} where ${gapsInWindow(range)} group by g.user_id
+            having coalesce(sum(g.secs), 0) > 0 order by 4 desc limit 3`
+      )
+      .then((r) => r.rows),
+    db
+      .execute<{ seconds: number }>(
+        sql`select coalesce(sum(g.secs), 0)::float as seconds from ${activeGapTable(range)} where ${gapsInWindow(range)}`
+      )
+      .then((r) => r.rows),
   ]);
 
   // ---- Adoption: how many of the live accounts actually use the portal ----
@@ -335,10 +338,11 @@ export async function GET(req: Request) {
   const top = topUserRows[0];
   let topUser: { email: string | null; name: string | null; actions: number; active_seconds: number } | null = null;
   if (top?.userId && toNum(top.actions) > 0) {
-    const [sess] = await db
-      .select({ seconds: sessionSeconds })
-      .from(userSessions)
-      .where(sql`${userSessions.userId} = ${top.userId} and ${windowCondition(userSessions.loginAt, range)}`);
+    const {
+      rows: [sess],
+    } = await db.execute<{ seconds: number }>(
+      sql`select coalesce(sum(g.secs), 0)::float as seconds from ${activeGapTable(range)} where ${gapsInWindow(range)} and ${activeFor(top.userId)}`
+    );
     topUser = { email: top.email, name: top.name, actions: toNum(top.actions), active_seconds: Math.round(toNum(sess?.seconds)) };
   }
 

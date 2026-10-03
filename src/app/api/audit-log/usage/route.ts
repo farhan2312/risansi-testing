@@ -5,6 +5,7 @@ import { AuthError, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { userSessions, users } from "@/lib/db/schema";
 import { parseAuditWindow, windowCondition } from "@/lib/auditRange";
+import { activeGapTable, gapsInWindow } from "@/lib/activeTime";
 
 export const dynamic = "force-dynamic";
 
@@ -30,15 +31,21 @@ export async function GET(req: Request) {
       // as every other "joined against users, may be gone" field in this app.
       userRole: sql<string | null>`max(${users.role})`,
       sessionCount: sql<number>`count(*)::int`,
-      activeSeconds: sql<number>`coalesce(sum(extract(epoch from (coalesce(${userSessions.logoutAt}, ${userSessions.lastSeenAt}) - ${userSessions.loginAt}))), 0)::float`,
       pageCount: sql<number>`coalesce(sum(${userSessions.pageViewCount}), 0)::int`,
       lastActive: sql<string>`max(${userSessions.lastSeenAt})`,
     })
     .from(userSessions)
     .leftJoin(users, eq(users.id, userSessions.userId))
     .where(windowCondition(userSessions.loginAt, window))
-    .groupBy(userSessions.userId)
-    .orderBy(sql`6 desc`); // activeSeconds
+    .groupBy(userSessions.userId);
+
+  // Active time = gaps of <= 15 min between each user's consecutive recorded actions (lib/activeTime.ts).
+  const { rows: activeRows } = await db.execute<{ userId: string; seconds: number }>(
+    sql`select g.user_id as "userId", coalesce(sum(g.secs), 0)::float as seconds
+        from ${activeGapTable(window)} where ${gapsInWindow(window)} group by g.user_id`
+  );
+  const activeByUser = new Map(activeRows.map((r) => [r.userId, Number(r.seconds)]));
+  rows.sort((a, b) => (activeByUser.get(b.userId) ?? 0) - (activeByUser.get(a.userId) ?? 0));
 
   return json(
     rows.map((r) => ({
@@ -47,7 +54,7 @@ export async function GET(req: Request) {
       user_email: r.userEmail,
       user_role: r.userRole,
       session_count: r.sessionCount,
-      active_seconds: Math.round(r.activeSeconds),
+      active_seconds: Math.round(activeByUser.get(r.userId) ?? 0),
       page_count: r.pageCount,
       last_active: r.lastActive,
     }))
