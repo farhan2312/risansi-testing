@@ -125,6 +125,7 @@ const pageTrail = (pathname: string): Crumb[] => {
   if (pathname === "/admin/users") return [{ label: "Users & Access" }];
   if (pathname === "/admin/bug-reports") return [{ label: "Bug Reports" }];
   if (pathname === "/admin/audit-log") return [{ label: "Audit Log" }];
+  if (pathname === "/admin/documentation") return [{ label: "Documentation" }];
   if (pathname === "/admin/action-registry") return [{ label: "Action Registry" }];
   return [{ label: "Pump Testing Portal" }];
 };
@@ -322,6 +323,12 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                 className={pathname === "/admin/audit-log" ? "active" : ""}
               >
                 Audit Log
+              </Link>
+              <Link
+                href="/admin/documentation"
+                className={pathname === "/admin/documentation" ? "active" : ""}
+              >
+                Documentation
               </Link>
             </>
           )}

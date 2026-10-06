@@ -53,6 +53,9 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   serverExternalPackages: ["pg", "pdfkit"],
   outputFileTracingRoot: import.meta.dirname,
+  // The admin-only documentation PDFs are read from disk at request time, so Vercel must bundle them
+  // with that route's function (they are deliberately not in /public).
+  outputFileTracingIncludes: { "/api/admin-docs/[name]": ["./private-docs/**/*"] },
   // Don't advertise the framework in every response.
   poweredByHeader: false,
   async headers() {
