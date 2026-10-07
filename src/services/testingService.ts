@@ -3,6 +3,7 @@ import type {
   ActionRegistryEntry,
   ArchiveListResult,
   FlatReportListResult,
+  ImprovementModelsResult,
   PerformanceResult,
   ArchiveReportSummary,
   BugReport,
@@ -310,6 +311,12 @@ export const submitBugReport = async (input: NewBugReportInput): Promise<BugRepo
   const { data } = await apiClient.post<BugReport>("/bug-reports", form, {
     headers: { "Content-Type": undefined },
   });
+  return data;
+};
+
+/** The models on the Improvement Projects list (compact -- no per-report history). */
+export const getImprovementModels = async (): Promise<ImprovementModelsResult> => {
+  const { data } = await apiClient.get<ImprovementModelsResult>("/performance", { params: { view: "improvement-models" } });
   return data;
 };
 

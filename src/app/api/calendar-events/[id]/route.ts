@@ -31,7 +31,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     throw e;
   }
   if (!canManageCalendar(claims.role)) {
-    return error("Only an admin can update calendar events.", 403);
+    return error("Only an admin or the testing team can update calendar events.", 403);
   }
 
   const { id } = await params;
@@ -91,7 +91,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     throw e;
   }
   if (!canManageCalendar(claims.role)) {
-    return error("Only an admin can delete calendar events.", 403);
+    return error("Only an admin or the testing team can delete calendar events.", 403);
   }
 
   const { id } = await params;

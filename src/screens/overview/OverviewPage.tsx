@@ -15,6 +15,7 @@ import BarList from "@/components/charts/BarList";
 import Heatmap, { monthRange } from "@/components/charts/Heatmap";
 import { monthLong } from "@/components/charts/chartUtils";
 import DrillDownModal from "@/components/ui/DrillDownModal";
+import ImprovementModelsPanel from "@/components/ui/ImprovementModels";
 import DateRangeFilter from "@/components/ui/DateRangeFilter";
 import { presetValue, type DateRangeValue, type PresetKey } from "@/lib/dateRangePresets";
 import { RAISED_BY_LABELS } from "@/lib/raisedBy";
@@ -23,6 +24,9 @@ import { REQUISITION_CATEGORIES, type PortalOverview, type RequisitionStatus } f
 const STATUS_OPTIONS: RequisitionStatus[] = ["Pending", "In Testing", "Retest Needed", "Closed"];
 
 const OVERVIEW_PRESETS: Exclude<PresetKey, "custom">[] = ["today", "week", "month", "7d", "30d", "90d", "all"];
+
+/** Picking this category swaps the dashboard's figures for the list of improvement models (VE & ME Performance). */
+const IMPROVEMENT_CATEGORY = "Against Improvement Project";
 
 const FORMAT_LABELS: Record<string, string> = {
   observation: "Observation Sheet",
@@ -98,6 +102,7 @@ const OverviewPage = () => {
   const [status, setStatus] = useState("");
   const [modelOptions, setModelOptions] = useState<string[]>([]);
   const filtersActive = !!(category || model || status);
+  const improvementMode = category === IMPROVEMENT_CATEGORY;
   useEffect(() => {
     listPumpModels()
       .then(setModelOptions)
@@ -109,12 +114,21 @@ const OverviewPage = () => {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const target = (e.target as HTMLElement).closest("a")?.getAttribute("href");
     if (!target || !/^\/(dashboard|reports)\?/.test(target)) return;
+    // Runs in the capture phase (see onClickCapture below): next/link's own click handler would otherwise
+    // fire first and navigate away, so this has to stop the click before it reaches the link.
     e.preventDefault();
+    e.stopPropagation();
     setDrillHref(target);
   };
 
   useEffect(() => {
     let cancelled = false;
+    // The improvement view does not use these figures at all, so there is nothing to fetch for it.
+    if (improvementMode) {
+      setIsLoading(false);
+      setLoadError("");
+      return;
+    }
     setIsLoading(true);
     setLoadError("");
     getOverview({
@@ -137,7 +151,7 @@ const OverviewPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [range.from, range.to, mine, category, model, status]);
+  }, [range.from, range.to, mine, category, model, status, improvementMode]);
 
   // Every drill-down carries the dashboard's current window with it.
   const summaryHref = useMemo(
@@ -202,7 +216,7 @@ const OverviewPage = () => {
   );
 
   return (
-    <div className="tw-reset mx-auto flex max-w-[1400px] flex-col gap-4 p-2" onClick={openDrillDown}>
+    <div className="tw-reset mx-auto flex max-w-[1400px] flex-col gap-4 p-2" onClickCapture={openDrillDown}>
       {drillHref && <DrillDownModal href={drillHref} onClose={() => setDrillHref(null)} />}
       {/* Compact greeting + action; the scope toggle and date filters that drive every widget sit in the band under it. */}
       <HeroHeader
@@ -275,10 +289,14 @@ const OverviewPage = () => {
       {loadError && <p className="text-sm font-medium text-neg">{loadError}</p>}
 
       {/* Refetch keeps the frame: the previous render dims rather than flashing a skeleton. */}
+      {improvementMode ? (
+        <ImprovementModelsPanel modelFilter={model} />
+      ) : (
       <div className={`flex flex-col gap-5 transition-opacity ${isLoading ? "pointer-events-none opacity-60" : ""}`}>
         {/* ---- KPI cards: compact, each a header over a pair of figure tiles ---- */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <KpiGroupCard
+            hideSub
             title="Totals"
             icon="folder"
             tint="var(--series-1)"
@@ -289,41 +307,90 @@ const OverviewPage = () => {
                 value: (data.total_requisitions + data.total_reports).toLocaleString(),
                 sub: `${data.total_requisitions.toLocaleString()} requisitions + ${data.total_reports.toLocaleString()} reports`,
                 href: reportsHref({ view: "all" }),
+                hint: [
+                  "Everything on record in this view: requisitions raised plus test reports filed.",
+                  `${data.total_requisitions.toLocaleString()} requisitions + ${data.total_reports.toLocaleString()} reports = ${(data.total_requisitions + data.total_reports).toLocaleString()}`,
+                  "Click to open the reports.",
+                ],
               },
               {
-                // Pendency = requisitions still waiting to start (status Pending) -- not In Testing or Retest.
-                label: "Total pendency",
+                // Requisitions still waiting to start (status Pending) -- not In Testing or Retest. "Open now" (below) is
+                // the wider count: everything not Closed yet.
+                label: "Waiting to start",
                 value: (byStatus.Pending ?? 0).toLocaleString(),
                 sub: "requisitions pending",
                 href: summaryHref({ status: "Pending" }),
+                hint: [
+                  "Requisitions that have not started testing yet: status Pending.",
+                  "In Testing and Retest Needed are not counted here (see Open now for everything not closed).",
+                  "Click to open them.",
+                ],
               },
             ]}
           />
           <KpiGroupCard
+            hideSub
             title="Pending"
             icon="clock"
             tint="var(--series-4)"
             tiles={[
-              { label: "Requisitions", value: (byStatus.Pending ?? 0).toLocaleString(), sub: pctOfAll(byStatus.Pending ?? 0), href: summaryHref({ status: "Pending" }) },
+              {
+                label: "Requisitions",
+                value: (byStatus.Pending ?? 0).toLocaleString(),
+                sub: pctOfAll(byStatus.Pending ?? 0),
+                href: summaryHref({ status: "Pending" }),
+                hint: [
+                  `${(byStatus.Pending ?? 0).toLocaleString()} requisitions with status Pending (${pctOfAll(byStatus.Pending ?? 0)}).`,
+                  "Raised, but testing has not started yet.",
+                  "Click to open them.",
+                ],
+              },
               {
                 label: "Overdue",
                 value: data.overdue_count.toLocaleString(),
                 sub: `${data.due_soon_count} due in 5 days`,
                 tone: data.overdue_count > 0 ? "critical" : undefined,
                 href: summaryHref({ scope: "overdue" }),
+                hint: [
+                  `${data.overdue_count.toLocaleString()} open requisitions are past their target date.`,
+                  "Open = Pending, In Testing or Retest Needed. Target date is the date set, or date of requisition + 7 days.",
+                  `Another ${data.due_soon_count.toLocaleString()} fall due within the next 5 days.`,
+                ],
               },
             ]}
           />
           <KpiGroupCard
+            hideSub
             title="In progress"
             icon="activity"
             tint="var(--series-2)"
             tiles={[
-              { label: "In testing", value: (byStatus["In Testing"] ?? 0).toLocaleString(), sub: pctOfAll(byStatus["In Testing"] ?? 0), href: summaryHref({ status: "In Testing" }) },
-              { label: "Retest needed", value: (byStatus["Retest Needed"] ?? 0).toLocaleString(), sub: pctOfAll(byStatus["Retest Needed"] ?? 0), href: summaryHref({ status: "Retest Needed" }) },
+              {
+                label: "In testing",
+                value: (byStatus["In Testing"] ?? 0).toLocaleString(),
+                sub: pctOfAll(byStatus["In Testing"] ?? 0),
+                href: summaryHref({ status: "In Testing" }),
+                hint: [
+                  `${(byStatus["In Testing"] ?? 0).toLocaleString()} requisitions currently being tested (${pctOfAll(byStatus["In Testing"] ?? 0)}).`,
+                  "Testing has started and the test report is not filed yet.",
+                  "Click to open them.",
+                ],
+              },
+              {
+                label: "Retest needed",
+                value: (byStatus["Retest Needed"] ?? 0).toLocaleString(),
+                sub: pctOfAll(byStatus["Retest Needed"] ?? 0),
+                href: summaryHref({ status: "Retest Needed" }),
+                hint: [
+                  `${(byStatus["Retest Needed"] ?? 0).toLocaleString()} requisitions that must be tested again (${pctOfAll(byStatus["Retest Needed"] ?? 0)}).`,
+                  "Marked Retest Needed by the testing team, or raised through Assign Retest.",
+                  "Click to open them.",
+                ],
+              },
             ]}
           />
           <KpiGroupCard
+            hideSub
             title="Completed"
             icon="check"
             tint="var(--series-3)"
@@ -335,30 +402,158 @@ const OverviewPage = () => {
                 value: ((byStatus.Closed ?? 0) + data.total_reports).toLocaleString(),
                 sub: `${(byStatus.Closed ?? 0).toLocaleString()} requisitions + ${data.total_reports.toLocaleString()} reports`,
                 href: summaryHref({ status: "Closed" }),
+                hint: [
+                  "Finished work: Closed requisitions plus every filed report. A filed report counts as finished testing.",
+                  `${(byStatus.Closed ?? 0).toLocaleString()} closed requisitions + ${data.total_reports.toLocaleString()} reports = ${((byStatus.Closed ?? 0) + data.total_reports).toLocaleString()}`,
+                  "Click to open the closed requisitions.",
+                ],
               },
               {
                 label: "Pass rate",
                 value: metPct === null ? "—" : `${metPct}%`,
                 sub: judged ? `${data.requirement_met} of ${judged} judged reports met` : "No judged reports",
                 href: reportsHref({ view: "all" }),
+                hint: [
+                  judged ? `${data.requirement_met} of ${judged} reports met their rated target (${metPct}%). ${data.requirement_unmet} missed.` : "No report in this view has a rated target to judge.",
+                  "Met = highest Head and Capacity reached the rated values and highest Power stayed within the rated power.",
+                  `Missed by parameter: Head ${data.unmet_by_parameter.head}, Capacity ${data.unmet_by_parameter.capacity}, Power ${data.unmet_by_parameter.power}.`,
+                ],
               },
             ]}
           />
           <KpiGroupCard
+            hideSub
             title="Open & turnaround"
             icon="timer"
             tint="var(--accent)"
             tiles={[
-              { label: "Open now", value: openCount.toLocaleString(), sub: "pending · testing · retest", href: summaryHref({ scope: "open" }) },
+              {
+                label: "Open now",
+                value: openCount.toLocaleString(),
+                sub: "pending · testing · retest",
+                href: summaryHref({ scope: "open" }),
+                hint: [
+                  "Everything not Closed yet.",
+                  `Pending ${(byStatus.Pending ?? 0).toLocaleString()} + In Testing ${(byStatus["In Testing"] ?? 0).toLocaleString()} + Retest Needed ${(byStatus["Retest Needed"] ?? 0).toLocaleString()} = ${openCount.toLocaleString()}`,
+                  "Click to open them.",
+                ],
+              },
               {
                 label: "Avg turnaround",
                 value: data.avg_turnaround_days === null ? "—" : `${data.avg_turnaround_days.toFixed(1)}d`,
                 sub: "raised → closed",
                 href: summaryHref({ status: "Closed" }),
+                hint: [
+                  data.avg_turnaround_days === null ? "No closed requisitions in this view yet." : `On average ${data.avg_turnaround_days.toFixed(1)} days from a requisition being raised to it being Closed.`,
+                  "Calculated over the Closed requisitions in this view.",
+                  "Click to open them.",
+                ],
               },
             ]}
           />
         </div>
+
+        <ChartCard
+          title="Requisitions by category"
+          subtitle="Requisitions raised + reports filed, vs. how much of that is done"
+          table={{
+            columns: ["Category", "Requisitions", "Reports", "Total", "Completed", "Pending"],
+            rows: [
+              ...data.requisitions_by_category_status.map((c) => [c.label, c.requisitions, c.reports, c.total, c.completed, c.pending]),
+              [
+                "Total",
+                categoryTotals.requisitions,
+                categoryTotals.reports,
+                categoryTotals.total,
+                categoryTotals.completed,
+                categoryTotals.pending,
+              ],
+            ],
+          }}
+        >
+          {data.requisitions_by_category_status.length === 0 ? (
+            <p className="py-6 text-center text-sm text-text-muted">No requisitions or reports in this range.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wide text-text-muted">
+                    <th className="pb-2 font-semibold">Category</th>
+                    <th className="pb-2 text-right font-semibold">Total</th>
+                    <th className="pb-2 text-right font-semibold">Completed</th>
+                    <th className="pb-2 text-right font-semibold">Pending</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.requisitions_by_category_status.map((c) => (
+                    <tr key={c.label} className="border-t border-border transition-colors hover:bg-surface-hover">
+                      <td className="py-2.5 pr-3 font-medium text-text">{c.label}</td>
+                      <td className="py-2.5 pr-3 text-right text-text" style={{ fontVariantNumeric: "tabular-nums" }}>
+                        <Link
+                          href={summaryHref({ category: c.label === "Uncategorised" ? "none" : c.label })}
+                          className="font-semibold text-text hover:text-accent hover:underline"
+                          title={`${c.requisitions} requisition${c.requisitions === 1 ? "" : "s"} + ${c.reports} report${c.reports === 1 ? "" : "s"}. Click to open this category's requisitions.`}
+                        >
+                          {c.total}
+                        </Link>
+                      </td>
+                      <td className="py-2.5 pr-3 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>
+                        <Link
+                          href={summaryHref({ category: c.label === "Uncategorised" ? "none" : c.label, status: "Closed" })}
+                          className="inline-flex rounded-md bg-pos-soft px-2 py-0.5 font-semibold text-pos-strong hover:underline"
+                          title="Closed requisitions + every report (a filed report is finished testing). Click to open the closed requisitions in this category."
+                        >
+                          {c.completed}
+                        </Link>
+                      </td>
+                      <td className="py-2.5 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>
+                        <Link
+                          href={summaryHref({ category: c.label === "Uncategorised" ? "none" : c.label, scope: "open" })}
+                          className={`inline-flex rounded-md px-2 py-0.5 font-semibold hover:underline ${c.pending > 0 ? "bg-neg-soft text-neg-strong" : "bg-bg-sunk text-text-muted"}`}
+                          title="Open requisitions in this category (Pending + In Testing + Retest Needed): everything raised here that is not Closed yet"
+                        >
+                          {c.pending}
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border-strong font-semibold">
+                    <td className="py-2.5 pr-3 text-text-h">Total</td>
+                    <td className="py-2.5 pr-3 text-right text-text-h" style={{ fontVariantNumeric: "tabular-nums" }}>
+                      <Link
+                        href={summaryHref({ view: "all" })}
+                        className="hover:text-accent hover:underline"
+                        title={`${categoryTotals.requisitions} requisitions + ${categoryTotals.reports} reports. Click to open all requisitions.`}
+                      >
+                        {categoryTotals.total}
+                      </Link>
+                    </td>
+                    <td className="py-2.5 pr-3 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>
+                      <Link
+                        href={summaryHref({ status: "Closed" })}
+                        className="inline-flex rounded-md bg-pos-soft px-2 py-0.5 text-pos-strong hover:underline"
+                        title="Closed requisitions + every report. Click to open the closed requisitions."
+                      >
+                        {categoryTotals.completed}
+                      </Link>
+                    </td>
+                    <td className="py-2.5 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>
+                      <Link
+                        href={summaryHref({ scope: "open" })}
+                        className={`inline-flex rounded-md px-2 py-0.5 hover:underline ${categoryTotals.pending > 0 ? "bg-neg-soft text-neg-strong" : "bg-bg-sunk text-text-muted"}`}
+                        title="Open requisitions in every category. Click to open them."
+                      >
+                        {categoryTotals.pending}
+                      </Link>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </ChartCard>
 
         <ChartCard
           title={daily ? "Daily activity" : "Monthly activity"}
@@ -520,92 +715,6 @@ const OverviewPage = () => {
 
         {/* ---- Wide cards run the full width ---- */}
         <ChartCard
-          title="Requisitions by category"
-          subtitle="Requisitions raised + reports filed, vs. how much of that is done"
-          table={{
-            columns: ["Category", "Requisitions", "Reports", "Total", "Completed", "Pending"],
-            rows: [
-              ...data.requisitions_by_category_status.map((c) => [c.label, c.requisitions, c.reports, c.total, c.completed, c.pending]),
-              [
-                "Total",
-                categoryTotals.requisitions,
-                categoryTotals.reports,
-                categoryTotals.total,
-                categoryTotals.completed,
-                categoryTotals.pending,
-              ],
-            ],
-          }}
-        >
-          {data.requisitions_by_category_status.length === 0 ? (
-            <p className="py-6 text-center text-sm text-text-muted">No requisitions or reports in this range.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-wide text-text-muted">
-                    <th className="pb-2 font-semibold">Category</th>
-                    <th className="pb-2 text-right font-semibold">Total</th>
-                    <th className="pb-2 text-right font-semibold">Completed</th>
-                    <th className="pb-2 text-right font-semibold">Pending</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.requisitions_by_category_status.map((c) => (
-                    <tr key={c.label} className="border-t border-border transition-colors hover:bg-surface-hover">
-                      <td className="py-2.5 pr-3 font-medium text-text">{c.label}</td>
-                      <td
-                        className="py-2.5 pr-3 text-right text-text"
-                        style={{ fontVariantNumeric: "tabular-nums" }}
-                        title={`${c.requisitions} requisition${c.requisitions === 1 ? "" : "s"} + ${c.reports} report${c.reports === 1 ? "" : "s"}`}
-                      >
-                        {c.total}
-                      </td>
-                      <td
-                        className="py-2.5 pr-3 text-right"
-                        style={{ fontVariantNumeric: "tabular-nums" }}
-                        title="Closed requisitions + every report (a filed report is finished testing)"
-                      >
-                        <span className="inline-flex rounded-md bg-pos-soft px-2 py-0.5 font-semibold text-pos-strong">{c.completed}</span>
-                      </td>
-                      <td className="py-2.5 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>
-                        <Link
-                          href={summaryHref({ category: c.label === "Uncategorised" ? "none" : c.label, scope: "open" })}
-                          className={`inline-flex rounded-md px-2 py-0.5 font-semibold hover:underline ${c.pending > 0 ? "bg-neg-soft text-neg-strong" : "bg-bg-sunk text-text-muted"}`}
-                          title="Requisitions raised in this category that aren't Closed yet"
-                        >
-                          {c.pending}
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-border-strong font-semibold">
-                    <td className="py-2.5 pr-3 text-text-h">Total</td>
-                    <td
-                      className="py-2.5 pr-3 text-right text-text-h"
-                      style={{ fontVariantNumeric: "tabular-nums" }}
-                      title={`${categoryTotals.requisitions} requisitions + ${categoryTotals.reports} reports`}
-                    >
-                      {categoryTotals.total}
-                    </td>
-                    <td className="py-2.5 pr-3 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>
-                      <span className="inline-flex rounded-md bg-pos-soft px-2 py-0.5 text-pos-strong">{categoryTotals.completed}</span>
-                    </td>
-                    <td className="py-2.5 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>
-                      <span className={`inline-flex rounded-md px-2 py-0.5 ${categoryTotals.pending > 0 ? "bg-neg-soft text-neg-strong" : "bg-bg-sunk text-text-muted"}`}>
-                        {categoryTotals.pending}
-                      </span>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          )}
-        </ChartCard>
-
-        <ChartCard
           title={`Category × ${per}`}
           subtitle="Where requisitions came from over time · click a cell to open it"
           table={{
@@ -686,6 +795,7 @@ const OverviewPage = () => {
           )}
         </ChartCard>
       </div>
+      )}
     </div>
   );
 };

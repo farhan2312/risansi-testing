@@ -100,3 +100,11 @@ a.kg-tile--link:focus-visible {
   white-space: nowrap;
   color: var(--text-muted);
 }
+
+/* Hover / focus tooltip on a KPI tile (see KpiGroupCard hint). The tile's own text clips with an ellipsis,
+ * so this also shows the full label and value. */
+.kg-tile--tip:hover > .kg-tip,
+.kg-tile--tip:focus-visible > .kg-tip,
+.kg-tile--tip:focus > .kg-tip {
+  display: flex;
+}

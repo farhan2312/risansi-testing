@@ -1,16 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createCalendarEvent, listCalendarEcOptions, updateCalendarEvent } from "@/services/calendarService";
-import { listPumpModels } from "@/services/testingService";
-import { CALENDAR_EVENT_STATUSES, RESPONSIBLE_PERSONS, type CalendarEcOption, type CalendarEvent, type CalendarEventStatus } from "@/types/testing";
+import { createCalendarEvent, listCalendarEcOptions, listCalendarRequisitionOptions, updateCalendarEvent } from "@/services/calendarService";
+import { getRequisition, listPumpModels } from "@/services/testingService";
+import { formatDate, targetDateFor } from "@/lib/formUtils";
+import {
+  CALENDAR_EVENT_STATUSES,
+  RESPONSIBLE_PERSONS,
+  type CalendarEcOption,
+  type CalendarEvent,
+  type CalendarEventStatus,
+  type CalendarRequisitionOption,
+  type TestRequisition,
+} from "@/types/testing";
 
 interface CalendarEventModalProps {
   /** Editing this event, or null when creating a new one. */
   event: CalendarEvent | null;
   /** Pre-fills the date field when creating (the day the user clicked "+" on). */
   defaultDate?: string;
-  /** false = every field is read-only, Close is the only action (anyone but an admin). */
+  /** false = every field is read-only, Close is the only action. */
   canManage: boolean;
   onClose: () => void;
   onSaved: () => void;
@@ -22,12 +31,55 @@ const errorMessage = (err: unknown, fallback: string): string => {
   return response?.data?.error ?? fallback;
 };
 
+const dash = (v: string | number | null | undefined) => (v === null || v === undefined || v === "" ? "-" : String(v));
+const withUnit = (v: number | null | undefined, unit: string | null | undefined) => (v === null || v === undefined ? "-" : `${v}${unit ? ` ${unit}` : ""}`);
+
+/** Read-only view of the picked requisition: every intake field, so nobody has to leave the form to look. */
+const RequisitionSummary = ({ r }: { r: TestRequisition }) => {
+  const target = targetDateFor(r);
+  const rows: [string, string][] = [
+    ["Requisition No.", dash(r.requisition_no)],
+    ["Status", dash(r.status)],
+    ["Model", dash(r.model)],
+    ["Category", dash(r.category)],
+    ["EC / Quotation / Offer No.", dash(r.ec_quotation_no)],
+    ["Offer Date", r.offer_date ? formatDate(r.offer_date) : "-"],
+    ["Responsible Person", dash(r.responsible_person)],
+    ["Source Team", dash(r.source_team)],
+    ["Submitted By", dash(r.submitted_by)],
+    ["Date of Requisition", r.date_of_requisition ? formatDate(r.date_of_requisition) : "-"],
+    ["Target Date", target ? `${formatDate(target.date)}${target.isAuto ? " (auto)" : ""}` : "-"],
+    ["Test Qty", dash(r.test_qty)],
+    ["QTH", dash(r.qth)],
+    ["Specific Gravity", dash(r.specific_gravity)],
+    ["Power (HP / kW)", `${dash(r.power_hp)} / ${dash(r.power_kw)}`],
+    ["Head", withUnit(r.head_kgcm2, r.head_unit)],
+    ["RPM / Motor RPM", `${dash(r.rpm)} / ${dash(r.motor_rpm)}`],
+    ["Required Capacity", withUnit(r.req_capacity, r.req_capacity_unit)],
+    ["Retest Needed", r.retest_needed === null ? "-" : r.retest_needed ? "Yes" : "No"],
+    ["Remarks", dash(r.general_remarks)],
+  ];
+  return (
+    <div className="mt-3 rounded-lg border border-border bg-bg-sunk p-3.5">
+      <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-text-muted">Requisition details</div>
+      <dl className="m-0 grid grid-cols-[1fr_1.2fr] gap-x-3 gap-y-1.5 text-[12.5px]">
+        {rows.map(([label, value]) => (
+          <div key={label} className="contents">
+            <dt className="text-text-muted">{label}</dt>
+            <dd className="m-0 min-w-0 break-words font-semibold text-text-h">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+};
+
 const inputClasses =
   "h-11 w-full min-w-0 rounded-lg border border-border bg-bg-app px-3.5 text-[15px] text-text-h outline-none focus:border-accent focus:ring-2 focus:ring-accent-line disabled:cursor-not-allowed disabled:opacity-70";
 const labelClasses = "mt-3.5 mb-1.5 block text-[13px] font-semibold text-text";
 
-/** Create/edit/view for one Testing Calendar event. Only an admin (canManage) gets editable fields and
- * Save/Delete -- everyone else sees the same layout read-only, since the calendar itself is visible to
+/** Create/edit/view for one Testing Calendar event. `canManage` means "may edit this form": an admin for an
+ * existing event, an admin or testing-team member for a new one. Anyone else sees the same layout read-only, since the calendar itself is visible to
  * the whole portal. EC / Quotation No. is searchable against every number already on a requisition or
  * report, and picking one fills in Model when that is still empty. */
 const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, onRequestDelete }: CalendarEventModalProps) => {
@@ -43,6 +95,11 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
 
   const [modelOptions, setModelOptions] = useState<string[]>([]);
   const [ecOptions, setEcOptions] = useState<CalendarEcOption[]>([]);
+  // Requisition No. search (New Event only): type or pick a number and the whole requisition is shown.
+  const [reqNo, setReqNo] = useState("");
+  const [reqOptions, setReqOptions] = useState<CalendarRequisitionOption[]>([]);
+  const [reqDetails, setReqDetails] = useState<TestRequisition | null>(null);
+  const [reqLoading, setReqLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -54,7 +111,39 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
     listCalendarEcOptions()
       .then(setEcOptions)
       .catch(() => {});
-  }, [canManage]);
+    if (!event) {
+      listCalendarRequisitionOptions()
+        .then(setReqOptions)
+        .catch(() => {});
+    }
+  }, [canManage, event]);
+
+  const reqMatch = (value: string) => reqOptions.find((o) => o.requisition_no.toLowerCase() === value.trim().toLowerCase());
+
+  /** Typing or picking a requisition number: load the full record, show it, and carry its Model, EC /
+   * Quotation No. and Responsible Person into the form (Title too while it is still empty). */
+  const handleReqChange = async (value: string) => {
+    setReqNo(value);
+    const match = reqMatch(value);
+    if (!match) {
+      setReqDetails(null);
+      return;
+    }
+    setReqLoading(true);
+    try {
+      const full = await getRequisition(match.requisition_no);
+      setReqDetails(full);
+      setModel(full.model);
+      if (full.ec_quotation_no) setEcNo(full.ec_quotation_no);
+      if (full.responsible_person && (RESPONSIBLE_PERSONS as readonly string[]).includes(full.responsible_person)) setPerson(full.responsible_person);
+      setTitle((t) => (t.trim() ? t : `${match.requisition_no} · ${full.model}`));
+    } catch {
+      setReqDetails(null);
+      setFormError("Could not load that requisition.");
+    } finally {
+      setReqLoading(false);
+    }
+  };
 
   const handleEcChange = (value: string) => {
     setEcNo(value);
@@ -122,6 +211,37 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
             <div className="mb-1.5 rounded-md border border-neg bg-neg-soft px-3.5 py-2.5 text-[13px] text-neg-strong" role="alert">
               {formError}
             </div>
+          )}
+
+          {!event && canManage && (
+            <>
+              <label htmlFor="cal-event-req" className={labelClasses}>
+                Requisition No. (optional)
+              </label>
+              <input
+                id="cal-event-req"
+                type="text"
+                value={reqNo}
+                onChange={(e) => handleReqChange(e.target.value)}
+                list="cal-event-req-options"
+                autoComplete="off"
+                className={inputClasses}
+                placeholder="Search or type, e.g. REQ-000035"
+              />
+              <datalist id="cal-event-req-options">
+                {reqOptions.map((o) => (
+                  <option key={o.requisition_no} value={o.requisition_no}>
+                    {o.model}
+                    {o.ec_quotation_no ? ` · ${o.ec_quotation_no}` : ""} · {o.status}
+                  </option>
+                ))}
+              </datalist>
+              {reqNo.trim() && !reqMatch(reqNo) && reqOptions.length > 0 && (
+                <p className="mt-1.5 text-xs text-text-muted">No requisition with this number yet. Keep typing or pick one from the list.</p>
+              )}
+              {reqLoading && <p className="mt-1.5 text-xs text-text-muted">Loading requisition…</p>}
+              {reqDetails && <RequisitionSummary r={reqDetails} />}
+            </>
           )}
 
           <label htmlFor="cal-event-title" className={labelClasses}>

@@ -788,6 +788,9 @@ export interface PerformanceModel {
   me_change: number | null;
   reports_meeting_both: number | null;
   improvement_count: number;
+  /** True when the model would have had reports under Improvement Projects, but at least one of its reports
+   * meets both the VE and the ME acceptance value -- so none of its reports are listed there. */
+  improvement_cleared: boolean;
   suspect_count: number;
   /** Oldest first. */
   history: PerformanceHistoryEntry[];
@@ -810,6 +813,27 @@ export interface PerformanceImprovement {
 export interface PerformanceResult {
   models: PerformanceModel[];
   improvements: PerformanceImprovement[];
+}
+
+/** One model on the Improvement Projects list, from GET /api/performance?view=improvement-models. */
+export interface ImprovementModelRow {
+  model: string;
+  series: "H" | "2H" | "L" | "L6" | "Other";
+  acceptance: { ve: number; me: number } | null;
+  /** How many of its reports are below VE or ME acceptance (or filed as an Improvement Project). */
+  improvement_reports: number;
+  report_count: number;
+  latest_report_no: string | null;
+  latest_ve: number | null;
+  latest_me: number | null;
+  latest_ve_meets: boolean | null;
+  latest_me_meets: boolean | null;
+}
+
+export interface ImprovementModelsResult {
+  models: ImprovementModelRow[];
+  /** Models taken off the list because at least one of their reports meets both VE and ME acceptance. */
+  not_listed: string[];
 }
 
 export const CALENDAR_EVENT_STATUSES = ["Planned", "Completed"] as const;
@@ -847,6 +871,14 @@ export interface NewCalendarEventInput {
   start_time?: string;
   end_time?: string;
   notes?: string;
+}
+
+/** One row of GET /api/calendar-events/requisition-options. */
+export interface CalendarRequisitionOption {
+  requisition_no: string;
+  model: string;
+  ec_quotation_no: string | null;
+  status: RequisitionStatus;
 }
 
 /** One row of GET /api/calendar-events/ec-options. */

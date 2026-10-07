@@ -5,7 +5,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { SkeletonPage } from "@/components/ui/Skeleton";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useAuth } from "@/contexts/AuthContext";
-import { canManageCalendar } from "@/lib/calendarPermissions";
+import { canCreateCalendarEvent, canManageCalendar } from "@/lib/calendarPermissions";
 import { listCalendarEvents, deleteCalendarEvent } from "@/services/calendarService";
 import { localIsoDay } from "@/lib/dateRangePresets";
 import { RESPONSIBLE_PERSONS, type CalendarEvent } from "@/types/testing";
@@ -56,6 +56,7 @@ const CalendarPage = () => {
   // Everyone signed in can view the calendar; only Admin can manage it (create/update/delete) -- the
   // API itself enforces the same rule, this just decides what controls the page even offers.
   const canManage = canManageCalendar(user?.role);
+  const canCreate = canCreateCalendarEvent(user?.role);
 
   const today = useMemo(() => new Date(), []);
   const [mode, setMode] = useState<"week" | "month">("week");
@@ -155,7 +156,7 @@ const CalendarPage = () => {
       <PageHeader
         icon="📅"
         title="Testing Calendar"
-        subtitle={canManage ? "Pump-testing events · you can add, edit and delete these" : "Pump-testing events · view-only (an admin maintains this calendar)"}
+        subtitle={canManage ? "Pump-testing events · you can add, edit and delete these" : "Pump-testing events · view-only (the testing team and admins maintain this calendar)"}
         actions={
           <div className="flex items-center gap-2">
             <div className="range-group" role="group" aria-label="View">
@@ -175,7 +176,7 @@ const CalendarPage = () => {
             <button type="button" onClick={goNext} className="hero-btn hero-btn--secondary" aria-label={mode === "week" ? "Next week" : "Next month"}>
               Next →
             </button>
-            {canManage && (
+            {canCreate && (
               <button type="button" onClick={() => setCreatingOn(todayIso)} className="hero-btn">
                 + New Event
               </button>
@@ -276,7 +277,7 @@ const CalendarPage = () => {
                               )}
                             </div>
                           ))}
-                          {canManage && (
+                          {canCreate && (
                             <button
                               type="button"
                               onClick={() => setCreatingOn(iso)}
@@ -287,7 +288,7 @@ const CalendarPage = () => {
                               + Add
                             </button>
                           )}
-                          {!canManage && cellEvents.length === 0 && <div className="min-h-[56px] flex-1 rounded-lg border border-dashed border-border/70" />}
+                          {!canCreate && cellEvents.length === 0 && <div className="min-h-[56px] flex-1 rounded-lg border border-dashed border-border/70" />}
                         </div>
                       );
                     })}
@@ -319,7 +320,7 @@ const CalendarPage = () => {
                     >
                       {day.getDate()}
                     </span>
-                    {canManage && inMonth && (
+                    {canCreate && inMonth && (
                       <button
                         type="button"
                         onClick={() => setCreatingOn(iso)}
@@ -356,7 +357,7 @@ const CalendarPage = () => {
         <CalendarEventModal
           event={editing}
           defaultDate={creatingOn ?? undefined}
-          canManage={canManage}
+          canManage={editing ? canManage : canCreate}
           onClose={() => {
             setEditing(null);
             setCreatingOn(null);

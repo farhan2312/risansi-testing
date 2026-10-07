@@ -16,6 +16,8 @@ export interface KpiGroupTile {
   href?: string;
   /** Status emphasis for the value -- always paired with the label, never colour alone. */
   tone?: "critical";
+  /** Shown on hover / keyboard focus: what the figure counts, with its breakdown. One line per entry. */
+  hint?: string[];
 }
 
 interface KpiGroupCardProps {
@@ -24,6 +26,8 @@ interface KpiGroupCardProps {
   /** Any CSS colour: tints the icon chip only. */
   tint?: string;
   tiles: KpiGroupTile[];
+  /** Leave the small line under each value out (label and number only); the hover hint still carries the detail. */
+  hideSub?: boolean;
 }
 
 const ICONS: Record<KpiGroupIcon, ReactNode> = {
@@ -45,7 +49,7 @@ const ICONS: Record<KpiGroupIcon, ReactNode> = {
 };
 
 /** A compact KPI card: a small header (title + icon chip) over a row of figure tiles. */
-const KpiGroupCard = ({ title, icon, tint = "var(--accent)", tiles }: KpiGroupCardProps) => (
+const KpiGroupCard = ({ title, icon, tint = "var(--accent)", tiles, hideSub = false }: KpiGroupCardProps) => (
   <section className="viz-root kg-card" style={{ "--kg-tint": tint } as CSSProperties}>
     <header className="kg-head">
       <h3 className="kg-title">{title}</h3>
@@ -56,20 +60,36 @@ const KpiGroupCard = ({ title, icon, tint = "var(--accent)", tiles }: KpiGroupCa
       </span>
     </header>
     <div className="kg-tiles">
-      {tiles.map((t) => {
+      {tiles.map((t, i) => {
         const body = (
           <>
             <span className="kg-tile-label">{t.label}</span>
             <span className={`kg-tile-value${t.tone === "critical" ? " kg-tile-value--critical" : ""}`}>{t.value}</span>
-            {t.sub && <span className="kg-tile-sub">{t.sub}</span>}
+            {t.sub && !hideSub && <span className="kg-tile-sub">{t.sub}</span>}
+            {t.hint && t.hint.length > 0 && (
+              <span
+                role="tooltip"
+                className={`kg-tip pointer-events-none absolute top-full z-40 mt-2 hidden w-[250px] max-w-[80vw] flex-col gap-1 rounded-lg border border-border bg-surface px-3 py-2.5 text-left shadow-lg ${
+                  i === 0 ? "left-0" : "right-0"
+                }`}
+              >
+                <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-text-muted">{t.label}</span>
+                {t.hint.map((line, n) => (
+                  <span key={n} className={`text-[12px] leading-snug ${n === 0 ? "font-semibold text-text-h" : "text-text-muted"}`}>
+                    {line}
+                  </span>
+                ))}
+              </span>
+            )}
           </>
         );
+        const tipClass = t.hint?.length ? " kg-tile--tip relative" : "";
         return t.href ? (
-          <Link key={t.label} href={t.href} className="kg-tile kg-tile--link">
+          <Link key={t.label} href={t.href} className={`kg-tile kg-tile--link${tipClass}`}>
             {body}
           </Link>
         ) : (
-          <div key={t.label} className="kg-tile">
+          <div key={t.label} className={`kg-tile${tipClass}`} tabIndex={t.hint?.length ? 0 : undefined}>
             {body}
           </div>
         );

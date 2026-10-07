@@ -39,6 +39,11 @@ const maxOf = (values: (number | null)[] | undefined): number | null => {
  * Improvement tracking: a report in the "Against Improvement Project" category, or any report whose VE or
  * ME is below its model's acceptance criteria, is compared with the
  * model's previous report that has VE/ME data -- before vs. after, and whether it now meets acceptance.
+ *
+ * Per model: if ANY ONE of a model's reports meets BOTH its VE and its ME acceptance value, the model is not an
+ * improvement model -- it is left out of the Improvement Projects list with all of its reports
+ * (improvement_cleared = true), however many other reports of it fall short. Its failing tests stay visible in
+ * its history, still coloured red against acceptance.
  */
 export async function GET(req: Request) {
   try {
@@ -70,7 +75,7 @@ export async function GET(req: Request) {
     // Oldest first, so "previous test" and "first -> latest" read naturally.
     const ordered = [...modelReports].sort((a, b) => dayOf(a).localeCompare(dayOf(b)) || (a.report_no ?? "").localeCompare(b.report_no ?? ""));
     let prev: { ve: number | null; me: number | null } | null = null;
-    const history = ordered.map((r) => {
+    const rawHistory = ordered.map((r) => {
       // A report's VE/ME = its best point that's physically possible; impossible points are counted
       // separately so they can be flagged for correction rather than silently winning "best".
       const plausibleVe = (r.points_ve ?? []).filter((v) => v <= VE_SUSPECT_ABOVE);
@@ -120,6 +125,13 @@ export async function GET(req: Request) {
       return entry;
     });
 
+    // One report that meets both VE and ME acceptance is enough to take the whole model out of Improvement
+    // Projects. "Cleared" only counts models that would otherwise have been listed (a model with no flagged
+    // report was never an improvement model, so there is nothing to clear).
+    const improvementCleared =
+      acceptance !== null && rawHistory.some((h) => h.ve_meets === true && h.me_meets === true) && rawHistory.some((h) => h.is_improvement);
+    const history = improvementCleared ? rawHistory.map((h) => (h.is_improvement ? { ...h, is_improvement: false } : h)) : rawHistory;
+
     const withData = history.filter((h) => h.ve !== null || h.me !== null);
     const first = withData[0] ?? null;
     const latest = withData.at(-1) ?? null;
@@ -142,6 +154,7 @@ export async function GET(req: Request) {
       me_change: first && latest && first !== latest && first.me !== null && latest.me !== null ? round1(latest.me - first.me) : null,
       reports_meeting_both: acceptance ? withData.filter(meetsBoth).length : null,
       improvement_count: history.filter((h) => h.is_improvement).length,
+      improvement_cleared: improvementCleared,
       suspect_count: history.reduce((n, h) => n + h.suspect_ve.length + h.suspect_me.length, 0),
       history,
     };
@@ -171,6 +184,28 @@ export async function GET(req: Request) {
         me_meets: h.me_meets,
       }))
   );
+
+  // Compact view for the Dashboard's "Against Improvement Project" list: only the models still on the
+  // Improvement Projects list, and the names of those taken off it -- without every model's full history.
+  if (new URL(req.url).searchParams.get("view") === "improvement-models") {
+    return json({
+      models: models
+        .filter((m) => m.improvement_count > 0)
+        .map((m) => ({
+          model: m.model,
+          series: m.series,
+          acceptance: m.acceptance,
+          improvement_reports: m.improvement_count,
+          report_count: m.report_count,
+          latest_report_no: m.latest?.report_no ?? null,
+          latest_ve: m.latest?.ve ?? null,
+          latest_me: m.latest?.me ?? null,
+          latest_ve_meets: m.latest?.ve_meets ?? null,
+          latest_me_meets: m.latest?.me_meets ?? null,
+        })),
+      not_listed: models.filter((m) => m.improvement_cleared).map((m) => m.model),
+    });
+  }
 
   return json({ models, improvements });
 }

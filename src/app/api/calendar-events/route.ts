@@ -3,7 +3,7 @@ import { and, asc, eq, gte, lte } from "drizzle-orm";
 import { calendarEventToDict, error, json } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, decodeToken } from "@/lib/auth";
-import { canManageCalendar } from "@/lib/calendarPermissions";
+import { canCreateCalendarEvent } from "@/lib/calendarPermissions";
 import { db } from "@/lib/db";
 import { calendarEvents, users } from "@/lib/db/schema";
 import { CALENDAR_EVENT_STATUSES, RESPONSIBLE_PERSONS } from "@/types/testing";
@@ -13,8 +13,8 @@ export const dynamic = "force-dynamic";
 const dayParam = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
 
 /** Testing Calendar: pump-testing-related events (a scheduled test, calibration, a team meeting),
- * not tied to any requisition/report. Everyone signed in can view it; only Admin can create/update/
- * delete (see PATCH/DELETE on /api/calendar-events/[id] for the same rule on edit/delete). */
+ * not tied to any requisition/report. Everyone signed in can view it; the Testing Team and Admin
+ * can create, update and delete (see PATCH/DELETE on /api/calendar-events/[id]). */
 export async function GET(req: Request) {
   try {
     await decodeToken(req);
@@ -47,8 +47,8 @@ export async function POST(req: Request) {
     if (e instanceof AuthError) return error(e.message, e.statusCode);
     throw e;
   }
-  if (!canManageCalendar(claims.role)) {
-    return error("Only an admin can create calendar events.", 403);
+  if (!canCreateCalendarEvent(claims.role)) {
+    return error("Only an admin or the testing team can create calendar events.", 403);
   }
 
   let body: Record<string, unknown>;

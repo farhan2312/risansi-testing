@@ -143,6 +143,10 @@ export const PerformanceView = ({ data }: { data: PerformanceResult }) => {
   const onSheet = data.models.filter((m) => m.acceptance);
   const noData = data.models.filter((m) => m.reports_with_data === 0);
   const suspectReadings = data.models.reduce((n, m) => n + m.suspect_count, 0);
+  // Improvement models: reports below acceptance (or filed as an Improvement Project) on a model with no
+  // report that meets both VE and ME. One such report clears the whole model off the list.
+  const improvementModelCount = new Set(data.improvements.map((i) => i.model)).size;
+  const clearedModels = data.models.filter((m) => m.improvement_cleared).map((m) => m.model);
 
   const toggle = (model: string) =>
     setExpanded((prev) => {
@@ -189,7 +193,7 @@ export const PerformanceView = ({ data }: { data: PerformanceResult }) => {
           icon="activity"
           tint="var(--series-2)"
           tiles={[
-            { label: "Improvement tests", value: data.improvements.length, sub: "Improvement Project" },
+            { label: "Improvement tests", value: data.improvements.length, sub: `in ${improvementModelCount} model${improvementModelCount === 1 ? "" : "s"}, none yet meeting both` },
             {
               label: "Readings to check",
               value: suspectReadings,
@@ -200,7 +204,7 @@ export const PerformanceView = ({ data }: { data: PerformanceResult }) => {
         />
       </div>
 
-      <ImprovementTracker improvements={data.improvements} />
+      <ImprovementTracker improvements={data.improvements} clearedModels={clearedModels} />
 
       <ChartCard
         title="By model"
@@ -411,7 +415,7 @@ export const PerformanceView = ({ data }: { data: PerformanceResult }) => {
 };
 
 /** Improvement Projects grouped by model: click a model to drop down its reports, then click a report to open it. */
-const ImprovementTracker = ({ improvements }: { improvements: PerformanceImprovement[] }) => {
+const ImprovementTracker = ({ improvements, clearedModels }: { improvements: PerformanceImprovement[]; clearedModels: string[] }) => {
   const [open, setOpen] = useState<Set<string>>(() => new Set());
   const toggle = (model: string) =>
     setOpen((prev) => {
@@ -431,7 +435,7 @@ const ImprovementTracker = ({ improvements }: { improvements: PerformanceImprove
   return (
     <ChartCard
       title="Improvement Projects"
-      subtitle="Improvement Project tests and any report with VE or ME below acceptance · click a model to see its reports"
+      subtitle="Reports below VE or ME acceptance, plus Improvement Project tests · a model leaves this list once any one of its reports meets both · click a model to see its reports"
       table={{
         columns: ["Model", "Report", "Date", "VE before", "VE after", "ME before", "ME after", "Verdict"],
         rows: improvements.map((i) => [i.model, i.report_no ?? "", i.date, pct(i.prev_ve), pct(i.ve), pct(i.prev_me), pct(i.me), verdictOf(i).label]),
@@ -439,7 +443,7 @@ const ImprovementTracker = ({ improvements }: { improvements: PerformanceImprove
     >
       {groups.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border px-4 py-5 text-sm text-text-muted">
-          <p className="m-0 font-semibold text-text">No Improvement Project tests yet.</p>
+          <p className="m-0 font-semibold text-text">No model needs improvement right now.</p>
           <p className="m-0 mt-1">
             To track one, raise a requisition with the category <strong>Against Improvement Project</strong>. When its report is filed, it shows up here
             next to that model&apos;s previous test, with VE and ME before and after, and whether it now meets the acceptance criteria.
@@ -518,6 +522,12 @@ const ImprovementTracker = ({ improvements }: { improvements: PerformanceImprove
             );
           })}
         </ul>
+      )}
+      {clearedModels.length > 0 && (
+        <p className="m-0 mt-3 border-t border-border pt-3 text-xs text-text-muted">
+          <span className="font-semibold text-text">Not listed ({clearedModels.length}):</span> {clearedModels.join(", ")} — each has at least one report that meets both VE and ME
+          acceptance. All of their tests are still in the By model table below.
+        </p>
       )}
     </ChartCard>
   );

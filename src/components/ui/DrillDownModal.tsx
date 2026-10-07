@@ -6,6 +6,7 @@ import "./EditPasswordModal.css"; // .modal-overlay
 import "../../screens/dashboard/DashboardPage.css"; // .status-pill / .status-* colors
 import { listReportsFlat, listRequisitions, type RequisitionFilters } from "@/services/testingService";
 import { formatDate } from "@/lib/formUtils";
+import { ImprovementModelRows, useImprovementModels } from "@/components/ui/ImprovementModels";
 import type { ArchiveReportSummary, RequisitionStatus, TestRequisition } from "@/types/testing";
 
 interface DrillDownModalProps {
@@ -13,6 +14,9 @@ interface DrillDownModalProps {
   href: string;
   onClose: () => void;
 }
+
+/** Links for this category open the improvement models (the VE & ME Performance list) instead of requisitions. */
+const IMPROVEMENT_CATEGORY = "Against Improvement Project";
 
 const STATUSES: RequisitionStatus[] = ["Pending", "In Testing", "Retest Needed", "Closed"];
 const SCOPE_LABELS: Record<string, string> = { open: "Open", overdue: "Overdue", due_soon: "Due soon" };
@@ -50,11 +54,14 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
     return { kind: url.pathname.startsWith("/reports") ? ("reports" as const) : ("requisitions" as const), params: url.searchParams };
   }, [href]);
 
+  const improvementView = params.get("category") === IMPROVEMENT_CATEGORY;
+  const improvement = useImprovementModels(improvementView);
+
   const [reqs, setReqs] = useState<TestRequisition[]>([]);
   const [reports, setReports] = useState<ArchiveReportSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!improvementView);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
@@ -65,6 +72,8 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
   }, [onClose]);
 
   useEffect(() => {
+    // The improvement view reads its own list (useImprovementModels), not requisitions or reports.
+    if (improvementView) return;
     let cancelled = false;
     setIsLoading(true);
     setError("");
@@ -118,15 +127,23 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
     return () => {
       cancelled = true;
     };
-  }, [kind, params, page]);
+  }, [kind, params, page, improvementView]);
 
   const q = search.trim().toLowerCase();
   const shownReqs = q
     ? reqs.filter((r) => [r.requisition_no, r.model, r.ec_quotation_no, r.responsible_person, r.submitted_by, r.category].some((v) => v?.toLowerCase().includes(q)))
     : reqs;
   const shownReports = q ? reports.filter((r) => [r.report_no, r.model, r.tested_by].some((v) => v?.toLowerCase().includes(q))) : reports;
+  const shownModels = useMemo(
+    () => (improvement.data?.models ?? []).filter((m) => !q || m.model.toLowerCase().includes(q)),
+    [improvement.data, q]
+  );
+
   const loaded = kind === "reports" ? reports.length : reqs.length;
-  const shownCount = kind === "reports" ? shownReports.length : shownReqs.length;
+  const shownCount = improvementView ? shownModels.length : kind === "reports" ? shownReports.length : shownReqs.length;
+  const listLoading = improvementView ? improvement.isLoading : isLoading;
+  const listError = improvementView ? improvement.error : error;
+  const headerCount = improvementView ? (improvement.data?.models.length ?? 0) : total;
 
   return (
     <div className="modal-overlay" onClick={onClose} style={{ alignItems: "flex-start", paddingTop: "8vh" }}>
@@ -139,14 +156,16 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
         <div className="flex items-start justify-between gap-4 px-5 pb-3 pt-4">
           <div className="min-w-0">
             <h3 className="flex items-center gap-2 text-lg font-bold text-text-h">
-              {kind === "reports" ? "Reports" : "Requisitions"}
-              <span className="rounded-full bg-bg-sunk px-2 py-0.5 text-xs font-semibold text-text-muted">{total.toLocaleString()}</span>
+              {improvementView ? "Improvement models" : kind === "reports" ? "Reports" : "Requisitions"}
+              <span className="rounded-full bg-bg-sunk px-2 py-0.5 text-xs font-semibold text-text-muted">{headerCount.toLocaleString()}</span>
             </h3>
-            <p className="truncate text-xs text-text-muted">{describe(params, kind)}</p>
+            <p className="truncate text-xs text-text-muted">
+              {improvementView ? "Models with reports below VE / ME acceptance · none of their reports meets both yet" : describe(params, kind)}
+            </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Link href={href} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-text hover:bg-surface-hover">
-              Open full page
+            <Link href={improvementView ? "/performance" : href} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-text hover:bg-surface-hover">
+              {improvementView ? "Open VE & ME Performance" : "Open full page"}
             </Link>
             <button type="button" onClick={onClose} className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-text hover:bg-surface-hover">
               Close
@@ -159,17 +178,28 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
             autoFocus
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={kind === "reports" ? "Search report no., model, tested by..." : "Search requisition no., model, EC / quotation, responsible..."}
+            placeholder={
+              improvementView ? "Search model..." : kind === "reports" ? "Search report no., model, tested by..." : "Search requisition no., model, EC / quotation, responsible..."
+            }
             className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text outline-none focus:border-accent"
           />
         </div>
 
         <div className="min-h-[120px] flex-1 overflow-y-auto">
-          {error && <p className="p-5 text-sm font-medium text-neg">{error}</p>}
-          {!error && isLoading && loaded === 0 && <p className="p-5 text-sm text-text-muted">Loading…</p>}
-          {!error && !isLoading && shownCount === 0 && <p className="p-5 text-center text-sm text-text-muted">Nothing to show.</p>}
+          {listError && <p className="p-5 text-sm font-medium text-neg">{listError}</p>}
+          {!listError && listLoading && (improvementView ? !improvement.data : loaded === 0) && <p className="p-5 text-sm text-text-muted">Loading…</p>}
+          {!listError && !listLoading && shownCount === 0 && <p className="p-5 text-center text-sm text-text-muted">Nothing to show.</p>}
 
-          {kind === "requisitions" &&
+          {improvementView && shownModels.length > 0 && <ImprovementModelRows models={shownModels} />}
+          {improvementView && improvement.data && improvement.data.not_listed.length > 0 && (
+            <p className="m-0 border-t border-border px-5 py-3 text-xs text-text-muted">
+              <span className="font-semibold text-text">Not listed ({improvement.data.not_listed.length}):</span> {improvement.data.not_listed.join(", ")} — each has at least one
+              report that meets both VE and ME acceptance.
+            </p>
+          )}
+
+          {!improvementView &&
+            kind === "requisitions" &&
             shownReqs.map((r) => (
               <Link
                 key={r.id}
@@ -191,7 +221,8 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
               </Link>
             ))}
 
-          {kind === "reports" &&
+          {!improvementView &&
+            kind === "reports" &&
             shownReports.map((r) => (
               <Link
                 key={r.id}
@@ -209,7 +240,7 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
               </Link>
             ))}
 
-          {loaded < total && !error && (
+          {!improvementView && loaded < total && !error && (
             <div className="p-3 text-center">
               <button
                 type="button"

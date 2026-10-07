@@ -1,5 +1,5 @@
 import apiClient from "./apiClient";
-import type { CalendarEcOption, CalendarEvent, NewCalendarEventInput } from "../types/testing";
+import type { CalendarEcOption, CalendarEvent, CalendarRequisitionOption, NewCalendarEventInput } from "../types/testing";
 
 /** Every event in range (inclusive) -- omit both for everything. Everyone signed in can call this;
  * only Admin can create/update/delete (see below). */
@@ -20,6 +20,12 @@ export const updateCalendarEvent = async (id: string, patch: Partial<NewCalendar
 
 export const deleteCalendarEvent = async (id: string): Promise<void> => {
   await apiClient.delete(`/calendar-events/${id}`);
+};
+
+/** Every requisition number the caller may see, for the New Event form's Requisition No. search. */
+export const listCalendarRequisitionOptions = async (): Promise<CalendarRequisitionOption[]> => {
+  const { data } = await apiClient.get<CalendarRequisitionOption[]>("/calendar-events/requisition-options");
+  return data;
 };
 
 /** Every EC/Quotation No. on record, for the New Event form's search field. */
