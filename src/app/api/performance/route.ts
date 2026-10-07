@@ -74,7 +74,7 @@ export async function GET(req: Request) {
 
     // Oldest first, so "previous test" and "first -> latest" read naturally.
     const ordered = [...modelReports].sort((a, b) => dayOf(a).localeCompare(dayOf(b)) || (a.report_no ?? "").localeCompare(b.report_no ?? ""));
-    let prev: { ve: number | null; me: number | null } | null = null;
+    let prev: { ve: number | null; me: number | null; report_no: string | null } | null = null;
     const rawHistory = ordered.map((r) => {
       // A report's VE/ME = its best point that's physically possible; impossible points are counted
       // separately so they can be flagged for correction rather than silently winning "best".
@@ -111,6 +111,7 @@ export async function GET(req: Request) {
         is_improvement: r.report_category === IMPROVEMENT || veMeets === false || meMeets === false,
         prev_ve: prev?.ve ?? null,
         prev_me: prev?.me ?? null,
+        prev_report_no: prev?.report_no ?? null,
         rated_capacity: ratedCapacity,
         rated_head: ratedHead,
         rated_power_kw: ratedPowerKw,
@@ -121,7 +122,7 @@ export async function GET(req: Request) {
         head_meets: meets("Head", ratedHead),
         power_meets: meets("Power", ratedPowerKw),
       };
-      if (hasData) prev = { ve, me };
+      if (hasData) prev = { ve, me, report_no: r.report_no };
       return entry;
     });
 
@@ -180,6 +181,7 @@ export async function GET(req: Request) {
         me: h.me,
         prev_ve: h.prev_ve,
         prev_me: h.prev_me,
+        prev_report_no: h.prev_report_no,
         ve_meets: h.ve_meets,
         me_meets: h.me_meets,
       }))

@@ -759,6 +759,8 @@ export interface PerformanceHistoryEntry {
   /** The same model's previous report that had VE/ME data -- what an Improvement Project is judged against. */
   prev_ve: number | null;
   prev_me: number | null;
+  /** The report number of that previous test, so a comparison can say which test it is against. */
+  prev_report_no: string | null;
   /** This report's own rated targets, and the best point it reached against each (Capacity/Head:
    * floor, has to reach rated; Power: ceiling, has to stay under it -- same rule as the report
    * detail page's red flags). null meets = no rated value to judge against. */
@@ -806,6 +808,7 @@ export interface PerformanceImprovement {
   me: number | null;
   prev_ve: number | null;
   prev_me: number | null;
+  prev_report_no: string | null;
   ve_meets: boolean | null;
   me_meets: boolean | null;
 }

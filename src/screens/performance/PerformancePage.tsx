@@ -53,7 +53,7 @@ const VERDICT_CLASS = {
 };
 
 /** VE (blue) and ME (orange) across the model's tests, with the acceptance lines dashed. */
-const Trend = ({ history, acceptance }: { history: PerformanceHistoryEntry[]; acceptance: PerformanceModel["acceptance"] }) => {
+const Trend = ({ history, acceptance }: { history: { ve: number | null; me: number | null }[]; acceptance: PerformanceModel["acceptance"] }) => {
   const points = history.filter((h) => h.ve !== null || h.me !== null);
   if (points.length < 2) return <span className="text-[11px] text-text-faint">{points.length ? "1 test" : "—"}</span>;
   const w = 96;
@@ -414,7 +414,57 @@ export const PerformanceView = ({ data }: { data: PerformanceResult }) => {
   );
 };
 
-/** Improvement Projects grouped by model: click a model to drop down its reports, then click a report to open it. */
+/** True when a report has an earlier test to be compared with (the first test of a model does not). */
+const hasEarlierTest = (i: PerformanceImprovement) => i.prev_ve !== null || i.prev_me !== null;
+
+const signed = (v: number | null) => (v === null ? "—" : v > 0 ? `+${v}` : String(v));
+
+/** Left edge of each row: green when it improved on the test before, red when it declined, amber when mixed. */
+const ROW_EDGE = { good: "border-l-pos-strong", bad: "border-l-neg-strong", warn: "border-l-warn", muted: "border-l-border" } as const;
+
+/** Which of VE / ME is still under the model's required value on this report. */
+const belowNote = (i: PerformanceImprovement) => {
+  if (!i.acceptance) return null;
+  const below = [i.ve_meets === false ? "VE" : null, i.me_meets === false ? "ME" : null].filter(Boolean);
+  return below.length ? `${below.join(" & ")} below required` : null;
+};
+
+/** The model at a glance: what is required, where it started, where it is now, and the overall move. */
+const ModelSummary = ({ items }: { items: PerformanceImprovement[] }) => {
+  const first = items[0];
+  const last = items[items.length - 1];
+  const acc = first.acceptance;
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg bg-bg-sunk px-3 py-2 text-xs text-text-muted">
+      {acc && (
+        <span>
+          Required: <strong className="text-text">VE ≥ {acc.ve}% · ME ≥ {acc.me}%</strong>
+        </span>
+      )}
+      {items.length > 1 ? (
+        <>
+          <span>
+            First {first.report_no ?? "test"} ({formatDate(first.date)}): <strong className="text-text">VE {pct(first.ve)} · ME {pct(first.me)}</strong>
+          </span>
+          <span>
+            Latest {last.report_no ?? "test"} ({formatDate(last.date)}): <strong className="text-text">VE {pct(last.ve)} · ME {pct(last.me)}</strong>
+          </span>
+          <span style={tabular}>
+            Overall: VE <Delta value={delta(last.ve, first.ve)} /> · ME <Delta value={delta(last.me, first.me)} />
+          </span>
+        </>
+      ) : (
+        <span>Only one test so far, so there is nothing earlier to compare with.</span>
+      )}
+      <span className="basis-full text-[11px] text-text-faint">
+        Oldest → newest · ▲ better / ▼ worse than the test before it · red = below the required value · tests on the same date are in report-number order
+      </span>
+    </div>
+  );
+};
+
+/** Improvement Projects grouped by model: click a model to open its reports, oldest first, so reading down the list
+ * reads forward in time and each change is the step from the test before it. */
 const ImprovementTracker = ({ improvements, clearedModels }: { improvements: PerformanceImprovement[]; clearedModels: string[] }) => {
   const [open, setOpen] = useState<Set<string>>(() => new Set());
   const toggle = (model: string) =>
@@ -424,21 +474,46 @@ const ImprovementTracker = ({ improvements, clearedModels }: { improvements: Per
       return next;
     });
 
+  // Oldest -> newest inside each model (ties on the date fall back to the report number); the models themselves
+  // stay ordered by their most recent test.
   const groups = useMemo(() => {
     const byModel = new Map<string, PerformanceImprovement[]>();
     for (const i of improvements) byModel.set(i.model, [...(byModel.get(i.model) ?? []), i]);
     return [...byModel.entries()]
-      .map(([model, items]) => ({ model, items: [...items].sort((a, b) => b.date.localeCompare(a.date)) }))
-      .sort((a, b) => b.items[0].date.localeCompare(a.items[0].date));
+      .map(([model, items]) => ({
+        model,
+        items: [...items].sort((a, b) => a.date.localeCompare(b.date) || (a.report_no ?? "").localeCompare(b.report_no ?? "")),
+      }))
+      .sort(
+        (a, b) =>
+          b.items[b.items.length - 1].date.localeCompare(a.items[a.items.length - 1].date) || a.model.localeCompare(b.model, undefined, { numeric: true })
+      );
   }, [improvements]);
+
+  const tableRows = groups.flatMap(({ model, items }) =>
+    items.map((i, n) => [
+      model,
+      n + 1,
+      i.report_no ?? "",
+      i.date,
+      pct(i.prev_ve),
+      pct(i.ve),
+      signed(delta(i.ve, i.prev_ve)),
+      pct(i.prev_me),
+      pct(i.me),
+      signed(delta(i.me, i.prev_me)),
+      hasEarlierTest(i) ? verdictOf(i).label : "First test",
+      i.prev_report_no ?? "",
+    ])
+  );
 
   return (
     <ChartCard
       title="Improvement Projects"
-      subtitle="Reports below VE or ME acceptance, plus Improvement Project tests · a model leaves this list once any one of its reports meets both · click a model to see its reports"
+      subtitle="Reports below VE or ME acceptance, plus Improvement Project tests · each model runs oldest → newest so you can follow it up or down · a model leaves this list once any one of its reports meets both"
       table={{
-        columns: ["Model", "Report", "Date", "VE before", "VE after", "ME before", "ME after", "Verdict"],
-        rows: improvements.map((i) => [i.model, i.report_no ?? "", i.date, pct(i.prev_ve), pct(i.ve), pct(i.prev_me), pct(i.me), verdictOf(i).label]),
+        columns: ["Model", "Test #", "Report", "Date", "VE before", "VE after", "VE change", "ME before", "ME after", "ME change", "Verdict", "Compared with"],
+        rows: tableRows,
       }}
     >
       {groups.length === 0 ? (
@@ -456,66 +531,93 @@ const ImprovementTracker = ({ improvements, clearedModels }: { improvements: Per
         <ul className="flex flex-col">
           {groups.map(({ model, items }) => {
             const isOpen = open.has(model);
-            const latest = verdictOf(items[0]);
+            const last = items[items.length - 1];
+            // A test can be compared with one that is not in this list (it meets the required values, or has no VE / ME).
+            const listed = new Set(items.map((x) => x.report_no));
+            const latest = hasEarlierTest(last) ? verdictOf(last) : { label: "Only test so far", tone: "muted" as const };
             return (
               <li key={model} className="border-t border-border first:border-t-0">
                 <button
                   type="button"
                   onClick={() => toggle(model)}
                   aria-expanded={isOpen}
-                  className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-surface-hover"
+                  className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-surface-hover"
                 >
-                  <span className="flex items-center gap-2">
-                    <span aria-hidden="true" className={`inline-block text-xs text-text-muted transition-transform ${isOpen ? "rotate-90" : ""}`}>▶</span>
-                    <span className="text-sm font-semibold text-text">{model}</span>
-                    <span className="rounded-full bg-bg-sunk px-2 py-0.5 text-xs font-semibold text-text-muted">
-                      {items.length} report{items.length === 1 ? "" : "s"}
+                  <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="flex items-center gap-2">
+                      <span aria-hidden="true" className={`inline-block text-xs text-text-muted transition-transform ${isOpen ? "rotate-90" : ""}`}>▶</span>
+                      <span className="text-sm font-semibold text-text">{model}</span>
+                      <span className="rounded-full bg-bg-sunk px-2 py-0.5 text-xs font-semibold text-text-muted">
+                        {items.length} report{items.length === 1 ? "" : "s"}
+                      </span>
                     </span>
+                    <Trend history={items} acceptance={items[0].acceptance} />
                   </span>
-                  <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${VERDICT_CLASS[latest.tone]}`}>{latest.label}</span>
+                  <span className="flex items-center gap-2" title="The newest test compared with the one before it">
+                    <span className="text-[11px] text-text-muted">Latest test</span>
+                    <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${VERDICT_CLASS[latest.tone]}`}>{latest.label}</span>
+                  </span>
                 </button>
                 {isOpen && (
-                  <div className="overflow-x-auto pb-2 pl-6">
-                    <table className="w-full border-collapse text-sm">
-                      <thead>
-                        <tr className="text-left text-[11px] uppercase tracking-wide text-text-muted">
-                          <th className="pb-2 font-semibold">Report</th>
-                          <th className="pb-2 font-semibold">Date</th>
-                          <th className="pb-2 text-right font-semibold">VE before → after</th>
-                          <th className="pb-2 text-right font-semibold">ME before → after</th>
-                          <th className="pb-2 pl-4 font-semibold">Verdict</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {items.map((i) => {
-                          const verdict = verdictOf(i);
-                          return (
-                            <tr key={i.id} className="border-t border-border">
-                              <td className="py-2 pr-3">
-                                <Link href={`/reports/${i.report_no ?? i.id}`} className="font-semibold text-accent hover:underline">
-                                  {i.report_no ?? "View"} ↗
-                                </Link>
-                              </td>
-                              <td className="py-2 pr-3 text-text-muted" style={tabular}>
-                                {formatDate(i.date)}
-                              </td>
-                              <td className="py-2 pr-3 text-right" style={tabular}>
-                                {pct(i.prev_ve)} → <span className={valueClass(i.ve_meets)}>{pct(i.ve)}</span> <Delta value={delta(i.ve, i.prev_ve)} />
-                              </td>
-                              <td className="py-2 pr-3 text-right" style={tabular}>
-                                {pct(i.prev_me)} → <span className={valueClass(i.me_meets)}>{pct(i.me)}</span> <Delta value={delta(i.me, i.prev_me)} />
-                              </td>
-                              <td className="py-2 pl-4">
-                                <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${VERDICT_CLASS[verdict.tone]}`}>{verdict.label}</span>
-                                {i.acceptance && (
-                                  <span className="ml-2 text-xs text-text-muted">{i.ve_meets && i.me_meets ? "now meets acceptance" : "still below acceptance"}</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                  <div className="pb-3 pl-6">
+                    <ModelSummary items={items} />
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-sm">
+                        <thead>
+                          <tr className="text-left text-[11px] uppercase tracking-wide text-text-muted">
+                            <th className="pb-2 pl-2 font-semibold">#</th>
+                            <th className="pb-2 font-semibold">Report</th>
+                            <th className="pb-2 font-semibold">Date</th>
+                            <th className="pb-2 text-right font-semibold">VE (change)</th>
+                            <th className="pb-2 text-right font-semibold">ME (change)</th>
+                            <th className="pb-2 pl-4 font-semibold">Verdict vs previous test</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((i, n) => {
+                            const earlier = hasEarlierTest(i);
+                            const verdict = earlier ? verdictOf(i) : { label: "First test", tone: "muted" as const };
+                            const note = belowNote(i);
+                            const against = earlier ? `Previous test${i.prev_report_no ? ` ${i.prev_report_no}` : ""}` : "First test in this list";
+                            return (
+                              <tr key={i.id} className="border-t border-border">
+                                <td className={`border-l-4 py-2 pl-2 pr-3 text-text-muted ${ROW_EDGE[verdict.tone]}`} style={tabular}>
+                                  {n + 1}
+                                </td>
+                                <td className="py-2 pr-3">
+                                  <Link href={`/reports/${i.report_no ?? i.id}`} className="font-semibold text-accent hover:underline">
+                                    {i.report_no ?? "View"} ↗
+                                  </Link>
+                                </td>
+                                <td className="py-2 pr-3 text-text-muted" style={tabular}>
+                                  {formatDate(i.date)}
+                                </td>
+                                <td className="py-2 pr-3 text-right" style={tabular} title={`${against}: VE ${pct(i.prev_ve)}`}>
+                                  <span className={valueClass(i.ve_meets)}>{pct(i.ve)}</span> <Delta value={delta(i.ve, i.prev_ve)} />
+                                  {i.prev_ve !== null && <div className="text-[11px] text-text-faint">from {pct(i.prev_ve)}</div>}
+                                </td>
+                                <td className="py-2 pr-3 text-right" style={tabular} title={`${against}: ME ${pct(i.prev_me)}`}>
+                                  <span className={valueClass(i.me_meets)}>{pct(i.me)}</span> <Delta value={delta(i.me, i.prev_me)} />
+                                  {i.prev_me !== null && <div className="text-[11px] text-text-faint">from {pct(i.prev_me)}</div>}
+                                </td>
+                                <td className="py-2 pl-4">
+                                  <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${VERDICT_CLASS[verdict.tone]}`}>{verdict.label}</span>
+                                  {earlier && i.prev_report_no && (
+                                    <div className="mt-0.5 text-[11px] text-text-faint">
+                                      vs {i.prev_report_no}
+                                      {!listed.has(i.prev_report_no) && (
+                                        <span title="That test is not in this list: it meets the required values or has no VE / ME readings"> (not listed here)</span>
+                                      )}
+                                    </div>
+                                  )}
+                                  {note && <div className="mt-0.5 text-[11px] text-text-muted">{note}</div>}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </li>
