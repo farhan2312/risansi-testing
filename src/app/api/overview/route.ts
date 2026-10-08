@@ -500,7 +500,8 @@ export async function GET(req: Request) {
       report_format: r.report_format,
       date: r.test_date ?? (r.created_at ? new Date(r.created_at).toISOString().slice(0, 10) : null),
       unmet_fields: r.requirement_unmet_fields,
-      has_target: r.rated_head !== null || r.rated_capacity !== null || r.rated_power_kw !== null,
+      // Same rule as the pass rate and Report Compilation: a rated target WITH a measured value to compare.
+      has_target: r.has_target,
     })),
   });
 }

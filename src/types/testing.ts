@@ -358,6 +358,9 @@ export interface ArchiveReportSummary extends Omit<PumpTestReport, "points"> {
   /** Which rated fields (Head/Capacity/Power) the report's own test points
    * never reached -- empty when met or when there's nothing to compare. */
   requirement_unmet_fields: string[];
+  /** True when the report has a rated Head/Capacity/Power with a measured value to compare it with.
+   * False = "not judged": neither Met nor Did Not Meet (see lib/reportVerdict.ts). */
+  has_target: boolean;
   /** Highest Volumetric/Mechanical Efficiency reached across this report's
    * own test points -- null when there's no VE/ME data to max over. */
   max_ve: number | null;
@@ -410,11 +413,21 @@ export interface PumpIndexGroup {
 /** Portal-wide totals (role-scoped only, not filtered) backing the Report
  * Compilation KPI tiles. */
 export interface PumpIndexSummary {
+  /** Every report in the portal = historical + portal. */
   total_reports: number;
+  /** Imported old reports (prepared by "Legacy Import"). */
   historical: number;
+  /** Filed through the portal = total_reports - historical. */
+  portal: number;
+  /** met + unmet + not_judged = total_reports. */
   met: number;
   unmet: number;
+  /** Nothing to judge: no rated target, or no measured value to compare it with. */
+  not_judged: number;
+  /** All pump models (grouped by name) -- including ones that only have requisitions. */
   pump_count: number;
+  /** Pump models with at least one report. */
+  pumps_with_reports: number;
 }
 
 export interface PumpIndexFilterOptions {
@@ -423,8 +436,15 @@ export interface PumpIndexFilterOptions {
   months: string[];
 }
 
+/** A report filed through the portal (not an imported one) -- listed in the "Filed in Portal" tile's hover. */
+export interface PortalReportRef {
+  report_no: string | null;
+  model: string;
+}
+
 export interface PumpIndexListResult extends PaginatedResult<PumpIndexGroup> {
   summary: PumpIndexSummary;
+  portal_reports: PortalReportRef[];
   filter_options: PumpIndexFilterOptions;
 }
 

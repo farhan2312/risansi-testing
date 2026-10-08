@@ -401,11 +401,11 @@ const OverviewPage = () => {
                 label: "Completed",
                 value: ((byStatus.Closed ?? 0) + data.total_reports).toLocaleString(),
                 sub: `${(byStatus.Closed ?? 0).toLocaleString()} requisitions + ${data.total_reports.toLocaleString()} reports`,
-                href: summaryHref({ status: "Closed" }),
+                href: summaryHref({ status: "Closed", view: "completed" }),
                 hint: [
                   "Finished work: Closed requisitions plus every filed report. A filed report counts as finished testing.",
                   `${(byStatus.Closed ?? 0).toLocaleString()} closed requisitions + ${data.total_reports.toLocaleString()} reports = ${((byStatus.Closed ?? 0) + data.total_reports).toLocaleString()}`,
-                  "Click to open the closed requisitions.",
+                  "Click to list the closed requisitions and the reports.",
                 ],
               },
               {
@@ -499,9 +499,9 @@ const OverviewPage = () => {
                       </td>
                       <td className="py-2.5 pr-3 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>
                         <Link
-                          href={summaryHref({ category: c.label === "Uncategorised" ? "none" : c.label, status: "Closed" })}
+                          href={summaryHref({ category: c.label === "Uncategorised" ? "none" : c.label, status: "Closed", view: "completed" })}
                           className="inline-flex rounded-md bg-pos-soft px-2 py-0.5 font-semibold text-pos-strong hover:underline"
-                          title="Closed requisitions + every report (a filed report is finished testing). Click to open the closed requisitions in this category."
+                          title={`Closed requisitions + every report (a filed report is finished testing): ${c.completed - c.reports} closed requisition${c.completed - c.reports === 1 ? "" : "s"} + ${c.reports} report${c.reports === 1 ? "" : "s"}. Click to list them.`}
                         >
                           {c.completed}
                         </Link>
@@ -532,9 +532,9 @@ const OverviewPage = () => {
                     </td>
                     <td className="py-2.5 pr-3 text-right" style={{ fontVariantNumeric: "tabular-nums" }}>
                       <Link
-                        href={summaryHref({ status: "Closed" })}
+                        href={summaryHref({ status: "Closed", view: "completed" })}
                         className="inline-flex rounded-md bg-pos-soft px-2 py-0.5 text-pos-strong hover:underline"
-                        title="Closed requisitions + every report. Click to open the closed requisitions."
+                        title={`Closed requisitions + every report: ${categoryTotals.completed - categoryTotals.reports} closed requisitions + ${categoryTotals.reports} reports. Click to list them.`}
                       >
                         {categoryTotals.completed}
                       </Link>
@@ -553,29 +553,6 @@ const OverviewPage = () => {
               </table>
             </div>
           )}
-        </ChartCard>
-
-        <ChartCard
-          title={daily ? "Daily activity" : "Monthly activity"}
-          subtitle={`Requisitions raised, reports filed and requisitions closed per ${per}${daily ? " · last 7 days at least" : ""}`}
-          legend={[
-            { label: "Raised", color: "var(--series-1)", shape: "line" },
-            { label: "Reports filed", color: "var(--series-2)", shape: "line" },
-            { label: "Closed", color: "var(--series-3)", shape: "line" },
-          ]}
-          table={{
-            columns: [bucket, "Raised", "Reports filed", "Closed"],
-            rows: data.monthly_trend.map((m) => [monthLong(m.month), m.raised, m.reports, m.closed]),
-          }}
-        >
-          <LineChart
-            months={months}
-            series={[
-              { key: "raised", label: "Raised", color: "var(--series-1)", values: data.monthly_trend.map((m) => m.raised) },
-              { key: "reports", label: "Reports filed", color: "var(--series-2)", values: data.monthly_trend.map((m) => m.reports) },
-              { key: "closed", label: "Closed", color: "var(--series-3)", values: data.monthly_trend.map((m) => m.closed) },
-            ]}
-          />
         </ChartCard>
 
         {/* ---- Everything else flows into independent columns: each card is only as tall as its
@@ -712,6 +689,29 @@ const OverviewPage = () => {
             )}
           </ChartCard>
         </div>
+
+        <ChartCard
+          title={daily ? "Daily activity" : "Monthly activity"}
+          subtitle={`Requisitions raised, reports filed and requisitions closed per ${per}${daily ? " · last 7 days at least" : ""}`}
+          legend={[
+            { label: "Raised", color: "var(--series-1)", shape: "line" },
+            { label: "Reports filed", color: "var(--series-2)", shape: "line" },
+            { label: "Closed", color: "var(--series-3)", shape: "line" },
+          ]}
+          table={{
+            columns: [bucket, "Raised", "Reports filed", "Closed"],
+            rows: data.monthly_trend.map((m) => [monthLong(m.month), m.raised, m.reports, m.closed]),
+          }}
+        >
+          <LineChart
+            months={months}
+            series={[
+              { key: "raised", label: "Raised", color: "var(--series-1)", values: data.monthly_trend.map((m) => m.raised) },
+              { key: "reports", label: "Reports filed", color: "var(--series-2)", values: data.monthly_trend.map((m) => m.reports) },
+              { key: "closed", label: "Closed", color: "var(--series-3)", values: data.monthly_trend.map((m) => m.closed) },
+            ]}
+          />
+        </ChartCard>
 
         {/* ---- Wide cards run the full width ---- */}
         <ChartCard

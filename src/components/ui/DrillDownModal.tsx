@@ -6,6 +6,7 @@ import "./EditPasswordModal.css"; // .modal-overlay
 import "../../screens/dashboard/DashboardPage.css"; // .status-pill / .status-* colors
 import { listReportsFlat, listRequisitions, type RequisitionFilters } from "@/services/testingService";
 import { formatDate } from "@/lib/formUtils";
+import CompletedDrillDown from "@/components/ui/CompletedDrillDown";
 import { ImprovementModelRows, useImprovementModels } from "@/components/ui/ImprovementModels";
 import type { ArchiveReportSummary, RequisitionStatus, TestRequisition } from "@/types/testing";
 
@@ -25,7 +26,8 @@ const SCOPE_LABELS: Record<string, string> = { open: "Open", overdue: "Overdue",
 const describe = (params: URLSearchParams, kind: "requisitions" | "reports"): string => {
   const parts: string[] = [];
   const status = params.get("status");
-  if (status) parts.push(status);
+  if (params.get("view") === "completed") parts.push("Closed requisitions + filed reports");
+  else if (status) parts.push(status);
   const scope = params.get("scope");
   if (scope) parts.push(SCOPE_LABELS[scope] ?? scope);
   const result = params.get("report_result");
@@ -56,12 +58,15 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
 
   const improvementView = params.get("category") === IMPROVEMENT_CATEGORY;
   const improvement = useImprovementModels(improvementView);
+  // "Completed" on the category table = closed requisitions + filed reports; that view lists both.
+  const completedView = !improvementView && params.get("view") === "completed";
+  const [completedTotal, setCompletedTotal] = useState(0);
 
   const [reqs, setReqs] = useState<TestRequisition[]>([]);
   const [reports, setReports] = useState<ArchiveReportSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [isLoading, setIsLoading] = useState(!improvementView);
+  const [isLoading, setIsLoading] = useState(!improvementView && !completedView);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
@@ -73,7 +78,8 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
 
   useEffect(() => {
     // The improvement view reads its own list (useImprovementModels), not requisitions or reports.
-    if (improvementView) return;
+    // The completed view has its own two lists (CompletedDrillDown).
+    if (improvementView || completedView) return;
     let cancelled = false;
     setIsLoading(true);
     setError("");
@@ -127,7 +133,7 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
     return () => {
       cancelled = true;
     };
-  }, [kind, params, page, improvementView]);
+  }, [kind, params, page, improvementView, completedView]);
 
   const q = search.trim().toLowerCase();
   const shownReqs = q
@@ -143,7 +149,7 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
   const shownCount = improvementView ? shownModels.length : kind === "reports" ? shownReports.length : shownReqs.length;
   const listLoading = improvementView ? improvement.isLoading : isLoading;
   const listError = improvementView ? improvement.error : error;
-  const headerCount = improvementView ? (improvement.data?.models.length ?? 0) : total;
+  const headerCount = improvementView ? (improvement.data?.models.length ?? 0) : completedView ? completedTotal : total;
 
   return (
     <div className="modal-overlay" onClick={onClose} style={{ alignItems: "flex-start", paddingTop: "8vh" }}>
@@ -156,7 +162,7 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
         <div className="flex items-start justify-between gap-4 px-5 pb-3 pt-4">
           <div className="min-w-0">
             <h3 className="flex items-center gap-2 text-lg font-bold text-text-h">
-              {improvementView ? "Improvement models" : kind === "reports" ? "Reports" : "Requisitions"}
+              {improvementView ? "Improvement models" : completedView ? "Completed" : kind === "reports" ? "Reports" : "Requisitions"}
               <span className="rounded-full bg-bg-sunk px-2 py-0.5 text-xs font-semibold text-text-muted">{headerCount.toLocaleString()}</span>
             </h3>
             <p className="truncate text-xs text-text-muted">
@@ -186,9 +192,11 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
         </div>
 
         <div className="min-h-[120px] flex-1 overflow-y-auto">
-          {listError && <p className="p-5 text-sm font-medium text-neg">{listError}</p>}
-          {!listError && listLoading && (improvementView ? !improvement.data : loaded === 0) && <p className="p-5 text-sm text-text-muted">Loading…</p>}
-          {!listError && !listLoading && shownCount === 0 && <p className="p-5 text-center text-sm text-text-muted">Nothing to show.</p>}
+          {completedView && <CompletedDrillDown params={params} query={q} onTotal={setCompletedTotal} />}
+
+          {!completedView && listError && <p className="p-5 text-sm font-medium text-neg">{listError}</p>}
+          {!completedView && !listError && listLoading && (improvementView ? !improvement.data : loaded === 0) && <p className="p-5 text-sm text-text-muted">Loading…</p>}
+          {!completedView && !listError && !listLoading && shownCount === 0 && <p className="p-5 text-center text-sm text-text-muted">Nothing to show.</p>}
 
           {improvementView && shownModels.length > 0 && <ImprovementModelRows models={shownModels} />}
           {improvementView && improvement.data && improvement.data.not_listed.length > 0 && (
@@ -199,6 +207,7 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
           )}
 
           {!improvementView &&
+            !completedView &&
             kind === "requisitions" &&
             shownReqs.map((r) => (
               <Link
@@ -222,6 +231,7 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
             ))}
 
           {!improvementView &&
+            !completedView &&
             kind === "reports" &&
             shownReports.map((r) => (
               <Link
@@ -240,7 +250,7 @@ const DrillDownModal = ({ href, onClose }: DrillDownModalProps) => {
               </Link>
             ))}
 
-          {!improvementView && loaded < total && !error && (
+          {!improvementView && !completedView && loaded < total && !error && (
             <div className="p-3 text-center">
               <button
                 type="button"

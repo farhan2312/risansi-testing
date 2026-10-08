@@ -75,6 +75,10 @@ async function reportStatusFor(rows: RequisitionRow[]) {
     : [];
   const maxByReport = new Map(maxes.map((m) => [m.reportId, m]));
 
+  // "Judged" = a rated Head/Capacity/Power WITH a measured value to compare it with -- the same rule the
+  // Overview pass rate and Report Compilation use (lib/reportVerdict.ts). A report that has a rating but
+  // no readings is not judged, instead of being counted as Met.
+  const judgedByRequisition = new Set<string | null>();
   const unmetByRequisition = new Map(
     reports.map((r) => {
       const max = maxByReport.get(r.id);
@@ -94,17 +98,9 @@ async function reportStatusFor(rows: RequisitionRow[]) {
             ]
           : []
       );
+      if ([status.head, status.capacity, status.power].some((v) => v !== null)) judgedByRequisition.add(r.requisitionId);
       return [r.requisitionId, unmetRequirementLabels(status)];
     })
-  );
-
-  // "Judged" = the report has at least one rated Head/Capacity/Power to hold
-  // it against. A report with no targets is neither Met nor Missed -- same
-  // rule the Overview's Pass rate and Report Compilation's Met/Not-met use.
-  const judgedByRequisition = new Set(
-    reports
-      .filter((r) => r.ratedHead !== null || r.ratedCapacity !== null || r.ratedPowerKw !== null)
-      .map((r) => r.requisitionId)
   );
 
   // Who raised each one -- the creator's current role, bucketed Source / Testing / Other.

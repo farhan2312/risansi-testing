@@ -7,25 +7,29 @@ import { pumpTestReports, testRequisitions } from "@/lib/db/schema";
 import { modelDisplayLabel, normalizeModelKey } from "@/lib/modelKey";
 import { enrichReports } from "@/lib/reportEnrichment";
 import { hasActiveRequisitionFilters, requisitionMatchesFilters } from "@/lib/requisitionFilters";
+import {
+  isHistoricalReport,
+  isPumpStatFilter,
+  reportMatchesStat,
+  reportVerdict,
+  type PumpStatFilter,
+  type VerdictInputs,
+} from "@/lib/reportVerdict";
 
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 50;
 
-type RatedFields = { rated_head: unknown; rated_capacity: unknown; rated_power_kw: unknown };
-
-const hasTarget = (r: RatedFields) => r.rated_head !== null || r.rated_capacity !== null || r.rated_power_kw !== null;
-
-type StatFilter = "all" | "historical" | "met" | "unmet";
-
+// "Met" / "Did not meet" / "Not judged" come from lib/reportVerdict.ts -- the same rule the Overview
+// pass rate and the archive use (a rated target WITH a measured value to compare). This route used to
+// count "has any rated field" instead, so a report with a rating but no readings was called Met here
+// and "nothing to judge" everywhere else.
 function pumpMatchesStatFilter(
-  reports: ({ prepared_by: string | null; requirement_unmet_fields: string[] } & RatedFields)[],
-  filter: StatFilter
+  reports: (VerdictInputs & { prepared_by: string | null })[],
+  filter: PumpStatFilter
 ): boolean {
   if (filter === "all") return true;
-  if (filter === "historical") return reports.some((r) => r.prepared_by === "Legacy Import");
-  if (filter === "met") return reports.some((r) => hasTarget(r) && r.requirement_unmet_fields.length === 0);
-  return reports.some((r) => hasTarget(r) && r.requirement_unmet_fields.length > 0);
+  return reports.some((r) => reportMatchesStat(r, filter));
 }
 
 /** Report Compilation, grouped by physical pump and server-paginated
@@ -50,7 +54,9 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search")?.trim().toLowerCase() ?? "";
-  const statFilter = (searchParams.get("stat_filter") as StatFilter | null) ?? "all";
+  // An unknown value used to fall through to the "did not meet" branch; now it just means "no filter".
+  const requestedStat = searchParams.get("stat_filter");
+  const statFilter: PumpStatFilter = isPumpStatFilter(requestedStat) ? requestedStat : "all";
   const modelFilter = searchParams.get("model");
   const rawPage = Number(searchParams.get("page"));
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
@@ -116,13 +122,31 @@ export async function GET(req: Request) {
   let historical = 0;
   let met = 0;
   let unmet = 0;
+  let notJudged = 0;
   for (const r of reports) {
-    if (r.prepared_by === "Legacy Import") historical++;
-    if (!hasTarget(r)) continue;
-    if (r.requirement_unmet_fields.length > 0) unmet++;
-    else met++;
+    if (isHistoricalReport(r)) historical++;
+    const verdict = reportVerdict(r);
+    if (verdict === "met") met++;
+    else if (verdict === "unmet") unmet++;
+    else notJudged++;
   }
-  const summary = { total_reports: reports.length, historical, met, unmet, pump_count: allPumps.length };
+  // Invariants the page relies on: historical + portal = total, met + unmet + not_judged = total.
+  // Which reports were filed through the portal (everything except the imported history), oldest first --
+  // only their numbers, for the "Filed in Portal" tile's hover.
+  const portalReports = reports
+    .filter((r) => !isHistoricalReport(r))
+    .sort((a, b) => (a.created_at?.getTime() ?? 0) - (b.created_at?.getTime() ?? 0))
+    .map((r) => ({ report_no: r.report_no, model: r.model }));
+  const summary = {
+    total_reports: reports.length,
+    historical,
+    portal: reports.length - historical,
+    met,
+    unmet,
+    not_judged: notJudged,
+    pump_count: allPumps.length,
+    pumps_with_reports: allPumps.filter((p) => p.report_count > 0).length,
+  };
 
   const filterOptions = {
     models: allPumps.map((p) => p.model).sort((a, b) => a.localeCompare(b)),
@@ -162,6 +186,7 @@ export async function GET(req: Request) {
     page,
     page_size: PAGE_SIZE,
     summary,
+    portal_reports: portalReports,
     filter_options: filterOptions,
   });
 }

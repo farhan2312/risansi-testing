@@ -8,6 +8,7 @@ import "./PumpIndexPage.css";
 import { listGroupedPumps } from "@/services/testingService";
 import { useAuth } from "@/contexts/AuthContext";
 import { buildUnmetRows } from "@/lib/requirementCheck";
+import { reportMatchesStat, type PumpStatFilter } from "@/lib/reportVerdict";
 import { hasActiveRequisitionFilters, requisitionMatchesFilters, type RequisitionFilterValues } from "@/lib/requisitionFilters";
 import AssignRetestModal from "@/components/ui/AssignRetestModal";
 import Pagination from "@/components/ui/Pagination";
@@ -18,6 +19,7 @@ import {
   RESPONSIBLE_PERSONS,
   SOURCE_TEAMS,
   type ArchiveReportSummary,
+  type PortalReportRef,
   type PumpIndexGroup,
   type PumpIndexSummary,
 } from "@/types/testing";
@@ -76,12 +78,10 @@ const RatedVsMeasured = ({
 
 const ALL = "All";
 
-/** Which stat tile is currently narrowing the pump list -- "all" for the two
- * plain totals (Pump Models / Reports Submitted), which just mean "no filter". */
-type StatFilter = "all" | "historical" | "met" | "unmet";
-
-const hasTarget = (r: ArchiveReportSummary) =>
-  r.rated_head !== null || r.rated_capacity !== null || r.rated_power_kw !== null;
+/** Which stat tile is currently narrowing the pump list ("all" = no tile selected). The rule for what
+ * counts as met / did not meet / not judged is shared with the server (lib/reportVerdict.ts), so the
+ * tile numbers and this list always agree. */
+type StatFilter = PumpStatFilter;
 
 /** A pump's own reports that actually satisfy the active filter -- a pump
  * can have reports on both sides (some met, some didn't), so "matches the
@@ -89,20 +89,26 @@ const hasTarget = (r: ArchiveReportSummary) =>
  * and the expanded "View Report" list below each row. Purely a display
  * concern now (which of THIS pump's already-fetched reports to show in its
  * expand row) -- the server already decided which pumps qualify overall. */
-const matchingReports = (reports: ArchiveReportSummary[], filter: StatFilter): ArchiveReportSummary[] => {
-  if (filter === "all") return reports;
-  if (filter === "historical") return reports.filter((r) => r.prepared_by === "Legacy Import");
-  if (filter === "met") return reports.filter((r) => hasTarget(r) && r.requirement_unmet_fields.length === 0);
-  return reports.filter((r) => hasTarget(r) && r.requirement_unmet_fields.length > 0); // "unmet"
-};
+const matchingReports = (reports: ArchiveReportSummary[], filter: StatFilter): ArchiveReportSummary[] =>
+  filter === "all" ? reports : reports.filter((r) => reportMatchesStat(r, filter));
 
-const EMPTY_SUMMARY: PumpIndexSummary = { total_reports: 0, historical: 0, met: 0, unmet: 0, pump_count: 0 };
+const EMPTY_SUMMARY: PumpIndexSummary = {
+  total_reports: 0,
+  historical: 0,
+  portal: 0,
+  met: 0,
+  unmet: 0,
+  not_judged: 0,
+  pump_count: 0,
+  pumps_with_reports: 0,
+};
 
 const PumpIndexPage = () => {
   const [pumps, setPumps] = useState<PumpIndexGroup[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [summary, setSummary] = useState<PumpIndexSummary>(EMPTY_SUMMARY);
+  const [portalReports, setPortalReports] = useState<PortalReportRef[]>([]);
   const [modelOptions, setModelOptions] = useState<string[]>([]);
   const [submittedByOptions, setSubmittedByOptions] = useState<string[]>([]);
   const [monthOptions, setMonthOptions] = useState<string[]>([]);
@@ -217,6 +223,7 @@ const PumpIndexPage = () => {
         setPumps(result.entries);
         setTotal(result.total);
         setSummary(result.summary);
+        setPortalReports(result.portal_reports ?? []);
         setModelOptions(result.filter_options.models);
         setSubmittedByOptions(result.filter_options.submitted_by);
         setMonthOptions(result.filter_options.months);
@@ -241,10 +248,46 @@ const PumpIndexPage = () => {
   };
 
   const STAT_LABELS: Record<Exclude<StatFilter, "all">, string> = {
+    reports: "Reports Submitted",
     historical: "Historical Reports",
+    portal: "Filed in Portal",
     met: "Met Requirement",
     unmet: "Did Not Meet Requirement",
+    not_judged: "Not Judged",
   };
+
+  // What the pump list is narrowed to, in plain words (shown under the tiles when one is selected).
+  const STAT_NOTES: Record<Exclude<StatFilter, "all">, string> = {
+    reports: "has at least one test report",
+    historical: "has at least one historical (imported) report",
+    portal: "has at least one report filed through the portal",
+    met: "has at least one report that met its rated requirement",
+    unmet: "has at least one report that did not meet its rated requirement",
+    not_judged: "has at least one report that can't be judged (no rated target, or nothing measured to compare)",
+  };
+
+  // Hover details for each tile -- what it counts, and how it relates to the others. All numbers are
+  // the portal-wide totals shown on the tiles (they don't change with the filters below).
+  const tip = {
+    models: `${summary.pump_count} pump models in total (the same pump written with different spaces or dashes counts once). ${summary.pumps_with_reports} have at least one test report; ${summary.pump_count - summary.pumps_with_reports} have only requisitions so far. Click to show every pump.`,
+    reports: `Every test report in the portal: ${summary.historical} historical imports + ${summary.portal} filed through the portal = ${summary.total_reports}. Click to show the pumps that have at least one report.`,
+    historical: `Old reports imported from Excel/PDF files (prepared by "Legacy Import"). They are already counted inside Reports Submitted (${summary.total_reports} − ${summary.historical} = ${summary.portal} filed through the portal). Click to list the pumps that have one.`,
+    portal: `Reports the testing team filled in through the portal, not imported history: ${summary.portal} of the ${summary.total_reports}${portalReports.length ? " — " + portalReports.map((r) => `${r.report_no ?? "?"} (${r.model})`).join(", ") : ""}. Click to list the pumps that have one.`,
+    met: `Reports where every rated target that could be checked was reached: highest Head and Capacity at or above the rating, highest Power at or below it. Counted across all ${summary.total_reports} reports, historical included. Click to list the pumps.`,
+    unmet: `Reports where a rated Head or Capacity was never reached, or Power went above its rating. Counted across all ${summary.total_reports} reports, historical included. Click to list the pumps.`,
+    notJudged: `Reports that can't be judged: they have no rated Head, Capacity or Power, or nothing measured to compare it with. This is why Met + Did Not Meet is not always the total: ${summary.met} + ${summary.unmet} + ${summary.not_judged} = ${summary.met + summary.unmet + summary.not_judged} (Reports Submitted ${summary.total_reports}). Click to list the pumps.`,
+  };
+
+  // Seven tiles, every one clickable. Historical + Filed in Portal = Reports Submitted; Met + Did Not Meet + Not Judged = Reports Submitted.
+  const statTiles: { filter: StatFilter; label: string; value: number; tip: string; tone?: string }[] = [
+    { filter: "all", label: "Pump Models", value: summary.pump_count, tip: tip.models },
+    { filter: "reports", label: "Reports Submitted", value: summary.total_reports, tip: tip.reports },
+    { filter: "historical", label: "Historical Reports", value: summary.historical, tip: tip.historical },
+    { filter: "portal", label: "Filed in Portal", value: summary.portal, tip: tip.portal },
+    { filter: "met", label: "Met Requirement", value: summary.met, tip: tip.met, tone: "stat-value-pos" },
+    { filter: "unmet", label: "Did Not Meet Requirement", value: summary.unmet, tip: tip.unmet, tone: "stat-value-neg" },
+    { filter: "not_judged", label: "Not Judged", value: summary.not_judged, tip: tip.notJudged, tone: "stat-value-muted" },
+  ];
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -264,50 +307,30 @@ const PumpIndexPage = () => {
         }
       />
 
-      {isLoading && !error && <SkeletonStatTiles count={5} />}
+      {isLoading && !error && <SkeletonStatTiles count={7} />}
 
       {!isLoading && !error && (
         <div className="pump-index-stats">
-          <button
-            type="button"
-            className="pump-index-stat pump-index-stat-btn"
-            onClick={() => setStatFilter("all")}
-          >
-            <span className="stat-value">{summary.pump_count}</span>
-            <span className="stat-label">Pump Models</span>
-          </button>
-          <button
-            type="button"
-            className="pump-index-stat pump-index-stat-btn"
-            onClick={() => setStatFilter("all")}
-          >
-            <span className="stat-value">{summary.total_reports}</span>
-            <span className="stat-label">Reports Submitted</span>
-          </button>
-          <button
-            type="button"
-            className={`pump-index-stat pump-index-stat-btn ${statFilter === "historical" ? "active" : ""}`}
-            onClick={() => setStatFilter((f) => (f === "historical" ? "all" : "historical"))}
-          >
-            <span className="stat-value">{summary.historical}</span>
-            <span className="stat-label">Historical Reports</span>
-          </button>
-          <button
-            type="button"
-            className={`pump-index-stat pump-index-stat-btn ${statFilter === "met" ? "active" : ""}`}
-            onClick={() => setStatFilter((f) => (f === "met" ? "all" : "met"))}
-          >
-            <span className="stat-value stat-value-pos">{summary.met}</span>
-            <span className="stat-label">Met Requirement</span>
-          </button>
-          <button
-            type="button"
-            className={`pump-index-stat pump-index-stat-btn ${statFilter === "unmet" ? "active" : ""}`}
-            onClick={() => setStatFilter((f) => (f === "unmet" ? "all" : "unmet"))}
-          >
-            <span className="stat-value stat-value-neg">{summary.unmet}</span>
-            <span className="stat-label">Did Not Meet Requirement</span>
-          </button>
+          {statTiles.map((t, i) => (
+            <button
+              key={t.filter + t.label}
+              type="button"
+              className={`pump-index-stat pump-index-stat-btn ${t.filter !== "all" && statFilter === t.filter ? "active" : ""}`}
+              // Clicking the selected tile again clears it; "Pump Models" always means "show every pump".
+              onClick={() => setStatFilter((f) => (t.filter === "all" || f === t.filter ? "all" : t.filter))}
+              aria-describedby={`pump-stat-tip-${i}`}
+            >
+              <span className={`stat-value ${t.tone ?? ""}`}>{t.value}</span>
+              <span className="stat-label">{t.label}</span>
+              <span
+                id={`pump-stat-tip-${i}`}
+                role="tooltip"
+                className={`pump-index-stat-tip${i >= statTiles.length - 2 ? " pump-index-stat-tip--end" : ""}`}
+              >
+                {t.tip}
+              </span>
+            </button>
+          ))}
         </div>
       )}
 
@@ -388,7 +411,7 @@ const PumpIndexPage = () => {
 
       {statFilter !== "all" && (
         <p className="pump-index-filter-note">
-          Showing pumps with at least one report that {statFilter === "historical" ? "is a historical import" : statFilter === "met" ? "met its rated requirement" : "did not meet its rated requirement"} ({STAT_LABELS[statFilter]}).{" "}
+          Showing pumps that {STAT_NOTES[statFilter]} ({STAT_LABELS[statFilter]}).{" "}
           <button type="button" className="pump-index-filter-clear" onClick={() => setStatFilter("all")}>
             Clear filter
           </button>

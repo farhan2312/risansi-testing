@@ -1,4 +1,5 @@
 import apiClient from "./apiClient";
+import type { PumpStatFilter } from "@/lib/reportVerdict";
 import type {
   ActionRegistryEntry,
   ArchiveListResult,
@@ -160,7 +161,7 @@ export interface PumpIndexFilters {
   month?: string;
   date_from?: string;
   date_to?: string;
-  stat_filter?: "historical" | "met" | "unmet";
+  stat_filter?: Exclude<PumpStatFilter, "all">;
   search?: string;
 }
 
