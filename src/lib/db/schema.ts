@@ -414,10 +414,14 @@ export const calendarEvents = pgTable("calendar_events", {
   // on requisitions/reports (see GET /api/calendar-events/ec-options), free text either way so an
   // event can still name one that isn't in the portal yet.
   ecQuotationNo: varchar("ec_quotation_no", { length: 100 }),
+  // The requisition this event is the test for, by its REQ-000123 number, if any. An event linked to one
+  // can only be marked Completed once that requisition's test report has been filed (see
+  // lib/calendarCompletion.ts). Plain text, no foreign key.
+  requisitionNo: varchar("requisition_no", { length: 20 }),
   // Who the event is for -- the calendar's row grouping (RESPONSIBLE_PERSONS, "Sachin" / "Vikash"),
   // same free-text convention as test_requisitions.responsible_person; null = unassigned, its own row.
   responsiblePerson: varchar("responsible_person", { length: 100 }),
-  // 'Planned' | 'Completed' -- app-level enum (see CALENDAR_EVENT_STATUSES in types/testing.ts), not
+  // 'Planned' | 'In Testing' | 'Completed' -- app-level enum (see CALENDAR_EVENT_STATUSES in types/testing.ts), not
   // a DB constraint, same convention this schema uses everywhere else for a fixed-choice text column.
   status: varchar("status", { length: 20 }).notNull().default("Planned"),
   eventDate: date("event_date").notNull(),

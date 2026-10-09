@@ -245,6 +245,7 @@ export function calendarEventToDict(e: CalendarEventRow) {
     title: e.title,
     model: e.model,
     ec_quotation_no: e.ecQuotationNo,
+    requisition_no: e.requisitionNo,
     responsible_person: e.responsiblePerson,
     status: e.status,
     event_date: e.eventDate,

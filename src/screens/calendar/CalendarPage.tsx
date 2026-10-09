@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { canCreateCalendarEvent, canManageCalendar } from "@/lib/calendarPermissions";
 import { listCalendarEvents, deleteCalendarEvent } from "@/services/calendarService";
 import { localIsoDay } from "@/lib/dateRangePresets";
-import { RESPONSIBLE_PERSONS, type CalendarEvent } from "@/types/testing";
+import { CALENDAR_EVENT_STATUSES, RESPONSIBLE_PERSONS, type CalendarEvent } from "@/types/testing";
 import CalendarEventModal from "./CalendarEventModal";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -42,6 +42,7 @@ const formatTimeRange = (e: CalendarEvent) => {
  * across the card, never color alone (the badge always carries the word too). */
 const STATUS_STYLE: Record<CalendarEvent["status"], { border: string; bg: string; badge: string }> = {
   Completed: { border: "border-l-pos-strong", bg: "bg-pos-soft", badge: "text-pos-strong" },
+  "In Testing": { border: "border-l-warn", bg: "bg-warn-soft", badge: "text-warn" },
   Planned: { border: "border-l-accent", bg: "bg-bg-sunk", badge: "text-text-muted" },
 };
 
@@ -203,7 +204,7 @@ const CalendarPage = () => {
             </div>
           </div>
           <div className="range-group" role="group" aria-label="Status">
-            {(["All", "Planned", "Completed"] as const).map((st) => (
+            {(["All", ...CALENDAR_EVENT_STATUSES] as const).map((st) => (
               <button key={st} type="button" className="range-pill" aria-pressed={statusFilter === st} onClick={() => setStatusFilter(st)}>
                 {st}
               </button>

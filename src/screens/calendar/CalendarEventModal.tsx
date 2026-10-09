@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createCalendarEvent, listCalendarEcOptions, listCalendarRequisitionOptions, updateCalendarEvent } from "@/services/calendarService";
 import { getRequisition, listPumpModels } from "@/services/testingService";
 import { formatDate, targetDateFor } from "@/lib/formUtils";
@@ -96,7 +97,7 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
   const [modelOptions, setModelOptions] = useState<string[]>([]);
   const [ecOptions, setEcOptions] = useState<CalendarEcOption[]>([]);
   // Requisition No. search (New Event only): type or pick a number and the whole requisition is shown.
-  const [reqNo, setReqNo] = useState("");
+  const [reqNo, setReqNo] = useState(event?.requisition_no ?? "");
   const [reqOptions, setReqOptions] = useState<CalendarRequisitionOption[]>([]);
   const [reqDetails, setReqDetails] = useState<TestRequisition | null>(null);
   const [reqLoading, setReqLoading] = useState(false);
@@ -111,12 +112,33 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
     listCalendarEcOptions()
       .then(setEcOptions)
       .catch(() => {});
-    if (!event) {
-      listCalendarRequisitionOptions()
-        .then(setReqOptions)
-        .catch(() => {});
-    }
-  }, [canManage, event]);
+    listCalendarRequisitionOptions()
+      .then(setReqOptions)
+      .catch(() => {});
+  }, [canManage]);
+
+  // An event that is already linked: load its requisition so we know whether the test report is filed.
+  useEffect(() => {
+    if (!event?.requisition_no) return;
+    let cancelled = false;
+    setReqLoading(true);
+    getRequisition(event.requisition_no)
+      .then((full) => {
+        if (!cancelled) setReqDetails(full);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setReqLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [event?.requisition_no]);
+
+  // The linked requisition (once loaded). Completing a linked test needs its report to be filed first.
+  const linkedNo = reqDetails?.requisition_no ?? "";
+  const reportFiled = (reqDetails?.reports?.length ?? 0) > 0;
+  const needsReport = status === "Completed" && !!linkedNo && !reportFiled && !reqLoading;
 
   const reqMatch = (value: string) => reqOptions.find((o) => o.requisition_no.toLowerCase() === value.trim().toLowerCase());
 
@@ -164,10 +186,15 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
       setFormError("Date is required.");
       return;
     }
+    if (needsReport) {
+      setFormError(`Fill the test report for ${linkedNo} first -- a test is completed by filing its report.`);
+      return;
+    }
     setFormError("");
     setIsSubmitting(true);
     try {
       const payload = {
+        requisition_no: linkedNo,
         title: title.trim(),
         event_date: eventDate,
         model,
@@ -213,7 +240,7 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
             </div>
           )}
 
-          {!event && canManage && (
+          {canManage && (
             <>
               <label htmlFor="cal-event-req" className={labelClasses}>
                 Requisition No. (optional)
@@ -241,6 +268,13 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
               )}
               {reqLoading && <p className="mt-1.5 text-xs text-text-muted">Loading requisition…</p>}
               {reqDetails && <RequisitionSummary r={reqDetails} />}
+              {linkedNo && (
+                <p className="mt-1.5 text-xs text-text-muted">
+                  {reportFiled
+                    ? "✓ The test report for this requisition is filed, so the test can be marked Completed."
+                    : "A test is completed by filing its report. Until it is filed this event can't be marked Completed."}
+                </p>
+              )}
             </>
           )}
 
@@ -289,6 +323,17 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
               <option key={m} value={m} />
             ))}
           </datalist>
+
+          {needsReport && (
+            <div className="mb-3 rounded-lg border border-warn bg-warn-soft px-3.5 py-3 text-[13px] text-text-h" role="alert">
+              <strong>Fill the completion report first.</strong> To mark {linkedNo} Completed, the test report has to be filed.
+              <div className="mt-2">
+                <Link href={`/requisitions/${linkedNo}/report`} className="inline-block rounded-lg bg-accent px-3.5 py-1.5 text-[13px] font-semibold text-white no-underline hover:brightness-95">
+                  Fill the report →
+                </Link>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <div className="min-w-0 flex-1">
@@ -374,7 +419,7 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
                 {canManage ? "Cancel" : "Close"}
               </button>
               {canManage && (
-                <button type="submit" disabled={isSubmitting} className="rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white hover:brightness-95 disabled:opacity-60">
+                <button type="submit" disabled={isSubmitting || needsReport} title={needsReport ? "File the test report first" : undefined} className="rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white hover:brightness-95 disabled:opacity-60">
                   {isSubmitting ? "Saving…" : event ? "Save Changes" : "Create Event"}
                 </button>
               )}

@@ -876,7 +876,7 @@ export interface ImprovementModelsResult {
   not_listed: string[];
 }
 
-export const CALENDAR_EVENT_STATUSES = ["Planned", "Completed"] as const;
+export const CALENDAR_EVENT_STATUSES = ["Planned", "In Testing", "Completed"] as const;
 export type CalendarEventStatus = (typeof CALENDAR_EVENT_STATUSES)[number];
 
 /** One event on the Testing Calendar. Everyone signed in can see it; only Admin can create/update/
@@ -888,6 +888,8 @@ export interface CalendarEvent {
   model: string | null;
   /** The EC/Quotation No. this event relates to, if any -- see GET /api/calendar-events/ec-options. */
   ec_quotation_no: string | null;
+  /** The requisition this event is the test for (REQ-000123), if any -- completing it needs that test's report. */
+  requisition_no: string | null;
   /** Who it's for -- the calendar's row grouping (RESPONSIBLE_PERSONS); null = unassigned. */
   responsible_person: string | null;
   status: CalendarEventStatus;
@@ -906,6 +908,8 @@ export interface NewCalendarEventInput {
   event_date: string;
   model?: string;
   ec_quotation_no?: string;
+  /** "" clears the link. */
+  requisition_no?: string;
   responsible_person?: string;
   status?: CalendarEventStatus;
   start_time?: string;

@@ -6,6 +6,7 @@ import { AuthError, decodeToken } from "@/lib/auth";
 import { canCreateCalendarEvent } from "@/lib/calendarPermissions";
 import { db } from "@/lib/db";
 import { calendarEvents, users } from "@/lib/db/schema";
+import { CalendarRuleError, requireReportFiled, resolveLinkedRequisition } from "@/lib/calendarCompletion";
 import { CALENDAR_EVENT_STATUSES, RESPONSIBLE_PERSONS } from "@/types/testing";
 
 export const dynamic = "force-dynamic";
@@ -68,6 +69,16 @@ export async function POST(req: Request) {
   }
   const status = typeof body.status === "string" && CALENDAR_EVENT_STATUSES.includes(body.status as never) ? body.status : "Planned";
 
+  // A linked requisition makes this a test: it can only be created already Completed if its report is filed.
+  let linked: Awaited<ReturnType<typeof resolveLinkedRequisition>>;
+  try {
+    linked = await resolveLinkedRequisition(body.requisition_no);
+    if (linked && status === "Completed") await requireReportFiled(linked);
+  } catch (e) {
+    if (e instanceof CalendarRuleError) return error(e.message, e.status);
+    throw e;
+  }
+
   const [creator] = await db.select().from(users).where(eq(users.id, claims.sub)).limit(1);
   const createdByName = creator?.name ?? claims.email;
 
@@ -78,6 +89,7 @@ export async function POST(req: Request) {
       eventDate,
       status,
       model: typeof body.model === "string" && body.model.trim() ? body.model.trim() : null,
+      requisitionNo: linked?.requisitionNo ?? null,
       ecQuotationNo: typeof body.ec_quotation_no === "string" && body.ec_quotation_no.trim() ? body.ec_quotation_no.trim() : null,
       responsiblePerson,
       startTime: typeof body.start_time === "string" && body.start_time.trim() ? body.start_time.trim() : null,

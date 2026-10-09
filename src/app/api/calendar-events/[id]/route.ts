@@ -6,6 +6,7 @@ import { AuthError, decodeToken } from "@/lib/auth";
 import { canManageCalendar } from "@/lib/calendarPermissions";
 import { db } from "@/lib/db";
 import { calendarEvents } from "@/lib/db/schema";
+import { CalendarRuleError, requireReportFiled, resolveLinkedRequisition } from "@/lib/calendarCompletion";
 import { CALENDAR_EVENT_STATUSES, RESPONSIBLE_PERSONS } from "@/types/testing";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +56,30 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return error(`'status' must be one of: ${CALENDAR_EVENT_STATUSES.join(", ")}`, 400);
   }
 
+  // Completing a linked test needs its report. Checked when the status or the link is part of this edit
+  // and the result is "Completed + linked" (re-saving an already-completed event is left alone).
+  const [existing] = await db.select().from(calendarEvents).where(eq(calendarEvents.id, id)).limit(1);
+  if (!existing) return error("Calendar event not found", 404);
+  let linkValue: string | null | undefined;
+  try {
+    if (body.requisition_no !== undefined) {
+      const linked = await resolveLinkedRequisition(body.requisition_no);
+      linkValue = linked?.requisitionNo ?? null;
+    }
+    const finalStatus = body.status !== undefined ? String(body.status) : existing.status;
+    const finalLink = linkValue !== undefined ? linkValue : existing.requisitionNo;
+    const changed = (body.status !== undefined && body.status !== existing.status) || (linkValue !== undefined && linkValue !== existing.requisitionNo);
+    if (changed && finalStatus === "Completed" && finalLink) {
+      const requisition = await resolveLinkedRequisition(finalLink);
+      if (requisition) await requireReportFiled(requisition);
+    }
+  } catch (e) {
+    if (e instanceof CalendarRuleError) return error(e.message, e.status);
+    throw e;
+  }
+
   const values: Record<string, unknown> = {};
+  if (linkValue !== undefined) values.requisitionNo = linkValue;
   for (const [snakeKey, camelKey] of Object.entries(FIELD_MAP)) {
     if (body[snakeKey] === undefined) continue;
     const v = body[snakeKey];
