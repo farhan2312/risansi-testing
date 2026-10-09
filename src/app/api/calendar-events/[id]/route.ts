@@ -6,8 +6,8 @@ import { AuthError, decodeToken } from "@/lib/auth";
 import { canManageCalendar } from "@/lib/calendarPermissions";
 import { db } from "@/lib/db";
 import { calendarEvents } from "@/lib/db/schema";
-import { CalendarRuleError, requireReportFiled, resolveLinkedRequisition } from "@/lib/calendarCompletion";
-import { CALENDAR_EVENT_STATUSES, RESPONSIBLE_PERSONS } from "@/types/testing";
+import { CalendarRuleError, MISSING_LINK_MESSAGE, requireReportFiled, resolveLinkedRequisition } from "@/lib/calendarCompletion";
+import { CALENDAR_EVENT_STATUSES, CALENDAR_EVENT_TYPES, RESPONSIBLE_PERSONS } from "@/types/testing";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +60,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // and the result is "Completed + linked" (re-saving an already-completed event is left alone).
   const [existing] = await db.select().from(calendarEvents).where(eq(calendarEvents.id, id)).limit(1);
   if (!existing) return error("Calendar event not found", 404);
+  if (body.event_type !== undefined && !(CALENDAR_EVENT_TYPES as readonly string[]).includes(String(body.event_type))) {
+    return error(`'event_type' must be one of: ${CALENDAR_EVENT_TYPES.join(", ")}`, 400);
+  }
   let linkValue: string | null | undefined;
   try {
     if (body.requisition_no !== undefined) {
@@ -67,9 +70,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       linkValue = linked?.requisitionNo ?? null;
     }
     const finalStatus = body.status !== undefined ? String(body.status) : existing.status;
+    const finalType = body.event_type !== undefined ? String(body.event_type) : existing.eventType;
+    // A Meeting / Calibration is not a test: it carries no requisition.
+    if (finalType !== "Test") linkValue = null;
     const finalLink = linkValue !== undefined ? linkValue : existing.requisitionNo;
-    const changed = (body.status !== undefined && body.status !== existing.status) || (linkValue !== undefined && linkValue !== existing.requisitionNo);
-    if (changed && finalStatus === "Completed" && finalLink) {
+    const touched = body.status !== undefined || body.event_type !== undefined || body.requisition_no !== undefined;
+    // Every Test names its requisition. Checked whenever the edit touches the type, link or status, so an
+    // old unlinked event can still have its notes fixed but can't be moved along without being linked.
+    if (touched && finalType === "Test" && !finalLink) return error(MISSING_LINK_MESSAGE, 400);
+    const changed =
+      (body.status !== undefined && body.status !== existing.status) ||
+      (linkValue !== undefined && linkValue !== existing.requisitionNo) ||
+      (body.event_type !== undefined && body.event_type !== existing.eventType);
+    if (changed && finalType === "Test" && finalStatus === "Completed" && finalLink) {
       const requisition = await resolveLinkedRequisition(finalLink);
       if (requisition) await requireReportFiled(requisition);
     }
@@ -80,6 +93,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const values: Record<string, unknown> = {};
   if (linkValue !== undefined) values.requisitionNo = linkValue;
+  if (body.event_type !== undefined) values.eventType = String(body.event_type);
   for (const [snakeKey, camelKey] of Object.entries(FIELD_MAP)) {
     if (body[snakeKey] === undefined) continue;
     const v = body[snakeKey];

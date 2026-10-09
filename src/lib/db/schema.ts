@@ -414,6 +414,9 @@ export const calendarEvents = pgTable("calendar_events", {
   // on requisitions/reports (see GET /api/calendar-events/ec-options), free text either way so an
   // event can still name one that isn't in the portal yet.
   ecQuotationNo: varchar("ec_quotation_no", { length: 100 }),
+  // 'Test' | 'Meeting' | 'Calibration' (CALENDAR_EVENT_TYPES in types/testing.ts). A Test must link a
+  // requisition (requisitionNo below); the other two are not tests and complete freely.
+  eventType: varchar("event_type", { length: 20 }).notNull().default("Test"),
   // The requisition this event is the test for, by its REQ-000123 number, if any. An event linked to one
   // can only be marked Completed once that requisition's test report has been filed (see
   // lib/calendarCompletion.ts). Plain text, no foreign key.

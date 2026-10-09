@@ -263,7 +263,7 @@ const CalendarPage = () => {
                                   {e.ec_quotation_no ? e.ec_quotation_no : e.model ? e.model : "Event"}
                                   {formatTimeRange(e) && ` · ${formatTimeRange(e)}`}
                                 </div>
-                                <div className={`mt-1.5 text-[11px] font-bold uppercase tracking-wider ${STATUS_STYLE[e.status].badge}`}>{e.status}</div>
+                                <div className={`mt-1.5 text-[11px] font-bold uppercase tracking-wider ${STATUS_STYLE[e.status].badge}`}>{e.status}{e.event_type !== "Test" ? ` · ${e.event_type}` : ""}</div>
                               </button>
                               {canManage && (
                                 <button

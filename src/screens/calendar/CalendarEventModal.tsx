@@ -11,6 +11,8 @@ import {
   type CalendarEcOption,
   type CalendarEvent,
   type CalendarEventStatus,
+  CALENDAR_EVENT_TYPES,
+  type CalendarEventType,
   type CalendarRequisitionOption,
   type TestRequisition,
 } from "@/types/testing";
@@ -89,6 +91,9 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
   const [ecNo, setEcNo] = useState(event?.ec_quotation_no ?? "");
   const [person, setPerson] = useState<string>(event?.responsible_person ?? RESPONSIBLE_PERSONS[0]);
   const [status, setStatus] = useState<CalendarEventStatus>(event?.status ?? "Planned");
+  // Every event is a Test (linked to a requisition) unless it is marked a Meeting or Calibration.
+  const [eventType, setEventType] = useState<CalendarEventType>(event?.event_type ?? "Test");
+  const isTest = eventType === "Test";
   const [eventDate, setEventDate] = useState(event?.event_date ?? defaultDate ?? "");
   const [startTime, setStartTime] = useState(event?.start_time ?? "");
   const [endTime, setEndTime] = useState(event?.end_time ?? "");
@@ -138,7 +143,7 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
   // The linked requisition (once loaded). Completing a linked test needs its report to be filed first.
   const linkedNo = reqDetails?.requisition_no ?? "";
   const reportFiled = (reqDetails?.reports?.length ?? 0) > 0;
-  const needsReport = status === "Completed" && !!linkedNo && !reportFiled && !reqLoading;
+  const needsReport = isTest && status === "Completed" && !!linkedNo && !reportFiled && !reqLoading;
 
   const reqMatch = (value: string) => reqOptions.find((o) => o.requisition_no.toLowerCase() === value.trim().toLowerCase());
 
@@ -186,6 +191,10 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
       setFormError("Date is required.");
       return;
     }
+    if (isTest && !linkedNo) {
+      setFormError("Pick the requisition this test is for (Requisition No.), or change the event type to Meeting or Calibration.");
+      return;
+    }
     if (needsReport) {
       setFormError(`Fill the test report for ${linkedNo} first -- a test is completed by filing its report.`);
       return;
@@ -194,7 +203,8 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
     setIsSubmitting(true);
     try {
       const payload = {
-        requisition_no: linkedNo,
+        event_type: eventType,
+        requisition_no: isTest ? linkedNo : "",
         title: title.trim(),
         event_date: eventDate,
         model,
@@ -240,10 +250,21 @@ const CalendarEventModal = ({ event, defaultDate, canManage, onClose, onSaved, o
             </div>
           )}
 
-          {canManage && (
+          <label htmlFor="cal-event-type" className={labelClasses}>
+            Event type
+          </label>
+          <select id="cal-event-type" value={eventType} onChange={(e) => setEventType(e.target.value as CalendarEventType)} disabled={!canManage} className={inputClasses}>
+            {CALENDAR_EVENT_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t === "Test" ? "Test (needs a requisition)" : t}
+              </option>
+            ))}
+          </select>
+
+          {canManage && isTest && (
             <>
               <label htmlFor="cal-event-req" className={labelClasses}>
-                Requisition No. (optional)
+                Requisition No. *
               </label>
               <input
                 id="cal-event-req"

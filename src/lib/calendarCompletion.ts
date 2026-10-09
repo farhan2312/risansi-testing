@@ -19,6 +19,9 @@ export class CalendarRuleError extends Error {
   }
 }
 
+export const MISSING_LINK_MESSAGE =
+  "Pick the requisition this test is for, or mark the event as a Meeting or Calibration if it is not a test.";
+
 /** The canonical REQ-number for whatever the caller typed (a number or the uuid), or null for blank. */
 export async function resolveLinkedRequisition(raw: unknown): Promise<{ id: string; requisitionNo: string } | null> {
   if (raw === undefined || raw === null || raw === "") return null;

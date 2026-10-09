@@ -876,6 +876,10 @@ export interface ImprovementModelsResult {
   not_listed: string[];
 }
 
+/** A Test must be linked to a requisition; a Meeting or Calibration is not a test. */
+export const CALENDAR_EVENT_TYPES = ["Test", "Meeting", "Calibration"] as const;
+export type CalendarEventType = (typeof CALENDAR_EVENT_TYPES)[number];
+
 export const CALENDAR_EVENT_STATUSES = ["Planned", "In Testing", "Completed"] as const;
 export type CalendarEventStatus = (typeof CALENDAR_EVENT_STATUSES)[number];
 
@@ -888,6 +892,8 @@ export interface CalendarEvent {
   model: string | null;
   /** The EC/Quotation No. this event relates to, if any -- see GET /api/calendar-events/ec-options. */
   ec_quotation_no: string | null;
+  /** Test (needs a requisition) or a non-test Meeting / Calibration. */
+  event_type: CalendarEventType;
   /** The requisition this event is the test for (REQ-000123), if any -- completing it needs that test's report. */
   requisition_no: string | null;
   /** Who it's for -- the calendar's row grouping (RESPONSIBLE_PERSONS); null = unassigned. */
@@ -908,6 +914,7 @@ export interface NewCalendarEventInput {
   event_date: string;
   model?: string;
   ec_quotation_no?: string;
+  event_type?: CalendarEventType;
   /** "" clears the link. */
   requisition_no?: string;
   responsible_person?: string;

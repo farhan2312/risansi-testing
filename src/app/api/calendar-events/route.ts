@@ -6,8 +6,8 @@ import { AuthError, decodeToken } from "@/lib/auth";
 import { canCreateCalendarEvent } from "@/lib/calendarPermissions";
 import { db } from "@/lib/db";
 import { calendarEvents, users } from "@/lib/db/schema";
-import { CalendarRuleError, requireReportFiled, resolveLinkedRequisition } from "@/lib/calendarCompletion";
-import { CALENDAR_EVENT_STATUSES, RESPONSIBLE_PERSONS } from "@/types/testing";
+import { CalendarRuleError, MISSING_LINK_MESSAGE, requireReportFiled, resolveLinkedRequisition } from "@/lib/calendarCompletion";
+import { CALENDAR_EVENT_STATUSES, CALENDAR_EVENT_TYPES, RESPONSIBLE_PERSONS } from "@/types/testing";
 
 export const dynamic = "force-dynamic";
 
@@ -69,11 +69,19 @@ export async function POST(req: Request) {
   }
   const status = typeof body.status === "string" && CALENDAR_EVENT_STATUSES.includes(body.status as never) ? body.status : "Planned";
 
-  // A linked requisition makes this a test: it can only be created already Completed if its report is filed.
-  let linked: Awaited<ReturnType<typeof resolveLinkedRequisition>>;
+  // Every event is a Test unless marked a Meeting / Calibration. A Test must name its requisition, and can
+  // only be created already Completed if that requisition's report is filed.
+  const eventType = body.event_type === undefined || body.event_type === "" ? "Test" : String(body.event_type);
+  if (!(CALENDAR_EVENT_TYPES as readonly string[]).includes(eventType)) {
+    return error(`'event_type' must be one of: ${CALENDAR_EVENT_TYPES.join(", ")}`, 400);
+  }
+  let linked: Awaited<ReturnType<typeof resolveLinkedRequisition>> = null;
   try {
-    linked = await resolveLinkedRequisition(body.requisition_no);
-    if (linked && status === "Completed") await requireReportFiled(linked);
+    if (eventType === "Test") {
+      linked = await resolveLinkedRequisition(body.requisition_no);
+      if (!linked) return error(MISSING_LINK_MESSAGE, 400);
+      if (status === "Completed") await requireReportFiled(linked);
+    }
   } catch (e) {
     if (e instanceof CalendarRuleError) return error(e.message, e.status);
     throw e;
@@ -89,6 +97,7 @@ export async function POST(req: Request) {
       eventDate,
       status,
       model: typeof body.model === "string" && body.model.trim() ? body.model.trim() : null,
+      eventType,
       requisitionNo: linked?.requisitionNo ?? null,
       ecQuotationNo: typeof body.ec_quotation_no === "string" && body.ec_quotation_no.trim() ? body.ec_quotation_no.trim() : null,
       responsiblePerson,
