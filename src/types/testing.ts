@@ -537,6 +537,23 @@ export type BugReportStatus = "Open" | "In Progress" | "Resolved";
 
 /** Metadata only -- screenshot bytes are never sent down with the list, only
  * via the dedicated GET .../bug-reports/[id]/screenshot endpoint. */
+/** One "your bug report's status changed" notification for the signed-in user (top-bar bell). */
+export interface BugNotification {
+  id: string;
+  bug_report_id: string | null;
+  bug_title: string;
+  old_status: string | null;
+  new_status: string;
+  changed_by_name: string | null;
+  created_at: string;
+  is_read: boolean;
+}
+
+export interface BugNotificationsResult {
+  unread: number;
+  items: BugNotification[];
+}
+
 export interface BugReport {
   id: string;
   type: BugReportType;

@@ -8,6 +8,7 @@ import type {
   AuditSummary,
   AuditUsageRow,
   AuditUserPageRow,
+  BugNotificationsResult,
   BugReport,
   BugReportListResult,
   BugReportStatus,
@@ -156,6 +157,16 @@ export const getBugReport = async (id: string): Promise<BugReport> => {
 };
 
 /** Lightweight count-only poll for the sidebar notification bell. */
+/** The signed-in user's own bug-report status notifications (any role -- these are about reports THEY filed). */
+export const getBugNotifications = async (): Promise<BugNotificationsResult> => {
+  const { data } = await apiClient.get<BugNotificationsResult>("/bug-notifications");
+  return data;
+};
+
+export const markBugNotificationsRead = async (): Promise<void> => {
+  await apiClient.patch("/bug-notifications", { all: true });
+};
+
 export const getUnreadBugReportCount = async (): Promise<number> => {
   const { data } = await apiClient.get<{ count: number }>("/bug-reports/unread-count");
   return data.count;

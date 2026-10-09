@@ -288,6 +288,23 @@ export const bugReports = pgTable("bug_reports", {
   isRead: boolean("is_read").notNull().default(false),
 });
 
+// "Your bug report's status changed" notifications, shown in the reporter's top-bar bell (see
+// bug-reports/[id] PATCH and /api/bug-notifications). userId is the recipient (the report's reporter).
+// bugTitle / changedByName are snapshots, and there are no foreign keys, so removing a bug report or an
+// account never has to clean these up first.
+export const bugReportNotifications = pgTable("bug_report_notifications", {
+  id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: uuid("user_id").notNull(),
+  bugReportId: uuid("bug_report_id"),
+  bugTitle: varchar("bug_title", { length: 255 }).notNull(),
+  oldStatus: varchar("old_status", { length: 20 }),
+  newStatus: varchar("new_status", { length: 20 }).notNull(),
+  changedByName: varchar("changed_by_name", { length: 100 }),
+  createdAt: timestamp("created_at", { withTimezone: true }).$defaultFn(() => new Date()),
+  // null = not seen yet (counts toward the bell's badge).
+  readAt: timestamp("read_at", { withTimezone: true }),
+});
+
 // Audit Log: append-only trail of logins and every data-changing action,
 // admin-only (see audit.ts and the audit-log API routes). user_id/name/email
 // are ALWAYS a name snapshot (same convention as submitted_by elsewhere) --

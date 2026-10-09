@@ -249,6 +249,20 @@
   color: var(--text-muted);
 }
 
+/* One entry in the "Your bug reports" panel; unseen ones get an accent bar until the panel is closed. */
+.topbar-note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.topbar-note-new .topbar-note {
+  background: var(--surface-hover);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
 .topbar-report-bug-btn {
   padding: 6px 14px;
   border-radius: 999px;

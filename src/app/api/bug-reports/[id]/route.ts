@@ -4,7 +4,7 @@ import { bugReportToDict, error, json } from "@/lib/api";
 import { getClientIp, logAudit } from "@/lib/audit";
 import { AuthError, requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { bugReports } from "@/lib/db/schema";
+import { bugReportNotifications, bugReports, users } from "@/lib/db/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +53,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return error("Invalid status", 400);
   }
 
+  // What the status was before this change, so the reporter can be told "Open -> In Progress".
+  const [before] = await db.select({ status: bugReports.status }).from(bugReports).where(eq(bugReports.id, id)).limit(1);
+
   const [report] = await db
     .update(bugReports)
     .set(status !== undefined ? { status } : {})
@@ -60,6 +63,24 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .returning();
 
   if (!report) return error("Bug report not found", 404);
+
+  // Tell whoever reported it (their top-bar bell) when the status actually changed. Not when an admin
+  // moves their own report, and never allowed to fail the status change itself.
+  if (status !== undefined && before?.status !== status && report.reportedBy && report.reportedBy !== claims.sub) {
+    try {
+      const [admin] = await db.select({ name: users.name }).from(users).where(eq(users.id, claims.sub)).limit(1);
+      await db.insert(bugReportNotifications).values({
+        userId: report.reportedBy,
+        bugReportId: report.id,
+        bugTitle: report.title,
+        oldStatus: before?.status ?? null,
+        newStatus: status,
+        changedByName: (admin?.name ?? claims.email).slice(0, 100),
+      });
+    } catch (err) {
+      console.error("[bug-reports] could not create the reporter notification:", err);
+    }
+  }
 
   if (status !== undefined) {
     await logAudit({

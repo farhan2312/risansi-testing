@@ -9,12 +9,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import EditPasswordModal from "@/components/ui/EditPasswordModal";
 import ReportBugModal from "@/components/ui/ReportBugModal";
-import { getUnreadBugReportCount, listPendingUsers } from "@/services/adminService";
+import { getBugNotifications, getUnreadBugReportCount, listPendingUsers, markBugNotificationsRead } from "@/services/adminService";
 import { logout as logoutRequest } from "@/services/authService";
 import { recordPageView } from "@/services/auditService";
 import { getTargetDateAlerts } from "@/services/testingService";
 import { formatDate } from "@/lib/formUtils";
-import type { TargetDateAlertItem } from "@/types/testing";
+import type { BugNotification, TargetDateAlertItem } from "@/types/testing";
 
 const PENDING_REQUESTS_POLL_MS = 30000;
 
@@ -152,6 +152,11 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const [isRefreshingAlerts, setIsRefreshingAlerts] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const alertsRef = useRef<HTMLDivElement>(null);
+  // "Your bug report's status changed" notifications -- for whoever reported the bug, any role.
+  const [bugNotes, setBugNotes] = useState<BugNotification[]>([]);
+  const [bugNotesUnread, setBugNotesUnread] = useState(0);
+  const [showBugNotes, setShowBugNotes] = useState(false);
+  const bugNotesRef = useRef<HTMLDivElement>(null);
 
   // Polls for pending access requests so admins see a live badge on the nav
   // item without having to open the Access Requests page to find out.
@@ -220,6 +225,39 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
+  // Same polling pattern, for the reporter's bug-report updates. Open to every role.
+  useEffect(() => {
+    let cancelled = false;
+    const poll = () => {
+      getBugNotifications()
+        .then((result) => {
+          if (cancelled) return;
+          setBugNotes(result.items);
+          setBugNotesUnread(result.unread);
+        })
+        .catch(() => {});
+    };
+
+    poll();
+    const interval = setInterval(poll, PENDING_REQUESTS_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Opening the panel is what "seeing" them means: the badge clears at once, while the entries keep their
+  // "new" highlight until the panel is closed.
+  const toggleBugNotes = () => {
+    const opening = !showBugNotes;
+    setShowBugNotes(opening);
+    if (opening && bugNotesUnread > 0) {
+      setBugNotesUnread(0);
+      markBugNotificationsRead().catch(() => {});
+    }
+    if (!opening) setBugNotes((items) => items.map((n) => ({ ...n, is_read: true })));
+  };
+
   // Manual refresh for the notification icons -- the polls above already
   // catch up within 30s on their own, this just lets someone force it
   // immediately (e.g. right after raising or resolving something) rather
@@ -245,6 +283,9 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       }
       if (alertsRef.current && !alertsRef.current.contains(e.target as Node)) {
         setShowAlertsPanel(false);
+      }
+      if (bugNotesRef.current && !bugNotesRef.current.contains(e.target as Node)) {
+        setShowBugNotes(false);
       }
     };
     document.addEventListener("mousedown", onClickOutside);
@@ -443,6 +484,42 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
                               {item.status} &middot; due {formatDate(item.target_date)}
                             </span>
                           </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="topbar-alerts-wrap" ref={bugNotesRef}>
+              <button
+                type="button"
+                className="topbar-bell-btn"
+                onClick={toggleBugNotes}
+                aria-label={`Updates on your bug reports${bugNotesUnread > 0 ? ` (${bugNotesUnread} new)` : ""}`}
+                title="Updates on the bugs you reported"
+              >
+                📬
+                {bugNotesUnread > 0 && <span className="topbar-bell-badge">{bugNotesUnread > 99 ? "99+" : bugNotesUnread}</span>}
+              </button>
+              {showBugNotes && (
+                <div className="topbar-alerts-panel">
+                  <div className="topbar-alerts-panel-header">Your bug reports</div>
+                  {bugNotes.length === 0 ? (
+                    <p className="topbar-alerts-empty">No updates on your bug reports yet.</p>
+                  ) : (
+                    <ul className="topbar-alerts-list">
+                      {bugNotes.map((n) => (
+                        <li key={n.id} className={n.is_read ? "" : "topbar-note-new"}>
+                          <div className="topbar-note">
+                            <span className="topbar-alerts-model">{n.bug_title}</span>
+                            <span className="topbar-alerts-meta">
+                              {n.old_status ? `${n.old_status} → ` : "Now "}
+                              <strong>{n.new_status}</strong>
+                              {n.changed_by_name ? ` · by ${n.changed_by_name}` : ""} ·{" "}
+                              {new Date(n.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
                         </li>
                       ))}
                     </ul>
